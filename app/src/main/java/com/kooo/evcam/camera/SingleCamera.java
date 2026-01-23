@@ -213,16 +213,9 @@ public class SingleCamera {
                 previewSize = chooseOptimalSize(sizes);
                 Log.d(TAG, "Camera " + cameraId + " selected preview size: " + previewSize);
 
-                // 初始化ImageReader用于拍照
-                if (previewSize != null) {
-                    imageReader = ImageReader.newInstance(
-                            previewSize.getWidth(),
-                            previewSize.getHeight(),
-                            ImageFormat.JPEG,
-                            2
-                    );
-                    Log.d(TAG, "Camera " + cameraId + " ImageReader created");
-                }
+                // 不在这里初始化ImageReader，改为拍照时按需创建
+                // 这样可以避免占用额外的缓冲区，防止超过系统限制(4个buffer)
+                Log.d(TAG, "Camera " + cameraId + " ImageReader will be created on demand when taking picture");
 
                 // 通知回调预览尺寸已确定
                 if (callback != null && previewSize != null) {
@@ -448,11 +441,8 @@ public class SingleCamera {
                 Log.d(TAG, "Added record surface to camera " + cameraId);
             }
 
-            // 添加ImageReader的Surface用于拍照
-            if (imageReader != null) {
-                surfaces.add(imageReader.getSurface());
-                Log.d(TAG, "Added image reader surface to camera " + cameraId);
-            }
+            // 不再在预览会话中添加ImageReader Surface
+            // ImageReader将在拍照时按需创建，避免占用额外缓冲区
 
             Log.d(TAG, "Camera " + cameraId + " Total surfaces: " + surfaces.size());
 
@@ -525,63 +515,48 @@ public class SingleCamera {
     }
 
     /**
-     * 拍照
+     * 拍照（直接从TextureView截取画面，避免使用ImageReader）
      */
     public void takePicture() {
-        if (cameraDevice == null || captureSession == null) {
-            Log.e(TAG, "Camera " + cameraId + " not ready for taking picture");
+        if (textureView == null || !textureView.isAvailable()) {
+            Log.e(TAG, "Camera " + cameraId + " TextureView not available");
             return;
         }
 
-        if (imageReader == null) {
-            Log.e(TAG, "Camera " + cameraId + " ImageReader not initialized");
+        if (previewSize == null) {
+            Log.e(TAG, "Camera " + cameraId + " preview size not available");
             return;
         }
 
-        try {
-            // 设置ImageReader的回调（如果还没设置）
-            imageReader.setOnImageAvailableListener(reader -> {
-                Image image = null;
+        // 在后台线程中处理截图和保存
+        if (backgroundHandler != null) {
+            backgroundHandler.post(() -> {
                 try {
-                    image = reader.acquireLatestImage();
-                    if (image != null) {
-                        // 保存图像
-                        saveImage(image);
+                    // 从TextureView获取Bitmap，使用原始预览分辨率避免变形
+                    // 这样可以获取未经变换的原始画面
+                    android.graphics.Bitmap bitmap = textureView.getBitmap(
+                            previewSize.getWidth(),
+                            previewSize.getHeight()
+                    );
+                    if (bitmap != null) {
+                        saveBitmapAsJPEG(bitmap);
+                        bitmap.recycle();
+                        Log.d(TAG, "Camera " + cameraId + " picture captured from TextureView (" +
+                              bitmap.getWidth() + "x" + bitmap.getHeight() + ")");
+                    } else {
+                        Log.e(TAG, "Camera " + cameraId + " failed to get bitmap from TextureView");
                     }
-                } finally {
-                    if (image != null) {
-                        image.close();
-                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Camera " + cameraId + " error capturing picture", e);
                 }
-            }, backgroundHandler);
-
-            // 创建拍照请求
-            final CaptureRequest.Builder captureBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
-            captureBuilder.addTarget(imageReader.getSurface());
-
-            // 设置自动对焦和自动曝光
-            captureBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-            captureBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON);
-
-            // 执行拍照
-            captureSession.capture(captureBuilder.build(), new CameraCaptureSession.CaptureCallback() {
-                @Override
-                public void onCaptureCompleted(@NonNull CameraCaptureSession session,
-                                              @NonNull CaptureRequest request,
-                                              @NonNull TotalCaptureResult result) {
-                    Log.d(TAG, "Camera " + cameraId + " picture captured");
-                }
-            }, backgroundHandler);
-
-        } catch (CameraAccessException e) {
-            Log.e(TAG, "Failed to take picture for camera " + cameraId, e);
+            });
         }
     }
 
     /**
-     * 保存图像到文件
+     * 将Bitmap保存为JPEG文件
      */
-    private void saveImage(Image image) {
+    private void saveBitmapAsJPEG(android.graphics.Bitmap bitmap) {
         File photoDir = new File(android.os.Environment.getExternalStoragePublicDirectory(
                 android.os.Environment.DIRECTORY_DCIM), "EVCam_Photo");
         if (!photoDir.exists()) {
@@ -593,14 +568,11 @@ public class SingleCamera {
         String position = (cameraPosition != null) ? cameraPosition : cameraId;
         File photoFile = new File(photoDir, timestamp + "_" + position + ".jpg");
 
-        ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-        byte[] bytes = new byte[buffer.remaining()];
-        buffer.get(bytes);
-
         FileOutputStream output = null;
         try {
             output = new FileOutputStream(photoFile);
-            output.write(bytes);
+            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, output);
+            output.flush();
             Log.d(TAG, "Photo saved: " + photoFile.getAbsolutePath());
         } catch (IOException e) {
             Log.e(TAG, "Failed to save photo", e);

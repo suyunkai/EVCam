@@ -520,7 +520,7 @@ public class MultiCameraManager {
     }
 
     /**
-     * 拍照（所有活动的摄像头同时拍照）
+     * 拍照（所有活动的摄像头顺序拍照，避免资源耗尽）
      */
     public void takePicture() {
         List<String> keys = getActiveCameraKeys();
@@ -529,12 +529,22 @@ public class MultiCameraManager {
             return;
         }
 
-        Log.d(TAG, "Taking picture with " + keys.size() + " camera(s)");
-        for (String key : keys) {
-            SingleCamera camera = cameras.get(key);
-            if (camera != null && camera.isConnected()) {
-                camera.takePicture();
-            }
+        Log.d(TAG, "Taking picture with " + keys.size() + " camera(s) sequentially");
+
+        // 顺序拍照，每个摄像头间隔300ms，避免同时发起多个STILL_CAPTURE请求导致资源耗尽
+        for (int i = 0; i < keys.size(); i++) {
+            final String key = keys.get(i);
+            final int delay = i * 300; // 每个摄像头延迟300ms
+
+            mainHandler.postDelayed(() -> {
+                SingleCamera camera = cameras.get(key);
+                if (camera != null && camera.isConnected()) {
+                    Log.d(TAG, "Taking picture with camera " + key);
+                    camera.takePicture();
+                } else {
+                    Log.w(TAG, "Camera " + key + " not available for taking picture");
+                }
+            }, delay);
         }
     }
 

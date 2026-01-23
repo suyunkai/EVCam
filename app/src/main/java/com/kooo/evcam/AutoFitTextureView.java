@@ -12,6 +12,7 @@ public class AutoFitTextureView extends TextureView {
 
     private int ratioWidth = 0;
     private int ratioHeight = 0;
+    private boolean fillContainer = false;  // 是否填满容器（而不是适应容器）
 
     public AutoFitTextureView(Context context) {
         this(context, null);
@@ -40,6 +41,16 @@ public class AutoFitTextureView extends TextureView {
         requestLayout();
     }
 
+    /**
+     * 设置是否填满容器
+     *
+     * @param fill true=填满容器（可能裁切），false=适应容器（可能有黑边）
+     */
+    public void setFillContainer(boolean fill) {
+        this.fillContainer = fill;
+        requestLayout();
+    }
+
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
@@ -50,17 +61,25 @@ public class AutoFitTextureView extends TextureView {
             // 如果没有设置宽高比，使用默认测量
             setMeasuredDimension(width, height);
         } else {
-            // 根据宽高比调整尺寸，尽可能填满容器
+            // 根据宽高比调整尺寸
             int newWidth, newHeight;
 
             // 方案1：基于容器宽度计算高度
             newWidth = width;
             newHeight = width * ratioHeight / ratioWidth;
 
-            // 如果计算出的高度超过容器高度，则基于容器高度计算宽度
-            if (newHeight > height) {
-                newHeight = height;
-                newWidth = height * ratioWidth / ratioHeight;
+            if (fillContainer) {
+                // 填满模式：如果高度不足，放大以填满容器
+                if (newHeight < height) {
+                    newHeight = height;
+                    newWidth = height * ratioWidth / ratioHeight;
+                }
+            } else {
+                // 适应模式：如果高度超出，缩小以适应容器
+                if (newHeight > height) {
+                    newHeight = height;
+                    newWidth = height * ratioWidth / ratioHeight;
+                }
             }
 
             setMeasuredDimension(newWidth, newHeight);

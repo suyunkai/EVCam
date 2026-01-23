@@ -20,7 +20,11 @@
       "Bash(git add:*)",
       "Bash(adb uninstall:*)",
       "Bash(e:\\e5\\EVCam\\gradlew.bat assembleDebug:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(adb logcat:*)",
+      "Bash(adb shell:*)",
+      "Bash(timeout:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

@@ -17,55 +17,26 @@
             android:id="@+id/main"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:background="#000000">
+            android:orientation="horizontal"
+            android:paddingTop="50dp"
+            android:background="@color/menu_background">
 
-    <!-- 菜单按钮栏 -->
+    <!-- 左侧：前后摄像头垂直排列 (横向1280x800) -->
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="8dp"
-        android:background="@color/menu_background">
-
-        <Button
-            android:id="@+id/btn_menu"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="☰"
-            android:textSize="18sp"
-            android:minWidth="48dp"
-            android:minHeight="48dp"
-            android:backgroundTint="@color/button_background"
-            android:textColor="@color/button_text" />
-    </LinearLayout>
-
-    <!-- 摄像头显示区域：左侧前后，右侧左右 -->
-    <!-- 左侧：1280宽的横向画面 x2 (上下排列) -->
-    <!-- 右侧：800宽的竖向画面 x2 (左右排列) = 1600宽 -->
-    <!-- 比例：1280:1600 = 4:5 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:orientation="horizontal">
-
-        <!-- 左侧：前后摄像头垂直排列 (横向1280x800) -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="16"
-            android:orientation="vertical">
+        android:layout_width="215dp"
+        android:layout_height="match_parent"
+        android:layout_weight="16"
+        android:orientation="vertical">
 
             <!-- 前摄像头 -->
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_weight="1"
                 android:layout_marginStart="1dp"
-                android:layout_marginEnd="16dp"
                 android:layout_marginTop="2dp"
+                android:layout_marginEnd="16dp"
                 android:layout_marginBottom="8dp"
+                android:layout_weight="1.0"
                 android:gravity="center">
 
                 <com.kooo.evcam.AutoFitTextureView
@@ -78,7 +49,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="top|start"
-                    android:layout_marginStart="25dp"
+                    android:layout_marginStart="15dp"
                     android:layout_marginTop="8dp"
                     android:background="#80000000"
                     android:padding="8dp"
@@ -91,24 +62,26 @@
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_weight="1"
                 android:layout_marginStart="1dp"
-                android:layout_marginEnd="16dp"
                 android:layout_marginTop="8dp"
+                android:layout_marginEnd="16dp"
                 android:layout_marginBottom="2dp"
+                android:layout_weight="1.0"
+                android:clipChildren="true"
                 android:gravity="center">
 
                 <com.kooo.evcam.AutoFitTextureView
                     android:id="@+id/texture_back"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:layout_gravity="center" />
+                    android:layout_gravity="top"
+                    android:layout_marginBottom="-16dp" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="top|start"
-                    android:layout_marginStart="25dp"
+                    android:layout_marginStart="15dp"
                     android:layout_marginTop="8dp"
                     android:background="#80000000"
                     android:padding="8dp"
@@ -118,12 +91,93 @@
             </FrameLayout>
         </LinearLayout>
 
-        <!-- 右侧：左右摄像头水平排列（旋转90度后竖向800x1280） -->
+        <!-- 右侧：上方按钮区域，下方左右摄像头 -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_weight="25"
-            android:orientation="horizontal">
+            android:layout_weight="24"
+            android:orientation="vertical">
+
+            <!-- 按钮区域 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="8dp"
+                android:layout_marginTop="2dp"
+                android:gravity="center">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+
+                    <Button
+                        android:id="@+id/btn_menu"
+                        android:layout_width="120dp"
+                        android:layout_height="120dp"
+                        android:layout_margin="20dp"
+                        android:text="☰"
+                        android:textSize="40sp"
+                        android:backgroundTint="#1A1A1A"
+                        android:textColor="#FFFFFF"
+                        android:elevation="4dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        app:cornerRadius="12dp" />
+
+                    <Button
+                        android:id="@+id/btn_start_record"
+                        android:layout_width="120dp"
+                        android:layout_height="120dp"
+                        android:layout_margin="20dp"
+                        android:text="○"
+                        android:textSize="52sp"
+                        android:backgroundTint="#1A1A1A"
+                        android:textColor="#FF0000"
+                        android:elevation="4dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        app:cornerRadius="12dp" />
+
+                    <Button
+                        android:id="@+id/btn_take_photo"
+                        android:layout_width="120dp"
+                        android:layout_height="120dp"
+                        android:layout_margin="20dp"
+                        android:text="◉"
+                        android:textSize="48sp"
+                        android:backgroundTint="#1A1A1A"
+                        android:textColor="#FFFFFF"
+                        android:elevation="4dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        app:cornerRadius="12dp" />
+
+                    <Button
+                        android:id="@+id/btn_stop_record"
+                        android:layout_width="120dp"
+                        android:layout_height="120dp"
+                        android:layout_margin="20dp"
+                        android:text="□"
+                        android:enabled="false"
+                        android:textSize="48sp"
+                        android:backgroundTint="#1A1A1A"
+                        android:textColor="#FFFFFF"
+                        android:elevation="4dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        app:cornerRadius="12dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- 左右摄像头水平排列 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal">
 
             <!-- 左摄像头（逆时针旋转90度） -->
             <FrameLayout
@@ -131,23 +185,23 @@
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:layout_marginStart="12dp"
-                android:layout_marginEnd="1dp"
+                android:layout_marginEnd="8dp"
                 android:layout_marginTop="2dp"
-                android:layout_marginBottom="2dp"
+                android:layout_marginBottom="0dp"
                 android:gravity="center">
 
                 <com.kooo.evcam.AutoFitTextureView
                     android:id="@+id/texture_left"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:layout_gravity="center" />
+                    android:layout_gravity="bottom" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="top|start"
-                    android:layout_marginStart="22dp"
-                    android:layout_marginTop="8dp"
+                    android:layout_gravity="bottom|start"
+                    android:layout_marginStart="15dp"
+                    android:layout_marginBottom="8dp"
                     android:background="#80000000"
                     android:padding="8dp"
                     android:text="左"
@@ -160,82 +214,33 @@
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:layout_marginStart="1dp"
+                android:layout_marginStart="8dp"
                 android:layout_marginEnd="2dp"
                 android:layout_marginTop="2dp"
-                android:layout_marginBottom="2dp"
+                android:layout_marginBottom="0dp"
                 android:gravity="center">
 
                 <com.kooo.evcam.AutoFitTextureView
                     android:id="@+id/texture_right"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:layout_gravity="center" />
+                    android:layout_gravity="bottom" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="top|start"
-                    android:layout_marginStart="22dp"
-                    android:layout_marginTop="8dp"
+                    android:layout_gravity="bottom|start"
+                    android:layout_marginStart="15dp"
+                    android:layout_marginBottom="8dp"
                     android:background="#80000000"
                     android:padding="8dp"
                     android:text="右"
                     android:textColor="#FFFFFF"
                     android:textSize="16sp" />
             </FrameLayout>
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
-
-    <!-- 控制按钮区域 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="16dp"
-        android:gravity="center"
-        android:background="@color/menu_background">
-
-        <Button
-            android:id="@+id/btn_start_record"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="50dp"
-            android:text="开始录制"
-            android:textSize="16sp"
-            android:paddingStart="24dp"
-            android:paddingEnd="24dp"
-            android:backgroundTint="@color/button_background"
-            android:textColor="@color/button_text" />
-
-        <Button
-            android:id="@+id/btn_take_photo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="50dp"
-            android:layout_marginEnd="50dp"
-            android:text="拍照"
-            android:textSize="16sp"
-            android:paddingStart="24dp"
-            android:paddingEnd="24dp"
-            android:backgroundTint="@color/button_background"
-            android:textColor="@color/button_text" />
-
-        <Button
-            android:id="@+id/btn_stop_record"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="50dp"
-            android:text="停止录制"
-            android:enabled="false"
-            android:textSize="16sp"
-            android:paddingStart="24dp"
-            android:paddingEnd="24dp"
-            android:backgroundTint="@color/button_background"
-            android:textColor="@color/button_text" />
-    </LinearLayout>
-
-</LinearLayout>
 
         <!-- Fragment container for playback -->
         <FrameLayout

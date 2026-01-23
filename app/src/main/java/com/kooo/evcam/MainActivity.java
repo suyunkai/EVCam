@@ -68,6 +68,11 @@ public class MainActivity extends AppCompatActivity {
     private MultiCameraManager cameraManager;
     private int textureReadyCount = 0;  // 记录准备好的TextureView数量
 
+    // 录制按钮闪烁动画相关
+    private android.os.Handler blinkHandler;
+    private Runnable blinkRunnable;
+    private boolean isBlinking = false;
+
     // 导航相关
     private DrawerLayout drawerLayout;
     private NavigationView navigationView;
@@ -90,7 +95,14 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // 设置字体缩放比例（1.3倍）
+        adjustFontScale(1.2f);
+
         setContentView(R.layout.activity_main);
+
+        // 设置状态栏沉浸式
+        setupStatusBar();
 
         initViews();
         setupNavigationDrawer();
@@ -110,6 +122,34 @@ public class MainActivity extends AppCompatActivity {
         // 如果启用了自动启动，启动钉钉服务
         if (dingTalkConfig.isConfigured() && dingTalkConfig.isAutoStart()) {
             startDingTalkService();
+        }
+    }
+
+    private void adjustFontScale(float scale) {
+        android.content.res.Configuration configuration = getResources().getConfiguration();
+        configuration.fontScale = scale;
+        android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
+        getBaseContext().getResources().updateConfiguration(configuration, metrics);
+    }
+
+    private void setupStatusBar() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            // 设置状态栏颜色为菜单栏背景色
+            getWindow().setStatusBarColor(ContextCompat.getColor(this, R.color.menu_background));
+
+            // 根据当前主题模式设置状态栏图标颜色
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                int nightModeFlags = getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+                if (nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES) {
+                    // 夜间模式：清除浅色状态栏标志，使用深色图标变为浅色图标
+                    getWindow().getDecorView().setSystemUiVisibility(0);
+                } else {
+                    // 日间模式：设置状态栏图标为深色（因为背景是浅色）
+                    getWindow().getDecorView().setSystemUiVisibility(
+                        View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                    );
+                }
+            }
         }
     }
 
@@ -366,7 +406,9 @@ public class MainActivity extends AppCompatActivity {
                     } else {
                         // 前后摄像头：使用原始宽高比（1280x800，横向）
                         textureView.setAspectRatio(previewSize.getWidth(), previewSize.getHeight());
-                        Log.d(TAG, "设置 " + cameraKey + " 宽高比: " + previewSize.getWidth() + ":" + previewSize.getHeight());
+                        // 启用填满模式，避免黑边
+                        textureView.setFillContainer(true);
+                        Log.d(TAG, "设置 " + cameraKey + " 宽高比: " + previewSize.getWidth() + ":" + previewSize.getHeight() + ", 填满模式");
                     }
                 }
             });
@@ -588,6 +630,10 @@ public class MainActivity extends AppCompatActivity {
             if (success) {
                 btnStartRecord.setEnabled(false);
                 btnStopRecord.setEnabled(true);
+
+                // 开始闪烁动画
+                startBlinkAnimation();
+
                 Toast.makeText(this, "开始录制（每1分钟自动分段）", Toast.LENGTH_SHORT).show();
                 Log.d(TAG, "Recording started");
             } else {
@@ -601,9 +647,49 @@ public class MainActivity extends AppCompatActivity {
             cameraManager.stopRecording();
             btnStartRecord.setEnabled(true);
             btnStopRecord.setEnabled(false);
+
+            // 停止闪烁动画，恢复红色
+            stopBlinkAnimation();
+
             Toast.makeText(this, "录制已停止", Toast.LENGTH_SHORT).show();
             Log.d(TAG, "Recording stopped");
         }
+    }
+
+    private void startBlinkAnimation() {
+        if (blinkHandler == null) {
+            blinkHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        }
+
+        isBlinking = true;
+        blinkRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (isBlinking) {
+                    // 切换颜色：绿色和深绿色交替
+                    int currentColor = btnStartRecord.getTextColors().getDefaultColor();
+                    if (currentColor == 0xFF00FF00) {  // 亮绿色
+                        btnStartRecord.setTextColor(0xFF006400);  // 深绿色
+                    } else {
+                        btnStartRecord.setTextColor(0xFF00FF00);  // 亮绿色
+                    }
+                    blinkHandler.postDelayed(this, 500);  // 每500ms闪烁一次
+                }
+            }
+        };
+
+        // 初始设置为绿色
+        btnStartRecord.setTextColor(0xFF00FF00);
+        blinkHandler.post(blinkRunnable);
+    }
+
+    private void stopBlinkAnimation() {
+        isBlinking = false;
+        if (blinkHandler != null && blinkRunnable != null) {
+            blinkHandler.removeCallbacks(blinkRunnable);
+        }
+        // 恢复红色
+        btnStartRecord.setTextColor(0xFFFF0000);
     }
 
     private void takePicture() {
