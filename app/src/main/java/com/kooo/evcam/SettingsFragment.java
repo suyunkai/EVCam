@@ -44,7 +44,9 @@ public class SettingsFragment extends Fragment {
     // 车型配置相关
     private Spinner carModelSpinner;
     private Button customCameraConfigButton;
-    private static final String[] CAR_MODEL_OPTIONS = {"银河E5", "自定义车型"};
+    private static final String[] CAR_MODEL_OPTIONS = {"银河E5", "银河L6/L7", "自定义车型"};
+    private boolean isInitializingCarModel = false;  // 标志位：是否正在初始化车型配置
+    private String lastAppliedCarModel = null;  // 记录上次已应用的车型，避免初始化触发
 
     @Nullable
     @Override
@@ -286,6 +288,10 @@ public class SettingsFragment extends Fragment {
         if (carModelSpinner == null || customCameraConfigButton == null || getContext() == null) {
             return;
         }
+
+        // 进入初始化阶段：Spinner 绑定 adapter/监听器 也可能触发一次 onItemSelected
+        isInitializingCarModel = true;
+        lastAppliedCarModel = (appConfig != null) ? appConfig.getCarModel() : null;
         
         // 设置下拉选择框适配器
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
@@ -296,25 +302,42 @@ public class SettingsFragment extends Fragment {
         adapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
         carModelSpinner.setAdapter(adapter);
         
-        // 根据当前配置设置选中项
-        String currentModel = appConfig.getCarModel();
-        int selectedIndex = AppConfig.CAR_MODEL_CUSTOM.equals(currentModel) ? 1 : 0;
-        carModelSpinner.setSelection(selectedIndex);
-        
-        // 根据当前车型显示或隐藏配置按钮
-        updateCustomConfigButtonVisibility(selectedIndex == 1);
-        
-        // 设置下拉选择监听器
+        // 设置下拉选择监听器（必须在 setSelection 之前设置）
         carModelSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                String newModel = position == 0 ? AppConfig.CAR_MODEL_GALAXY_E5 : AppConfig.CAR_MODEL_CUSTOM;
+                String newModel;
+                String modelName;
+                
+                if (position == 0) {
+                    newModel = AppConfig.CAR_MODEL_GALAXY_E5;
+                    modelName = "银河E5";
+                } else if (position == 1) {
+                    newModel = AppConfig.CAR_MODEL_L7;
+                    modelName = "银河L6/L7";
+                } else {
+                    newModel = AppConfig.CAR_MODEL_CUSTOM;
+                    modelName = "自定义车型";
+                }
+
+                // 始终更新 UI（按钮显隐）
+                updateCustomConfigButtonVisibility(position == 2);
+
+                // 初始化阶段不做“保存/提示”
+                if (isInitializingCarModel) {
+                    return;
+                }
+
+                // 与当前已保存车型相同：不重复写入、不提示（避免进入页面触发、避免重复选择触发）
+                if (newModel.equals(lastAppliedCarModel)) {
+                    return;
+                }
+
+                lastAppliedCarModel = newModel;
                 appConfig.setCarModel(newModel);
-                updateCustomConfigButtonVisibility(position == 1);
                 
                 // 提示需要重启应用
                 if (getContext() != null) {
-                    String modelName = position == 0 ? "银河E5" : "自定义车型";
                     Toast.makeText(getContext(), "已切换为「" + modelName + "」，重启应用后生效", Toast.LENGTH_SHORT).show();
                 }
             }
@@ -323,6 +346,21 @@ public class SettingsFragment extends Fragment {
             public void onNothingSelected(AdapterView<?> parent) {
                 // 不处理
             }
+        });
+        
+        // 根据当前配置设置选中项（仍处于初始化状态）
+        String currentModel = appConfig.getCarModel();
+        int selectedIndex = 0;  // 默认银河E5
+        if (AppConfig.CAR_MODEL_L7.equals(currentModel)) {
+            selectedIndex = 1;
+        } else if (AppConfig.CAR_MODEL_CUSTOM.equals(currentModel)) {
+            selectedIndex = 2;
+        }
+        carModelSpinner.setSelection(selectedIndex);
+        
+        // 延迟重置标志位，确保 setSelection 的回调已执行完毕
+        carModelSpinner.post(() -> {
+            isInitializingCarModel = false;
         });
         
         // 设置自定义配置按钮点击事件

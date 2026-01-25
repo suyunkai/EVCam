@@ -18,6 +18,7 @@ public class AppConfig {
     // 车型配置相关键名
     private static final String KEY_CAR_MODEL = "car_model";  // 车型（galaxy_e5 / custom）
     private static final String KEY_CAMERA_COUNT = "camera_count";  // 摄像头数量（4/2/1）
+    private static final String KEY_SCREEN_ORIENTATION = "screen_orientation";  // 屏幕方向（landscape/portrait，仅4摄像头时有效）
     private static final String KEY_CAMERA_FRONT_ID = "camera_front_id";  // 前摄像头编号
     private static final String KEY_CAMERA_BACK_ID = "camera_back_id";  // 后摄像头编号
     private static final String KEY_CAMERA_LEFT_ID = "camera_left_id";  // 左摄像头编号
@@ -33,6 +34,7 @@ public class AppConfig {
     
     // 车型常量
     public static final String CAR_MODEL_GALAXY_E5 = "galaxy_e5";  // 银河E5
+    public static final String CAR_MODEL_L7 = "galaxy_l7";  // 银河L6/L7
     public static final String CAR_MODEL_CUSTOM = "custom";  // 自定义车型
     
     private final SharedPreferences prefs;
@@ -126,6 +128,23 @@ public class AppConfig {
      */
     public int getCameraCount() {
         return prefs.getInt(KEY_CAMERA_COUNT, 4);
+    }
+    
+    /**
+     * 设置屏幕方向（仅4摄像头时有效）
+     * @param orientation 屏幕方向（landscape/portrait）
+     */
+    public void setScreenOrientation(String orientation) {
+        prefs.edit().putString(KEY_SCREEN_ORIENTATION, orientation).apply();
+        AppLog.d(TAG, "屏幕方向设置: " + orientation);
+    }
+    
+    /**
+     * 获取屏幕方向（仅4摄像头时有效）
+     * @return 屏幕方向，默认为横屏
+     */
+    public String getScreenOrientation() {
+        return prefs.getString(KEY_SCREEN_ORIENTATION, "landscape");
     }
     
     /**

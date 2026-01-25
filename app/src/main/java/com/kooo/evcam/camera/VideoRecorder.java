@@ -27,13 +27,16 @@ public class VideoRecorder {
 
     // 分段录制相关
     private static final long SEGMENT_DURATION_MS = 60000;  // 1分钟
+    private static final long FILE_SIZE_CHECK_INTERVAL_MS = 5000;  // 每5秒检查一次文件大小
     private android.os.Handler segmentHandler;
     private Runnable segmentRunnable;
+    private Runnable fileSizeCheckRunnable;  // 文件大小检查任务
     private int segmentIndex = 0;
     private String saveDirectory;  // 保存目录
     private String cameraPosition;  // 摄像头位置（front/back/left/right）
     private int recordWidth;
     private int recordHeight;
+    private long lastFileSize = 0;  // 上次检查的文件大小
 
     public VideoRecorder(String cameraId) {
         this.cameraId = cameraId;
@@ -50,8 +53,15 @@ public class VideoRecorder {
 
     public Surface getSurface() {
         if (mediaRecorder != null) {
-            return mediaRecorder.getSurface();
+            Surface surface = mediaRecorder.getSurface();
+            if (surface != null) {
+                AppLog.d(TAG, "Camera " + cameraId + " getSurface: " + surface + ", isValid=" + surface.isValid());
+            } else {
+                AppLog.w(TAG, "Camera " + cameraId + " getSurface returned NULL");
+            }
+            return surface;
         }
+        AppLog.w(TAG, "Camera " + cameraId + " getSurface: mediaRecorder is NULL");
         return null;
     }
 
@@ -88,6 +98,37 @@ public class VideoRecorder {
      */
     private void prepareMediaRecorder(String filePath, int width, int height) throws IOException {
         mediaRecorder = new MediaRecorder();
+        
+        // 添加监听器以监控 MediaRecorder 状态（调试用）
+        mediaRecorder.setOnInfoListener((mr, what, extra) -> {
+            String info = "UNKNOWN";
+            switch (what) {
+                case MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED:
+                    info = "MAX_DURATION_REACHED";
+                    break;
+                case MediaRecorder.MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED:
+                    info = "MAX_FILESIZE_REACHED";
+                    break;
+                case MediaRecorder.MEDIA_RECORDER_INFO_UNKNOWN:
+                    info = "INFO_UNKNOWN";
+                    break;
+            }
+            AppLog.d(TAG, "Camera " + cameraId + " MediaRecorder INFO: " + info + " (what=" + what + ", extra=" + extra + ")");
+        });
+        
+        mediaRecorder.setOnErrorListener((mr, what, extra) -> {
+            String error = "UNKNOWN";
+            switch (what) {
+                case MediaRecorder.MEDIA_RECORDER_ERROR_UNKNOWN:
+                    error = "ERROR_UNKNOWN";
+                    break;
+                case MediaRecorder.MEDIA_ERROR_SERVER_DIED:
+                    error = "SERVER_DIED";
+                    break;
+            }
+            AppLog.e(TAG, "Camera " + cameraId + " MediaRecorder ERROR: " + error + " (what=" + what + ", extra=" + extra + ")");
+        });
+        
         mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
         mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
         mediaRecorder.setOutputFile(filePath);
@@ -96,6 +137,15 @@ public class VideoRecorder {
         mediaRecorder.setVideoSize(width, height);
         mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
         mediaRecorder.prepare();
+        
+        // 验证 Surface 是否有效（调试用）
+        Surface surface = mediaRecorder.getSurface();
+        if (surface != null) {
+            AppLog.d(TAG, "Camera " + cameraId + " MediaRecorder Surface created: " + surface + 
+                    ", isValid=" + surface.isValid());
+        } else {
+            AppLog.e(TAG, "Camera " + cameraId + " MediaRecorder Surface is NULL after prepare!");
+        }
     }
 
     /**
@@ -172,10 +222,30 @@ public class VideoRecorder {
             return false;
         }
 
+        // 诊断：检查 Surface 状态
+        Surface surface = mediaRecorder.getSurface();
+        if (surface == null) {
+            AppLog.e(TAG, "Camera " + cameraId + " CRITICAL: Surface is NULL before start!");
+        } else if (!surface.isValid()) {
+            AppLog.e(TAG, "Camera " + cameraId + " CRITICAL: Surface is INVALID before start! Surface=" + surface);
+        } else {
+            AppLog.d(TAG, "Camera " + cameraId + " Surface OK before start: " + surface + ", isValid=true");
+        }
+
         try {
+            AppLog.d(TAG, "Camera " + cameraId + " calling mediaRecorder.start()...");
             mediaRecorder.start();
             isRecording = true;
+            lastFileSize = 0;  // 重置文件大小计数
             AppLog.d(TAG, "Camera " + cameraId + " started recording segment " + segmentIndex);
+            
+            // 诊断：start() 后再次检查 Surface 状态
+            Surface surfaceAfterStart = mediaRecorder.getSurface();
+            if (surfaceAfterStart != null) {
+                AppLog.d(TAG, "Camera " + cameraId + " Surface after start: " + surfaceAfterStart + 
+                        ", isValid=" + surfaceAfterStart.isValid());
+            }
+            
             if (callback != null && segmentIndex == 0) {
                 // 只在第一段时通知开始录制
                 callback.onRecordStart(cameraId);
@@ -183,6 +253,9 @@ public class VideoRecorder {
 
             // 启动分段定时器
             scheduleNextSegment();
+            
+            // 启动文件大小检查（用于诊断 MediaRecorder 是否在接收帧）
+            scheduleFileSizeCheck();
 
             return true;
         } catch (RuntimeException e) {
@@ -218,6 +291,52 @@ public class VideoRecorder {
     }
 
     /**
+     * 调度文件大小检查（诊断用）
+     */
+    private void scheduleFileSizeCheck() {
+        // 取消之前的检查
+        if (fileSizeCheckRunnable != null) {
+            segmentHandler.removeCallbacks(fileSizeCheckRunnable);
+        }
+
+        fileSizeCheckRunnable = () -> {
+            if (isRecording && currentFilePath != null) {
+                File file = new File(currentFilePath);
+                long currentSize = file.exists() ? file.length() : 0;
+                long sizeIncrease = currentSize - lastFileSize;
+                
+                if (sizeIncrease == 0 && lastFileSize > 0) {
+                    // 文件大小没有增长，可能有问题
+                    AppLog.w(TAG, "Camera " + cameraId + " WARNING: File size not growing! Current: " + currentSize + " bytes, Last: " + lastFileSize + " bytes");
+                } else if (currentSize == 0) {
+                    // 文件大小为 0，MediaRecorder 可能没有接收到帧
+                    AppLog.e(TAG, "Camera " + cameraId + " ERROR: File size is 0! MediaRecorder is NOT receiving frames!");
+                } else {
+                    // 正常情况
+                    AppLog.d(TAG, "Camera " + cameraId + " file size check: " + currentSize + " bytes (" + (currentSize / 1024) + " KB), increase: " + sizeIncrease + " bytes");
+                }
+                
+                lastFileSize = currentSize;
+                
+                // 继续下一次检查
+                scheduleFileSizeCheck();
+            }
+        };
+
+        segmentHandler.postDelayed(fileSizeCheckRunnable, FILE_SIZE_CHECK_INTERVAL_MS);
+    }
+
+    /**
+     * 取消文件大小检查
+     */
+    private void cancelFileSizeCheck() {
+        if (fileSizeCheckRunnable != null) {
+            segmentHandler.removeCallbacks(fileSizeCheckRunnable);
+            fileSizeCheckRunnable = null;
+        }
+    }
+
+    /**
      * 切换到下一段
      * 注意：这个方法需要通过回调通知外部重新配置相机会话
      */
@@ -225,15 +344,29 @@ public class VideoRecorder {
         try {
             // 停止当前录制
             if (mediaRecorder != null) {
+                // 诊断：在 stop() 之前检查文件大小
+                long fileSizeBeforeStop = 0;
+                if (currentFilePath != null) {
+                    File file = new File(currentFilePath);
+                    fileSizeBeforeStop = file.exists() ? file.length() : 0;
+                    AppLog.d(TAG, "Camera " + cameraId + " file size before stop: " + fileSizeBeforeStop + " bytes (" + (fileSizeBeforeStop / 1024) + " KB)");
+                }
+                
                 try {
-                    mediaRecorder.stop();
-                    isRecording = false;  // 立即更新状态
-                    AppLog.d(TAG, "Camera " + cameraId + " stopped segment " + segmentIndex + ": " + currentFilePath);
+                    // 如果文件太小，说明 MediaRecorder 没有接收到帧，跳过 stop()
+                    if (fileSizeBeforeStop < 1024) {
+                        AppLog.e(TAG, "Camera " + cameraId + " file size too small (" + fileSizeBeforeStop + " bytes), MediaRecorder may not be receiving frames. Skipping stop().");
+                        isRecording = false;
+                    } else {
+                        mediaRecorder.stop();
+                        isRecording = false;  // 立即更新状态
+                        AppLog.d(TAG, "Camera " + cameraId + " stopped segment " + segmentIndex + ": " + currentFilePath);
 
-                    // 验证并清理损坏的文件
-                    validateAndCleanupFile(currentFilePath);
+                        // 验证并清理损坏的文件
+                        validateAndCleanupFile(currentFilePath);
+                    }
                 } catch (RuntimeException e) {
-                    AppLog.e(TAG, "Error stopping segment for camera " + cameraId, e);
+                    AppLog.e(TAG, "Error stopping segment for camera " + cameraId + " (file size was: " + fileSizeBeforeStop + " bytes)", e);
                     isRecording = false;  // 即使失败也更新状态
 
                     // 停止失败，删除损坏的文件
@@ -296,6 +429,9 @@ public class VideoRecorder {
             segmentHandler.removeCallbacks(segmentRunnable);
             segmentRunnable = null;
         }
+        
+        // 取消文件大小检查
+        cancelFileSizeCheck();
 
         // 如果正在等待会话重新配置，说明MediaRecorder已经stop过了，只需要清理状态
         if (waitingForSessionReconfiguration) {
@@ -320,10 +456,23 @@ public class VideoRecorder {
             return;
         }
 
+        // 诊断：在 stop() 之前检查文件大小
+        long fileSizeBeforeStop = 0;
+        if (currentFilePath != null) {
+            File file = new File(currentFilePath);
+            fileSizeBeforeStop = file.exists() ? file.length() : 0;
+            AppLog.d(TAG, "Camera " + cameraId + " file size before stop: " + fileSizeBeforeStop + " bytes (" + (fileSizeBeforeStop / 1024) + " KB)");
+        }
+
         try {
             if (mediaRecorder != null) {
-                mediaRecorder.stop();
-                AppLog.d(TAG, "Camera " + cameraId + " stopped recording: " + currentFilePath + " (total segments: " + (segmentIndex + 1) + ")");
+                // 如果文件太小，说明 MediaRecorder 没有接收到帧，跳过 stop()
+                if (fileSizeBeforeStop < 1024) {
+                    AppLog.e(TAG, "Camera " + cameraId + " file size too small (" + fileSizeBeforeStop + " bytes), MediaRecorder may not be receiving frames. Skipping stop().");
+                } else {
+                    mediaRecorder.stop();
+                    AppLog.d(TAG, "Camera " + cameraId + " stopped recording: " + currentFilePath + " (total segments: " + (segmentIndex + 1) + ")");
+                }
             }
             isRecording = false;
 
@@ -334,7 +483,7 @@ public class VideoRecorder {
                 callback.onRecordStop(cameraId);
             }
         } catch (RuntimeException e) {
-            AppLog.e(TAG, "Failed to stop recording for camera " + cameraId, e);
+            AppLog.e(TAG, "Failed to stop recording for camera " + cameraId + " (file size was: " + fileSizeBeforeStop + " bytes)", e);
             isRecording = false;
 
             // 录制失败，删除损坏的文件
@@ -397,6 +546,9 @@ public class VideoRecorder {
             segmentHandler.removeCallbacks(segmentRunnable);
             segmentRunnable = null;
         }
+        
+        // 取消文件大小检查
+        cancelFileSizeCheck();
 
         // 只有在真正录制中且mediaRecorder不为null时才调用stopRecording
         if (isRecording && mediaRecorder != null) {

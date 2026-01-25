@@ -77,6 +77,10 @@ public class MainActivity extends AppCompatActivity {
     private boolean isInBackground = false;  // 是否在后台
     private boolean pendingRemoteCommand = false;  // 是否有待处理的远程命令
     private boolean isRemoteWakeUp = false;  // 是否是远程命令唤醒的（用于完成后自动退回后台）
+    
+    // 防双击保护
+    private long lastRecordButtonClickTime = 0;  // 上次点击录制按钮的时间
+    private static final long RECORD_BUTTON_CLICK_INTERVAL = 1000;  // 最小点击间隔（1秒）
     private boolean shouldMoveToBackgroundOnReady = false;  // 开机自启动后，窗口准备好时移到后台
     
     // 车型配置相关
@@ -181,6 +185,23 @@ public class MainActivity extends AppCompatActivity {
         
         // 处理远程命令
         handleRemoteCommandFromIntent(intent);
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        
+        // 如果是开机自启动模式，窗口准备好后自动移到后台
+        if (hasFocus && shouldMoveToBackgroundOnReady) {
+            AppLog.d(TAG, "开机自启动：窗口已就绪，移到后台（无感启动）");
+            shouldMoveToBackgroundOnReady = false;  // 清除标志，避免重复执行
+            
+            // 延迟移到后台，确保初始化完成
+            new android.os.Handler().postDelayed(() -> {
+                moveTaskToBack(true);  // 将应用移到后台
+                AppLog.d(TAG, "应用已移到后台，开机自启动完成");
+            }, 500);  // 延迟 500ms
+        }
     }
 
     /**
@@ -288,9 +309,19 @@ public class MainActivity extends AppCompatActivity {
         configuredCameraCount = 4;
         requiredTextureCount = 4;
 
-        // 如果是自定义车型，根据配置选择布局
-        if (appConfig.isCustomCarModel()) {
+        String carModel = appConfig.getCarModel();
+        
+        // 银河L6/L7：竖屏四宫格布局
+        if (AppConfig.CAR_MODEL_L7.equals(carModel)) {
+            layoutId = R.layout.activity_main_l7;
+            configuredCameraCount = 4;
+            requiredTextureCount = 4;
+            AppLog.d(TAG, "使用银河L6/L7配置：竖屏四宫格布局");
+        }
+        // 自定义车型：根据配置选择布局
+        else if (appConfig.isCustomCarModel()) {
             configuredCameraCount = appConfig.getCameraCount();
+            String orientation = appConfig.getScreenOrientation();
 
             switch (configuredCameraCount) {
                 case 1:
@@ -304,19 +335,27 @@ public class MainActivity extends AppCompatActivity {
                     AppLog.d(TAG, "使用自定义车型：2摄像头布局");
                     break;
                 case 4:
-                    layoutId = R.layout.activity_main_4cam;
+                    // 4摄像头：根据屏幕方向选择布局
+                    if ("portrait".equals(orientation)) {
+                        layoutId = R.layout.activity_main_4cam_portrait;
+                        AppLog.d(TAG, "使用自定义车型：4摄像头竖屏布局");
+                    } else {
+                        layoutId = R.layout.activity_main_4cam;
+                        AppLog.d(TAG, "使用自定义车型：4摄像头横屏布局");
+                    }
                     requiredTextureCount = 4;
-                    AppLog.d(TAG, "使用自定义车型：4摄像头布局");
                     break;
                 default:
-                    // 无效的摄像头数量，使用自定义4摄像头布局
+                    // 无效的摄像头数量，使用自定义4摄像头横屏布局
                     layoutId = R.layout.activity_main_4cam;
                     configuredCameraCount = 4;
                     requiredTextureCount = 4;
-                    AppLog.d(TAG, "使用自定义车型：4摄像头布局（默认）");
+                    AppLog.d(TAG, "使用自定义车型：4摄像头横屏布局（默认）");
                     break;
             }
-        } else {
+        }
+        // 银河E5：横屏四摄像头布局
+        else {
             AppLog.d(TAG, "使用银河E5默认配置：4摄像头布局");
         }
 
@@ -440,18 +479,30 @@ public class MainActivity extends AppCompatActivity {
         TextView labelLeft = findViewById(R.id.label_left);
         TextView labelRight = findViewById(R.id.label_right);
         
-        // 设置自定义名称
+        // 设置自定义名称，如果名称为空则隐藏标签
         if (labelFront != null) {
-            labelFront.setText(appConfig.getCameraName("front"));
+            updateCameraLabel(labelFront, appConfig.getCameraName("front"));
         }
         if (labelBack != null && configuredCameraCount >= 2) {
-            labelBack.setText(appConfig.getCameraName("back"));
+            updateCameraLabel(labelBack, appConfig.getCameraName("back"));
         }
         if (labelLeft != null && configuredCameraCount >= 4) {
-            labelLeft.setText(appConfig.getCameraName("left"));
+            updateCameraLabel(labelLeft, appConfig.getCameraName("left"));
         }
         if (labelRight != null && configuredCameraCount >= 4) {
-            labelRight.setText(appConfig.getCameraName("right"));
+            updateCameraLabel(labelRight, appConfig.getCameraName("right"));
+        }
+    }
+    
+    /**
+     * 更新单个摄像头标签，如果名称为空则隐藏
+     */
+    private void updateCameraLabel(TextView label, String name) {
+        if (name == null || name.trim().isEmpty()) {
+            label.setVisibility(View.GONE);
+        } else {
+            label.setText(name);
+            label.setVisibility(View.VISIBLE);
         }
     }
 
@@ -668,13 +719,18 @@ public class MainActivity extends AppCompatActivity {
                         // 前后摄像头：使用原始宽高比（1280x800，横向）
                         textureView.setAspectRatio(previewSize.getWidth(), previewSize.getHeight());
                         
-                        // 根据摄像头数量决定显示模式
-                        if (configuredCameraCount >= 4) {
-                            // 4摄模式：启用填满模式，避免黑边
+                        // 根据车型和摄像头数量决定显示模式
+                        // L7车型和1摄/2摄模式：使用适应模式，完整显示画面
+                        // E5的4摄模式：启用填满模式，避免黑边
+                        String carModel = appConfig.getCarModel();
+                        boolean useFillMode = configuredCameraCount >= 4 && !AppConfig.CAR_MODEL_L7.equals(carModel);
+                        
+                        if (useFillMode) {
+                            // 4摄模式（E5）：启用填满模式，避免黑边
                             textureView.setFillContainer(true);
                             AppLog.d(TAG, "设置 " + cameraKey + " 宽高比: " + previewSize.getWidth() + ":" + previewSize.getHeight() + ", 填满模式");
                         } else {
-                            // 1摄/2摄模式：使用适应模式，完整显示画面
+                            // L7车型或1摄/2摄模式：使用适应模式，完整显示画面
                             textureView.setFillContainer(false);
                             AppLog.d(TAG, "设置 " + cameraKey + " 宽高比: " + previewSize.getWidth() + ":" + previewSize.getHeight() + ", 适应模式");
                         }
@@ -790,7 +846,11 @@ public class MainActivity extends AppCompatActivity {
                 AppLog.d(TAG, "========================================");
 
                 // 根据车型配置初始化摄像头
-                if (appConfig.isCustomCarModel()) {
+                String carModel = appConfig.getCarModel();
+                if (AppConfig.CAR_MODEL_L7.equals(carModel)) {
+                    // 银河L6/L7：使用固定映射
+                    initCamerasForL7(cameraIds);
+                } else if (appConfig.isCustomCarModel()) {
                     // 自定义车型：使用用户配置的摄像头映射
                     initCamerasForCustomModel(cameraIds);
                 } else {
@@ -831,6 +891,40 @@ public class MainActivity extends AppCompatActivity {
                     cameraIds[1], textureRight,
                     cameraIds[0], textureFront,
                     cameraIds[1], textureBack
+            );
+        } else if (cameraIds.length == 1) {
+            // 只有1个摄像头，所有位置使用同一个
+            cameraManager.initCameras(
+                    cameraIds[0], textureFront,
+                    cameraIds[0], textureBack,
+                    cameraIds[0], textureLeft,
+                    cameraIds[0], textureRight
+            );
+        } else {
+            Toast.makeText(this, "没有可用的摄像头", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    /**
+     * 银河L6/L7车型：使用固定的摄像头映射（竖屏四宫格）
+     * 前=2, 后=3, 左=0, 右=1
+     */
+    private void initCamerasForL7(String[] cameraIds) {
+        if (cameraIds.length >= 4) {
+            // 有4个或更多摄像头
+            cameraManager.initCameras(
+                    cameraIds[2], textureFront,  // 前摄像头使用 cameraIds[2]
+                    cameraIds[3], textureBack,   // 后摄像头使用 cameraIds[3]
+                    cameraIds[0], textureLeft,   // 左摄像头使用 cameraIds[0]
+                    cameraIds[1], textureRight   // 右摄像头使用 cameraIds[1]
+            );
+        } else if (cameraIds.length >= 2) {
+            // 只有2个摄像头，复用到四个位置
+            cameraManager.initCameras(
+                    cameraIds[0], textureFront,
+                    cameraIds[1], textureBack,
+                    cameraIds[0], textureLeft,
+                    cameraIds[1], textureRight
             );
         } else if (cameraIds.length == 1) {
             // 只有1个摄像头，所有位置使用同一个
@@ -990,6 +1084,14 @@ public class MainActivity extends AppCompatActivity {
      * 切换录制状态（开始/停止）
      */
     private void toggleRecording() {
+        // 防双击保护
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastRecordButtonClickTime < RECORD_BUTTON_CLICK_INTERVAL) {
+            AppLog.d(TAG, "录制按钮点击过快，忽略（间隔: " + (currentTime - lastRecordButtonClickTime) + "ms）");
+            return;
+        }
+        lastRecordButtonClickTime = currentTime;
+        
         if (isRecording) {
             stopRecording();
         } else {

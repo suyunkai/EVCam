@@ -91,7 +91,7 @@ public class PhotoAdapter extends RecyclerView.Adapter<PhotoAdapter.PhotoViewHol
 
         // 删除按钮
         holder.btnDelete.setOnClickListener(v -> {
-            new AlertDialog.Builder(context)
+            new AlertDialog.Builder(context, androidx.appcompat.R.style.Theme_AppCompat_DayNight_Dialog_Alert)
                     .setTitle("确认删除")
                     .setMessage("确定要删除 " + photoFile.getName() + " 吗？")
                     .setPositiveButton("删除", (dialog, which) -> {

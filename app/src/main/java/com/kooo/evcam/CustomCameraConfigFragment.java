@@ -33,7 +33,7 @@ public class CustomCameraConfigFragment extends Fragment {
     
     // 摄像头数量选择
     private Spinner cameraCountSpinner;
-    private static final String[] CAMERA_COUNT_OPTIONS = {"4 个", "2 个", "1 个"};
+    private static final String[] CAMERA_COUNT_OPTIONS = {"4-横屏", "4-竖屏", "2 个", "1 个"};
 
     // 旋转角度选项
     private static final String[] ROTATION_OPTIONS = {"0°", "90°", "180°", "270°"};
@@ -165,7 +165,15 @@ public class CustomCameraConfigFragment extends Fragment {
         cameraCountSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                int count = position == 0 ? 4 : (position == 1 ? 2 : 1);
+                // 0: 4-横屏, 1: 4-竖屏, 2: 2个, 3: 1个
+                int count;
+                if (position == 0 || position == 1) {
+                    count = 4;  // 4-横屏 或 4-竖屏
+                } else if (position == 2) {
+                    count = 2;  // 2个
+                } else {
+                    count = 1;  // 1个
+                }
                 updateConfigVisibility(count);
             }
             
@@ -225,9 +233,20 @@ public class CustomCameraConfigFragment extends Fragment {
             return;
         }
         
-        // 加载摄像头数量
+        // 加载摄像头数量和屏幕方向
         int count = appConfig.getCameraCount();
-        int countIndex = count == 4 ? 0 : (count == 2 ? 1 : 2);
+        String orientation = appConfig.getScreenOrientation();
+        int countIndex;
+        
+        if (count == 4) {
+            // 4摄像头：根据屏幕方向选择"4-横屏"或"4-竖屏"
+            countIndex = "portrait".equals(orientation) ? 1 : 0;
+        } else if (count == 2) {
+            countIndex = 2;
+        } else {
+            countIndex = 3;
+        }
+        
         cameraCountSpinner.setSelection(countIndex);
         updateConfigVisibility(count);
         
@@ -295,10 +314,31 @@ public class CustomCameraConfigFragment extends Fragment {
             return;
         }
         
-        // 保存摄像头数量
+        // 保存摄像头数量和屏幕方向
         int countIndex = cameraCountSpinner.getSelectedItemPosition();
-        int count = countIndex == 0 ? 4 : (countIndex == 1 ? 2 : 1);
+        int count;
+        String orientation;
+        
+        if (countIndex == 0) {
+            // 4-横屏
+            count = 4;
+            orientation = "landscape";
+        } else if (countIndex == 1) {
+            // 4-竖屏
+            count = 4;
+            orientation = "portrait";
+        } else if (countIndex == 2) {
+            // 2个
+            count = 2;
+            orientation = "landscape";  // 默认横屏
+        } else {
+            // 1个
+            count = 1;
+            orientation = "landscape";  // 默认横屏
+        }
+        
         appConfig.setCameraCount(count);
+        appConfig.setScreenOrientation(orientation);
         
         // 保存摄像头ID
         appConfig.setCameraId("front", getSpinnerValue(spinnerFrontId));

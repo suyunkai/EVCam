@@ -57,6 +57,11 @@ public class SingleCamera {
     private Surface previewSurface;  // 预览Surface（缓存以避免重复创建）
     private ImageReader imageReader;  // 用于拍照的ImageReader
 
+    // 调试：帧捕获监控
+    private long frameCount = 0;  // 总帧数
+    private long lastFrameLogTime = 0;  // 上次输出帧计数的时间
+    private static final long FRAME_LOG_INTERVAL_MS = 5000;  // 每5秒输出一次帧计数
+
     private boolean shouldReconnect = false;  // 是否应该重连
     private int reconnectAttempts = 0;  // 重连尝试次数
     private static final int MAX_RECONNECT_ATTEMPTS = 30;  // 最大重连次数（30次 = 1分钟）
@@ -183,7 +188,11 @@ public class SingleCamera {
      */
     public void setRecordSurface(Surface surface) {
         this.recordSurface = surface;
-        AppLog.d(TAG, "Record surface set for camera " + cameraId);
+        if (surface != null) {
+            AppLog.d(TAG, "Record surface set for camera " + cameraId + ": " + surface + ", isValid=" + surface.isValid());
+        } else {
+            AppLog.w(TAG, "Record surface set to NULL for camera " + cameraId);
+        }
     }
 
     /**
@@ -662,18 +671,32 @@ public class SingleCamera {
 
             // 如果有录制Surface，也添加到输出目标
             if (recordSurface != null) {
+                // 诊断：检查 recordSurface 有效性
+                boolean isValid = recordSurface.isValid();
+                AppLog.d(TAG, "Camera " + cameraId + " recordSurface check: " + recordSurface + ", isValid=" + isValid);
+                
+                if (!isValid) {
+                    AppLog.e(TAG, "Camera " + cameraId + " CRITICAL: recordSurface is INVALID! Recording will likely fail!");
+                }
+                
                 surfaces.add(recordSurface);
                 previewRequestBuilder.addTarget(recordSurface);
-                AppLog.d(TAG, "Added record surface to camera " + cameraId);
+                AppLog.d(TAG, "Added record surface to camera " + cameraId + " (isValid=" + isValid + ")");
             }
 
             // 不再在预览会话中添加ImageReader Surface
             // ImageReader将在拍照时按需创建，避免占用额外缓冲区
 
             AppLog.d(TAG, "Camera " + cameraId + " Total surfaces: " + surfaces.size());
+            
+            // 诊断：列出所有 surfaces
+            for (int i = 0; i < surfaces.size(); i++) {
+                Surface s = surfaces.get(i);
+                AppLog.d(TAG, "Camera " + cameraId + " Surface[" + i + "]: " + s + ", isValid=" + s.isValid());
+            }
 
             // 创建会话
-            AppLog.d(TAG, "Camera " + cameraId + " Creating capture session...");
+            AppLog.d(TAG, "Camera " + cameraId + " Creating capture session with " + surfaces.size() + " surfaces...");
             cameraDevice.createCaptureSession(surfaces, new CameraCaptureSession.StateCallback() {
                 @Override
                 public void onConfigured(@NonNull CameraCaptureSession session) {
@@ -685,9 +708,41 @@ public class SingleCamera {
 
                     captureSession = session;
                     try {
+                        // 重置帧计数
+                        frameCount = 0;
+                        lastFrameLogTime = System.currentTimeMillis();
+
+                        // 创建 CaptureCallback 来监控帧捕获（调试用）
+                        CameraCaptureSession.CaptureCallback captureCallback = new CameraCaptureSession.CaptureCallback() {
+                            @Override
+                            public void onCaptureCompleted(@NonNull CameraCaptureSession session,
+                                                          @NonNull CaptureRequest request,
+                                                          @NonNull TotalCaptureResult result) {
+                                frameCount++;
+                                long now = System.currentTimeMillis();
+                                if (now - lastFrameLogTime >= FRAME_LOG_INTERVAL_MS) {
+                                    long elapsed = now - lastFrameLogTime;
+                                    float fps = frameCount * 1000f / elapsed;
+                                    boolean hasRecordSurface = recordSurface != null;
+                                    AppLog.d(TAG, "Camera " + cameraId + " FRAME STATS: " + frameCount + " frames in " +
+                                            (elapsed / 1000) + "s (FPS: " + String.format("%.1f", fps) + ")" +
+                                            ", recordSurface=" + (hasRecordSurface ? "ACTIVE" : "null"));
+                                    frameCount = 0;
+                                    lastFrameLogTime = now;
+                                }
+                            }
+
+                            @Override
+                            public void onCaptureFailed(@NonNull CameraCaptureSession session,
+                                                       @NonNull CaptureRequest request,
+                                                       @NonNull android.hardware.camera2.CaptureFailure failure) {
+                                AppLog.e(TAG, "Camera " + cameraId + " CAPTURE FAILED! Reason: " + failure.getReason());
+                            }
+                        };
+
                         // 开始预览
                         AppLog.d(TAG, "Camera " + cameraId + " Setting repeating request...");
-                        captureSession.setRepeatingRequest(previewRequestBuilder.build(), null, backgroundHandler);
+                        captureSession.setRepeatingRequest(previewRequestBuilder.build(), captureCallback, backgroundHandler);
 
                         AppLog.d(TAG, "Camera " + cameraId + " preview started successfully!");
                         if (callback != null) {
