@@ -163,14 +163,17 @@ REM 步骤4: 检查 GitHub CLI
 echo [4/6] 检查 GitHub CLI...
 where gh > nul 2>&1
 if errorlevel 1 (
-    echo [警告] 未找到 GitHub CLI (gh)
+    echo [警告] 未找到 GitHub CLI (gh^)
     echo.
     echo 请手动创建 Release：
-    echo   1. 访问: https://github.com/你的用户名/EVCam/releases/new
+    echo   1. 访问: https://github.com/suyunkai/EVCam/releases/new
     echo   2. 选择 Tag: !VERSION!
     echo   3. 上传文件: !RENAMED_APK!
     echo.
     echo 或者安装 GitHub CLI: https://cli.github.com/
+    echo.
+    echo APK 文件位置:
+    echo !RENAMED_APK!
     echo.
     pause
     exit /b 0
