@@ -47,6 +47,61 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- 车型配置 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="16dp"
+                android:background="@color/card_background"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="16dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="车型配置"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="选择车型以适配摄像头布局"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+
+                <Spinner
+                    android:id="@+id/spinner_car_model"
+                    android:layout_width="160dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/spinner_background"
+                    android:popupBackground="@color/card_background" />
+            </LinearLayout>
+
+            <!-- 自定义摄像头配置按钮（仅自定义车型显示） -->
+            <Button
+                android:id="@+id/btn_custom_camera_config"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="配置摄像头"
+                android:textSize="20sp"
+                android:minHeight="56dp"
+                android:backgroundTint="@color/button_background"
+                android:textColor="@color/button_text"
+                android:layout_marginBottom="24dp"
+                android:visibility="gone" />
+
             <!-- Debug mode switch -->
             <LinearLayout
                 android:layout_width="match_parent"
@@ -87,7 +142,7 @@
                     android:layout_marginStart="16dp" />
             </LinearLayout>
 
-            <!-- Save logs button -->
+            <!-- 保存日志按钮（仅 Debug 开启时显示） -->
             <Button
                 android:id="@+id/btn_save_logs"
                 android:layout_width="match_parent"
@@ -97,7 +152,8 @@
                 android:minHeight="56dp"
                 android:backgroundTint="@color/button_background"
                 android:textColor="@color/button_text"
-                android:layout_marginBottom="24dp" />
+                android:layout_marginBottom="24dp"
+                android:visibility="gone" />
 
             <!-- Overlay permission for background wake-up -->
             <LinearLayout

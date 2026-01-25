@@ -30,6 +30,7 @@ import androidx.fragment.app.FragmentTransaction;
 
 import com.google.android.material.navigation.NavigationView;
 import com.kooo.evcam.camera.MultiCameraManager;
+import com.kooo.evcam.camera.SingleCamera;
 import com.kooo.evcam.dingtalk.DingTalkApiClient;
 import com.kooo.evcam.dingtalk.DingTalkConfig;
 import com.kooo.evcam.dingtalk.DingTalkStreamManager;
@@ -71,11 +72,16 @@ public class MainActivity extends AppCompatActivity {
     private Button btnStartRecord, btnExit, btnTakePhoto;
     private MultiCameraManager cameraManager;
     private int textureReadyCount = 0;  // 记录准备好的TextureView数量
+    private int requiredTextureCount = 4;  // 需要准备好的TextureView数量（根据摄像头数量）
     private boolean isRecording = false;  // 录制状态标志
     private boolean isInBackground = false;  // 是否在后台
     private boolean pendingRemoteCommand = false;  // 是否有待处理的远程命令
     private boolean isRemoteWakeUp = false;  // 是否是远程命令唤醒的（用于完成后自动退回后台）
     private boolean shouldMoveToBackgroundOnReady = false;  // 开机自启动后，窗口准备好时移到后台
+    
+    // 车型配置相关
+    private AppConfig appConfig;
+    private int configuredCameraCount = 4;  // 配置的摄像头数量
 
     // 录制按钮闪烁动画相关
     private android.os.Handler blinkHandler;
@@ -110,7 +116,11 @@ public class MainActivity extends AppCompatActivity {
         // 设置字体缩放比例（1.3倍）
         adjustFontScale(1.2f);
 
-        setContentView(R.layout.activity_main);
+        // 初始化应用配置
+        appConfig = new AppConfig(this);
+        
+        // 根据车型配置设置布局和摄像头数量
+        setupLayoutByCarModel();
 
         // 设置状态栏沉浸式
         setupStatusBar();
@@ -139,7 +149,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // 启动定时保活任务（如果用户启用了）
-        AppConfig appConfig = new AppConfig(this);
         if (appConfig.isKeepAliveEnabled()) {
             KeepAliveManager.startKeepAliveWork(this);
             AppLog.d(TAG, "定时保活任务已启动");
@@ -269,6 +278,50 @@ public class MainActivity extends AppCompatActivity {
         android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
         getBaseContext().getResources().updateConfiguration(configuration, metrics);
     }
+    
+    /**
+     * 根据车型配置设置布局
+     */
+    private void setupLayoutByCarModel() {
+        // 默认使用4摄像头布局（银河E5专用）
+        int layoutId = R.layout.activity_main;
+        configuredCameraCount = 4;
+        requiredTextureCount = 4;
+
+        // 如果是自定义车型，根据配置选择布局
+        if (appConfig.isCustomCarModel()) {
+            configuredCameraCount = appConfig.getCameraCount();
+
+            switch (configuredCameraCount) {
+                case 1:
+                    layoutId = R.layout.activity_main_1cam;
+                    requiredTextureCount = 1;
+                    AppLog.d(TAG, "使用自定义车型：1摄像头布局");
+                    break;
+                case 2:
+                    layoutId = R.layout.activity_main_2cam;
+                    requiredTextureCount = 2;
+                    AppLog.d(TAG, "使用自定义车型：2摄像头布局");
+                    break;
+                case 4:
+                    layoutId = R.layout.activity_main_4cam;
+                    requiredTextureCount = 4;
+                    AppLog.d(TAG, "使用自定义车型：4摄像头布局");
+                    break;
+                default:
+                    // 无效的摄像头数量，使用自定义4摄像头布局
+                    layoutId = R.layout.activity_main_4cam;
+                    configuredCameraCount = 4;
+                    requiredTextureCount = 4;
+                    AppLog.d(TAG, "使用自定义车型：4摄像头布局（默认）");
+                    break;
+            }
+        } else {
+            AppLog.d(TAG, "使用银河E5默认配置：4摄像头布局");
+        }
+
+        setContentView(layoutId);
+    }
 
     private void setupStatusBar() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -297,13 +350,18 @@ public class MainActivity extends AppCompatActivity {
         recordingLayout = findViewById(R.id.main);
         fragmentContainer = findViewById(R.id.fragment_container);
 
+        // 根据布局获取TextureView（不同布局有不同数量的TextureView）
         textureFront = findViewById(R.id.texture_front);
-        textureBack = findViewById(R.id.texture_back);
-        textureLeft = findViewById(R.id.texture_left);
-        textureRight = findViewById(R.id.texture_right);
+        textureBack = findViewById(R.id.texture_back);  // 1摄布局中为null
+        textureLeft = findViewById(R.id.texture_left);  // 1摄和2摄布局中为null
+        textureRight = findViewById(R.id.texture_right);  // 1摄和2摄布局中为null
+        
         btnStartRecord = findViewById(R.id.btn_start_record);
         btnExit = findViewById(R.id.btn_exit);
         btnTakePhoto = findViewById(R.id.btn_take_photo);
+        
+        // 更新摄像头标签（如果是自定义车型）
+        updateCameraLabels();
 
         // 菜单按钮点击事件
         findViewById(R.id.btn_menu).setOnClickListener(v -> {
@@ -327,10 +385,10 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onSurfaceTextureAvailable(@NonNull android.graphics.SurfaceTexture surface, int width, int height) {
                 textureReadyCount++;
-                AppLog.d(TAG, "TextureView ready: " + textureReadyCount + "/4");
+                AppLog.d(TAG, "TextureView ready: " + textureReadyCount + "/" + requiredTextureCount);
 
-                // 当所有TextureView都准备好后，初始化摄像头
-                if (textureReadyCount == 4 && checkPermissions()) {
+                // 当所有需要的TextureView都准备好后，初始化摄像头
+                if (textureReadyCount >= requiredTextureCount && checkPermissions()) {
                     initCamera();
                 }
             }
@@ -353,10 +411,48 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
-        textureFront.setSurfaceTextureListener(surfaceTextureListener);
-        textureBack.setSurfaceTextureListener(surfaceTextureListener);
-        textureLeft.setSurfaceTextureListener(surfaceTextureListener);
-        textureRight.setSurfaceTextureListener(surfaceTextureListener);
+        // 根据配置的摄像头数量设置监听器
+        if (textureFront != null) {
+            textureFront.setSurfaceTextureListener(surfaceTextureListener);
+        }
+        if (textureBack != null && configuredCameraCount >= 2) {
+            textureBack.setSurfaceTextureListener(surfaceTextureListener);
+        }
+        if (textureLeft != null && configuredCameraCount >= 4) {
+            textureLeft.setSurfaceTextureListener(surfaceTextureListener);
+        }
+        if (textureRight != null && configuredCameraCount >= 4) {
+            textureRight.setSurfaceTextureListener(surfaceTextureListener);
+        }
+    }
+    
+    /**
+     * 更新摄像头标签（自定义车型时使用自定义名称）
+     */
+    private void updateCameraLabels() {
+        if (!appConfig.isCustomCarModel()) {
+            return;
+        }
+        
+        // 获取标签控件（根据布局可能存在或不存在）
+        TextView labelFront = findViewById(R.id.label_front);
+        TextView labelBack = findViewById(R.id.label_back);
+        TextView labelLeft = findViewById(R.id.label_left);
+        TextView labelRight = findViewById(R.id.label_right);
+        
+        // 设置自定义名称
+        if (labelFront != null) {
+            labelFront.setText(appConfig.getCameraName("front"));
+        }
+        if (labelBack != null && configuredCameraCount >= 2) {
+            labelBack.setText(appConfig.getCameraName("back"));
+        }
+        if (labelLeft != null && configuredCameraCount >= 4) {
+            labelLeft.setText(appConfig.getCameraName("left"));
+        }
+        if (labelRight != null && configuredCameraCount >= 4) {
+            labelRight.setText(appConfig.getCameraName("right"));
+        }
     }
 
     /**
@@ -487,7 +583,7 @@ public class MainActivity extends AppCompatActivity {
             if (checkPermissions()) {
                 // 权限已授予，但需要等待TextureView准备好
                 // 如果TextureView已经准备好，立即初始化摄像头
-                if (textureReadyCount == 4) {
+                if (textureReadyCount >= requiredTextureCount) {
                     initCamera();
                 }
             } else {
@@ -498,14 +594,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initCamera() {
-        // 确保所有TextureView都准备好
-        if (textureReadyCount < 4) {
-            AppLog.w(TAG, "Not all TextureViews are ready yet: " + textureReadyCount + "/4");
+        // 确保所有需要的TextureView都准备好
+        if (textureReadyCount < requiredTextureCount) {
+            AppLog.w(TAG, "Not all TextureViews are ready yet: " + textureReadyCount + "/" + requiredTextureCount);
+            return;
+        }
+        
+        // 防止重复初始化：如果 cameraManager 已经存在，直接返回
+        if (cameraManager != null) {
+            AppLog.d(TAG, "Camera already initialized, skipping");
             return;
         }
 
         cameraManager = new MultiCameraManager(this);
-        cameraManager.setMaxOpenCameras(4);
+        cameraManager.setMaxOpenCameras(configuredCameraCount);
 
         // 设置摄像头状态回调
         cameraManager.setStatusCallback((cameraId, status) -> {
@@ -565,9 +667,17 @@ public class MainActivity extends AppCompatActivity {
                     } else {
                         // 前后摄像头：使用原始宽高比（1280x800，横向）
                         textureView.setAspectRatio(previewSize.getWidth(), previewSize.getHeight());
-                        // 启用填满模式，避免黑边
-                        textureView.setFillContainer(true);
-                        AppLog.d(TAG, "设置 " + cameraKey + " 宽高比: " + previewSize.getWidth() + ":" + previewSize.getHeight() + ", 填满模式");
+                        
+                        // 根据摄像头数量决定显示模式
+                        if (configuredCameraCount >= 4) {
+                            // 4摄模式：启用填满模式，避免黑边
+                            textureView.setFillContainer(true);
+                            AppLog.d(TAG, "设置 " + cameraKey + " 宽高比: " + previewSize.getWidth() + ":" + previewSize.getHeight() + ", 填满模式");
+                        } else {
+                            // 1摄/2摄模式：使用适应模式，完整显示画面
+                            textureView.setFillContainer(false);
+                            AppLog.d(TAG, "设置 " + cameraKey + " 宽高比: " + previewSize.getWidth() + ":" + previewSize.getHeight() + ", 适应模式");
+                        }
                     }
                 }
             });
@@ -679,50 +789,143 @@ public class MainActivity extends AppCompatActivity {
 
                 AppLog.d(TAG, "========================================");
 
-                // 根据可用摄像头数量初始化
-                if (cameraIds.length >= 4) {
-                    // 有4个或更多摄像头
-                    // 修正摄像头位置映射：前=cameraIds[2], 后=cameraIds[1], 左=cameraIds[3], 右=cameraIds[0]
-                    cameraManager.initCameras(
-                            cameraIds[2], textureFront,  // 前摄像头使用 cameraIds[2]
-                            cameraIds[1], textureBack,   // 后摄像头使用 cameraIds[1]
-                            cameraIds[3], textureLeft,   // 左摄像头使用 cameraIds[3]（修正）
-                            cameraIds[0], textureRight   // 右摄像头使用 cameraIds[0]（修正）
-                    );
-                } else if (cameraIds.length >= 2) {
-                    // 只有2个摄像头，使用前两个位置
-                    cameraManager.initCameras(
-                            cameraIds[0], textureLeft,  // 复用第一个
-                            cameraIds[1], textureRight,  // 复用第二个
-                            cameraIds[0], textureFront,
-                            cameraIds[1], textureBack
-
-
-                    );
-                } else if (cameraIds.length == 1) {
-                    // 只有1个摄像头，所有位置使用同一个
-                    cameraManager.initCameras(
-                            cameraIds[0], textureFront,
-                            cameraIds[0], textureBack,
-                            cameraIds[0], textureLeft,
-                            cameraIds[0], textureRight
-                    );
+                // 根据车型配置初始化摄像头
+                if (appConfig.isCustomCarModel()) {
+                    // 自定义车型：使用用户配置的摄像头映射
+                    initCamerasForCustomModel(cameraIds);
                 } else {
-                    Toast.makeText(this, "没有可用的摄像头", Toast.LENGTH_SHORT).show();
-                    return;
+                    // 银河E5：使用固定映射
+                    initCamerasForGalaxyE5(cameraIds);
                 }
 
                 // 打开所有摄像头
                 cameraManager.openAllCameras();
 
-                AppLog.d(TAG, "Camera initialized with " + cameraIds.length + " cameras");
-                Toast.makeText(this, "已打开 " + cameraIds.length + " 个摄像头", Toast.LENGTH_SHORT).show();
+                AppLog.d(TAG, "Camera initialized with " + configuredCameraCount + " cameras");
+                Toast.makeText(this, "已打开 " + configuredCameraCount + " 个摄像头", Toast.LENGTH_SHORT).show();
 
             } catch (CameraAccessException e) {
                 AppLog.e(TAG, "Failed to access camera", e);
                 Toast.makeText(this, "摄像头访问失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
+    }
+    
+    /**
+     * 银河E5车型：使用固定的摄像头映射
+     */
+    private void initCamerasForGalaxyE5(String[] cameraIds) {
+        if (cameraIds.length >= 4) {
+            // 有4个或更多摄像头
+            // 修正摄像头位置映射：前=cameraIds[2], 后=cameraIds[1], 左=cameraIds[3], 右=cameraIds[0]
+            cameraManager.initCameras(
+                    cameraIds[2], textureFront,  // 前摄像头使用 cameraIds[2]
+                    cameraIds[1], textureBack,   // 后摄像头使用 cameraIds[1]
+                    cameraIds[3], textureLeft,   // 左摄像头使用 cameraIds[3]
+                    cameraIds[0], textureRight   // 右摄像头使用 cameraIds[0]
+            );
+        } else if (cameraIds.length >= 2) {
+            // 只有2个摄像头，使用前两个位置
+            cameraManager.initCameras(
+                    cameraIds[0], textureLeft,
+                    cameraIds[1], textureRight,
+                    cameraIds[0], textureFront,
+                    cameraIds[1], textureBack
+            );
+        } else if (cameraIds.length == 1) {
+            // 只有1个摄像头，所有位置使用同一个
+            cameraManager.initCameras(
+                    cameraIds[0], textureFront,
+                    cameraIds[0], textureBack,
+                    cameraIds[0], textureLeft,
+                    cameraIds[0], textureRight
+            );
+        } else {
+            Toast.makeText(this, "没有可用的摄像头", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    /**
+     * 自定义车型：使用用户配置的摄像头映射
+     */
+    private void initCamerasForCustomModel(String[] cameraIds) {
+        // 获取用户配置的摄像头ID
+        String frontId = appConfig.getCameraId("front");
+        String backId = appConfig.getCameraId("back");
+        String leftId = appConfig.getCameraId("left");
+        String rightId = appConfig.getCameraId("right");
+        
+        AppLog.d(TAG, "自定义车型配置 - 摄像头数量: " + configuredCameraCount);
+        AppLog.d(TAG, "  前: " + frontId + ", 后: " + backId + ", 左: " + leftId + ", 右: " + rightId);
+        
+        switch (configuredCameraCount) {
+            case 1:
+                // 1摄像头模式
+                if (textureFront != null) {
+                    cameraManager.initCameras(
+                            frontId, textureFront,
+                            null, null,
+                            null, null,
+                            null, null
+                    );
+                }
+                break;
+            case 2:
+                // 2摄像头模式
+                if (textureFront != null && textureBack != null) {
+                    cameraManager.initCameras(
+                            frontId, textureFront,
+                            backId, textureBack,
+                            null, null,
+                            null, null
+                    );
+                }
+                break;
+            default:
+                // 4摄像头模式
+                if (textureFront != null && textureBack != null && textureLeft != null && textureRight != null) {
+                    cameraManager.initCameras(
+                            frontId, textureFront,
+                            backId, textureBack,
+                            leftId, textureLeft,
+                            rightId, textureRight
+                    );
+
+                    // 设置自定义旋转角度（仅用于自定义车型）
+                    setCustomRotationForCameras();
+                }
+                break;
+        }
+    }
+
+    /**
+     * 为自定义车型的摄像头设置旋转角度
+     */
+    private void setCustomRotationForCameras() {
+        if (!appConfig.isCustomCarModel()) {
+            return;  // 只对自定义车型应用
+        }
+
+        // 获取并设置每个摄像头的旋转角度
+        int frontRotation = appConfig.getCameraRotation("front");
+        int backRotation = appConfig.getCameraRotation("back");
+        int leftRotation = appConfig.getCameraRotation("left");
+        int rightRotation = appConfig.getCameraRotation("right");
+
+        AppLog.d(TAG, "设置自定义旋转角度 - 前:" + frontRotation + "° 后:" + backRotation + "° 左:" + leftRotation + "° 右:" + rightRotation + "°");
+
+        // 为每个摄像头设置旋转角度
+        if (cameraManager != null) {
+            SingleCamera frontCamera = cameraManager.getCamera("front");
+            SingleCamera backCamera = cameraManager.getCamera("back");
+            SingleCamera leftCamera = cameraManager.getCamera("left");
+            SingleCamera rightCamera = cameraManager.getCamera("right");
+
+            if (frontCamera != null) frontCamera.setCustomRotation(frontRotation);
+            if (backCamera != null) backCamera.setCustomRotation(backRotation);
+            if (leftCamera != null) leftCamera.setCustomRotation(leftRotation);
+            if (rightCamera != null) rightCamera.setCustomRotation(rightRotation);
+        }
     }
 
     /**

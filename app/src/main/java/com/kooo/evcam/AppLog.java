@@ -58,26 +58,29 @@ public final class AppLog {
         synchronized (LOCK) {
             snapshot = new ArrayList<>(BUFFER);
         }
-        File baseDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
-        if (baseDir == null) {
-            baseDir = context.getFilesDir();
-        }
-        File logDir = new File(baseDir, "logs");
-        if (!logDir.exists() && !logDir.mkdirs()) {
-            return null;
-        }
         String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
-        File logFile = new File(logDir, "evcam_log_" + timestamp + ".txt");
+        String fileName = "evcam_log_" + timestamp + ".txt";
+
+        // 保存到 Download/EVCam_Log/ 目录
+        File logDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "EVCam_Log");
+        File logFile = new File(logDir, fileName);
+        return writeLogToFile(logFile, snapshot) ? logFile : null;
+    }
+
+    private static boolean writeLogToFile(File logFile, List<String> lines) {
+        if (!logFile.getParentFile().exists() && !logFile.getParentFile().mkdirs()) {
+            return false;
+        }
         try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(logFile), StandardCharsets.UTF_8)) {
-            for (String line : snapshot) {
+            for (String line : lines) {
                 writer.write(line);
                 writer.write('\n');
             }
+            return true;
         } catch (IOException e) {
-            Log.e("AppLog", "Failed to save logs", e);
-            return null;
+            Log.w("AppLog", "Cannot write to " + logFile.getAbsolutePath() + ": " + e.getMessage());
+            return false;
         }
-        return logFile;
     }
 
     public static void d(String tag, String message) {

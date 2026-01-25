@@ -69,29 +69,56 @@ public class MultiCameraManager {
     }
 
     /**
+     * 获取指定位置的摄像头实例
+     * @param position 位置（front/back/left/right）
+     * @return SingleCamera实例，如果不存在则返回null
+     */
+    public SingleCamera getCamera(String position) {
+        return cameras.get(position);
+    }
+
+    /**
      * 初始化摄像头
+     * 支持 null 参数以适配不同数量的摄像头配置（1摄/2摄/4摄）
      */
     public void initCameras(String frontId, TextureView frontView,
                            String backId, TextureView backView,
                            String leftId, TextureView leftView,
                            String rightId, TextureView rightView) {
 
-        // 创建四个摄像头实例
-        SingleCamera frontCamera = new SingleCamera(context, frontId, frontView);
-        frontCamera.setCameraPosition("front");
-        cameras.put("front", frontCamera);
+        // 清空之前的摄像头实例
+        cameras.clear();
+        
+        // 根据参数创建摄像头实例（支持 null 参数以跳过某些摄像头）
+        if (frontId != null && frontView != null) {
+            SingleCamera frontCamera = new SingleCamera(context, frontId, frontView);
+            frontCamera.setCameraPosition("front");
+            cameras.put("front", frontCamera);
+            AppLog.d(TAG, "初始化前摄像头: ID=" + frontId);
+        }
 
-        SingleCamera backCamera = new SingleCamera(context, backId, backView);
-        backCamera.setCameraPosition("back");
-        cameras.put("back", backCamera);
+        if (backId != null && backView != null) {
+            SingleCamera backCamera = new SingleCamera(context, backId, backView);
+            backCamera.setCameraPosition("back");
+            cameras.put("back", backCamera);
+            AppLog.d(TAG, "初始化后摄像头: ID=" + backId);
+        }
 
-        SingleCamera leftCamera = new SingleCamera(context, leftId, leftView);
-        leftCamera.setCameraPosition("left");
-        cameras.put("left", leftCamera);
+        if (leftId != null && leftView != null) {
+            SingleCamera leftCamera = new SingleCamera(context, leftId, leftView);
+            leftCamera.setCameraPosition("left");
+            cameras.put("left", leftCamera);
+            AppLog.d(TAG, "初始化左摄像头: ID=" + leftId);
+        }
 
-        SingleCamera rightCamera = new SingleCamera(context, rightId, rightView);
-        rightCamera.setCameraPosition("right");
-        cameras.put("right", rightCamera);
+        if (rightId != null && rightView != null) {
+            SingleCamera rightCamera = new SingleCamera(context, rightId, rightView);
+            rightCamera.setCameraPosition("right");
+            cameras.put("right", rightCamera);
+            AppLog.d(TAG, "初始化右摄像头: ID=" + rightId);
+        }
+        
+        AppLog.d(TAG, "共初始化 " + cameras.size() + " 个摄像头");
 
         // 检测重复的cameraId，只让第一个实例成为主实例
         Set<String> primaryIds = new HashSet<>();
@@ -228,16 +255,25 @@ public class MultiCameraManager {
             }
         };
 
-        cameras.get("front").setCallback(callback);
-        cameras.get("back").setCallback(callback);
-        cameras.get("left").setCallback(callback);
-        cameras.get("right").setCallback(callback);
+        // 为已初始化的摄像头设置回调
+        for (Map.Entry<String, SingleCamera> entry : cameras.entrySet()) {
+            entry.getValue().setCallback(callback);
+        }
 
-        // 创建四个录制器实例
-        recorders.put("front", new VideoRecorder(frontId));
-        recorders.put("back", new VideoRecorder(backId));
-        recorders.put("left", new VideoRecorder(leftId));
-        recorders.put("right", new VideoRecorder(rightId));
+        // 为已初始化的摄像头创建录制器实例
+        recorders.clear();
+        if (frontId != null && cameras.containsKey("front")) {
+            recorders.put("front", new VideoRecorder(frontId));
+        }
+        if (backId != null && cameras.containsKey("back")) {
+            recorders.put("back", new VideoRecorder(backId));
+        }
+        if (leftId != null && cameras.containsKey("left")) {
+            recorders.put("left", new VideoRecorder(leftId));
+        }
+        if (rightId != null && cameras.containsKey("right")) {
+            recorders.put("right", new VideoRecorder(rightId));
+        }
 
         // 为每个录制器设置回调
         RecordCallback recordCallback = new RecordCallback() {
@@ -278,10 +314,10 @@ public class MultiCameraManager {
             }
         };
 
-        recorders.get("front").setCallback(recordCallback);
-        recorders.get("back").setCallback(recordCallback);
-        recorders.get("left").setCallback(recordCallback);
-        recorders.get("right").setCallback(recordCallback);
+        // 为已创建的录制器设置回调
+        for (Map.Entry<String, VideoRecorder> entry : recorders.entrySet()) {
+            entry.getValue().setCallback(recordCallback);
+        }
 
         AppLog.d(TAG, "Cameras initialized");
     }

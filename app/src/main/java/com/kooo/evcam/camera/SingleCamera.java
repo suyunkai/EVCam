@@ -44,6 +44,7 @@ public class SingleCamera {
     private final TextureView textureView;
     private CameraCallback callback;
     private String cameraPosition;  // 摄像头位置（front/back/left/right）
+    private int customRotation = 0;  // 自定义旋转角度（仅用于自定义车型）
 
     private CameraManager cameraManager;
     private CameraDevice cameraDevice;
@@ -83,6 +84,20 @@ public class SingleCamera {
         // 如果是后摄像头，应用左右镜像变换
         if ("back".equals(position) && textureView != null) {
             applyMirrorTransform();
+        }
+    }
+
+    /**
+     * 设置自定义旋转角度（仅用于自定义车型）
+     * @param rotation 旋转角度（0/90/180/270）
+     */
+    public void setCustomRotation(int rotation) {
+        this.customRotation = rotation;
+        AppLog.d(TAG, "Camera " + cameraId + " (" + cameraPosition + ") custom rotation set to " + rotation + "°");
+
+        // 如果TextureView已经可用，立即应用旋转
+        if (textureView != null && textureView.isAvailable()) {
+            applyCustomRotation();
         }
     }
 
@@ -127,6 +142,35 @@ public class SingleCamera {
 
             textureView.setTransform(matrix);
             AppLog.d(TAG, "Camera " + cameraId + " (back) applied mirror transform");
+        });
+    }
+
+    /**
+     * 应用自定义旋转角度（仅用于自定义车型）
+     */
+    private void applyCustomRotation() {
+        if (textureView == null || customRotation == 0) {
+            return;
+        }
+
+        // 在主线程中执行UI操作
+        textureView.post(() -> {
+            android.graphics.Matrix matrix = new android.graphics.Matrix();
+
+            // 获取TextureView的中心点
+            float centerX = textureView.getWidth() / 2f;
+            float centerY = textureView.getHeight() / 2f;
+
+            // 应用旋转
+            matrix.setRotate(customRotation, centerX, centerY);
+
+            // 如果是后摄像头，还需要应用镜像
+            if ("back".equals(cameraPosition)) {
+                matrix.postScale(-1f, 1f, centerX, centerY);
+            }
+
+            textureView.setTransform(matrix);
+            AppLog.d(TAG, "Camera " + cameraId + " (" + cameraPosition + ") applied custom rotation: " + customRotation + "°");
         });
     }
 
@@ -255,6 +299,25 @@ public class SingleCamera {
         
         try {
             startBackgroundThread();
+
+            // 验证摄像头ID是否存在
+            String[] availableCameraIds = cameraManager.getCameraIdList();
+            boolean cameraExists = false;
+            for (String id : availableCameraIds) {
+                if (id.equals(cameraId)) {
+                    cameraExists = true;
+                    break;
+                }
+            }
+
+            if (!cameraExists) {
+                AppLog.e(TAG, "Camera ID " + cameraId + " does not exist on this device. Available IDs: " +
+                         java.util.Arrays.toString(availableCameraIds));
+                if (callback != null) {
+                    callback.onCameraError(cameraId, CameraDevice.StateCallback.ERROR_CAMERA_DEVICE);
+                }
+                return;
+            }
 
             // 获取摄像头特性
             CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraId);
@@ -576,6 +639,11 @@ public class SingleCamera {
             // 如果是后摄像头，确保应用镜像变换
             if ("back".equals(cameraPosition)) {
                 applyMirrorTransform();
+            }
+
+            // 如果设置了自定义旋转角度，应用旋转（仅用于自定义车型）
+            if (customRotation != 0) {
+                applyCustomRotation();
             }
 
             // 创建预览请求

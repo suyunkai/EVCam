@@ -8,7 +8,10 @@ import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -17,6 +20,7 @@ import androidx.annotation.Nullable;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
 
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
@@ -36,6 +40,11 @@ public class SettingsFragment extends Fragment {
     private SwitchMaterial autoStartSwitch;
     private SwitchMaterial keepAliveSwitch;
     private AppConfig appConfig;
+    
+    // 车型配置相关
+    private Spinner carModelSpinner;
+    private Button customCameraConfigButton;
+    private static final String[] CAR_MODEL_OPTIONS = {"银河E5", "自定义车型"};
 
     @Nullable
     @Override
@@ -63,12 +72,19 @@ public class SettingsFragment extends Fragment {
             
             // 初始化Debug开关状态
             debugSwitch.setChecked(AppLog.isDebugToInfoEnabled(getContext()));
+            
+            // 根据 Debug 状态显示或隐藏保存日志按钮
+            updateSaveLogsButtonVisibility(debugSwitch.isChecked());
+            
+            // 初始化车型配置
+            initCarModelConfig(view);
         }
 
         // 设置Debug开关监听器
         debugSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (getContext() != null) {
                 AppLog.setDebugToInfoEnabled(getContext(), isChecked);
+                updateSaveLogsButtonVisibility(isChecked);
                 String message = isChecked ? "Debug logs will show as info" : "Debug logs will show as debug";
                 Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
             }
@@ -258,5 +274,94 @@ public class SettingsFragment extends Fragment {
             AppLog.e("SettingsFragment", "打开无障碍设置失败", e);
             Toast.makeText(getContext(), "无法打开设置页面", Toast.LENGTH_SHORT).show();
         }
+    }
+    
+    /**
+     * 初始化车型配置
+     */
+    private void initCarModelConfig(View view) {
+        carModelSpinner = view.findViewById(R.id.spinner_car_model);
+        customCameraConfigButton = view.findViewById(R.id.btn_custom_camera_config);
+        
+        if (carModelSpinner == null || customCameraConfigButton == null || getContext() == null) {
+            return;
+        }
+        
+        // 设置下拉选择框适配器
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                getContext(),
+                R.layout.spinner_item,
+                CAR_MODEL_OPTIONS
+        );
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
+        carModelSpinner.setAdapter(adapter);
+        
+        // 根据当前配置设置选中项
+        String currentModel = appConfig.getCarModel();
+        int selectedIndex = AppConfig.CAR_MODEL_CUSTOM.equals(currentModel) ? 1 : 0;
+        carModelSpinner.setSelection(selectedIndex);
+        
+        // 根据当前车型显示或隐藏配置按钮
+        updateCustomConfigButtonVisibility(selectedIndex == 1);
+        
+        // 设置下拉选择监听器
+        carModelSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String newModel = position == 0 ? AppConfig.CAR_MODEL_GALAXY_E5 : AppConfig.CAR_MODEL_CUSTOM;
+                appConfig.setCarModel(newModel);
+                updateCustomConfigButtonVisibility(position == 1);
+                
+                // 提示需要重启应用
+                if (getContext() != null) {
+                    String modelName = position == 0 ? "银河E5" : "自定义车型";
+                    Toast.makeText(getContext(), "已切换为「" + modelName + "」，重启应用后生效", Toast.LENGTH_SHORT).show();
+                }
+            }
+            
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                // 不处理
+            }
+        });
+        
+        // 设置自定义配置按钮点击事件
+        customCameraConfigButton.setOnClickListener(v -> {
+            // 打开自定义摄像头配置界面
+            openCustomCameraConfig();
+        });
+    }
+    
+    /**
+     * 更新自定义配置按钮的可见性
+     */
+    private void updateCustomConfigButtonVisibility(boolean visible) {
+        if (customCameraConfigButton != null) {
+            customCameraConfigButton.setVisibility(visible ? View.VISIBLE : View.GONE);
+        }
+    }
+    
+    /**
+     * 更新保存日志按钮的可见性（仅 Debug 开启时显示）
+     */
+    private void updateSaveLogsButtonVisibility(boolean visible) {
+        if (saveLogsButton != null) {
+            saveLogsButton.setVisibility(visible ? View.VISIBLE : View.GONE);
+        }
+    }
+    
+    /**
+     * 打开自定义摄像头配置界面
+     */
+    private void openCustomCameraConfig() {
+        if (getActivity() == null) {
+            return;
+        }
+        
+        // 切换到 CustomCameraConfigFragment
+        FragmentTransaction transaction = getActivity().getSupportFragmentManager().beginTransaction();
+        transaction.replace(R.id.fragment_container, new CustomCameraConfigFragment());
+        transaction.addToBackStack(null);  // 允许返回
+        transaction.commit();
     }
 }

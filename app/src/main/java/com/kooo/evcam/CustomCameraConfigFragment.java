@@ -1,0 +1,349 @@
+package com.kooo.evcam;
+
+import android.content.Context;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraManager;
+import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.Spinner;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 自定义摄像头配置界面 Fragment
+ */
+public class CustomCameraConfigFragment extends Fragment {
+
+    private static final String TAG = "CustomCameraConfig";
+    
+    private AppConfig appConfig;
+    
+    // 摄像头数量选择
+    private Spinner cameraCountSpinner;
+    private static final String[] CAMERA_COUNT_OPTIONS = {"4 个", "2 个", "1 个"};
+
+    // 旋转角度选项
+    private static final String[] ROTATION_OPTIONS = {"0°", "90°", "180°", "270°"};
+    private static final int[] ROTATION_VALUES = {0, 90, 180, 270};
+
+    // 摄像头配置区域
+    private LinearLayout configFront, configBack, configLeft, configRight;
+    
+    // 摄像头编号选择器
+    private Spinner spinnerFrontId, spinnerBackId, spinnerLeftId, spinnerRightId;
+
+    // 摄像头旋转角度选择器
+    private Spinner spinnerFrontRotation, spinnerBackRotation, spinnerLeftRotation, spinnerRightRotation;
+
+    // 摄像头名称输入框
+    private EditText editFrontName, editBackName, editLeftName, editRightName;
+    
+    // 可用的摄像头ID列表
+    private List<String> availableCameraIds = new ArrayList<>();
+    
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_custom_camera_config, container, false);
+        
+        // 初始化应用配置
+        if (getContext() != null) {
+            appConfig = new AppConfig(getContext());
+        }
+        
+        // 初始化控件
+        initViews(view);
+        
+        // 检测可用的摄像头
+        detectAvailableCameras();
+        
+        // 初始化下拉选择器
+        initSpinners();
+        
+        // 加载已保存的配置
+        loadSavedConfig();
+        
+        // 设置返回按钮
+        Button btnBack = view.findViewById(R.id.btn_back);
+        btnBack.setOnClickListener(v -> {
+            if (getActivity() != null) {
+                getActivity().getSupportFragmentManager().popBackStack();
+            }
+        });
+        
+        // 设置保存按钮
+        Button btnSave = view.findViewById(R.id.btn_save);
+        btnSave.setOnClickListener(v -> saveConfig());
+        
+        return view;
+    }
+    
+    private void initViews(View view) {
+        cameraCountSpinner = view.findViewById(R.id.spinner_camera_count);
+        
+        configFront = view.findViewById(R.id.config_front);
+        configBack = view.findViewById(R.id.config_back);
+        configLeft = view.findViewById(R.id.config_left);
+        configRight = view.findViewById(R.id.config_right);
+        
+        spinnerFrontId = view.findViewById(R.id.spinner_front_id);
+        spinnerBackId = view.findViewById(R.id.spinner_back_id);
+        spinnerLeftId = view.findViewById(R.id.spinner_left_id);
+        spinnerRightId = view.findViewById(R.id.spinner_right_id);
+
+        spinnerFrontRotation = view.findViewById(R.id.spinner_front_rotation);
+        spinnerBackRotation = view.findViewById(R.id.spinner_back_rotation);
+        spinnerLeftRotation = view.findViewById(R.id.spinner_left_rotation);
+        spinnerRightRotation = view.findViewById(R.id.spinner_right_rotation);
+
+        editFrontName = view.findViewById(R.id.edit_front_name);
+        editBackName = view.findViewById(R.id.edit_back_name);
+        editLeftName = view.findViewById(R.id.edit_left_name);
+        editRightName = view.findViewById(R.id.edit_right_name);
+    }
+    
+    /**
+     * 检测可用的摄像头
+     */
+    private void detectAvailableCameras() {
+        if (getContext() == null) {
+            return;
+        }
+        
+        try {
+            CameraManager cameraManager = (CameraManager) getContext().getSystemService(Context.CAMERA_SERVICE);
+            String[] cameraIds = cameraManager.getCameraIdList();
+            
+            availableCameraIds.clear();
+            for (String id : cameraIds) {
+                availableCameraIds.add(id);
+            }
+            
+            AppLog.d(TAG, "检测到 " + availableCameraIds.size() + " 个摄像头: " + availableCameraIds);
+            
+        } catch (CameraAccessException e) {
+            AppLog.e(TAG, "检测摄像头失败", e);
+            // 如果检测失败，提供默认选项
+            availableCameraIds.clear();
+            for (int i = 0; i < 4; i++) {
+                availableCameraIds.add(String.valueOf(i));
+            }
+        }
+    }
+    
+    /**
+     * 初始化下拉选择器
+     */
+    private void initSpinners() {
+        if (getContext() == null) {
+            return;
+        }
+        
+        // 摄像头数量选择器
+        ArrayAdapter<String> countAdapter = new ArrayAdapter<>(
+                getContext(),
+                R.layout.spinner_item,
+                CAMERA_COUNT_OPTIONS
+        );
+        countAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
+        cameraCountSpinner.setAdapter(countAdapter);
+        
+        // 摄像头数量选择监听
+        cameraCountSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                int count = position == 0 ? 4 : (position == 1 ? 2 : 1);
+                updateConfigVisibility(count);
+            }
+            
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                // 不处理
+            }
+        });
+        
+        // 摄像头ID选择器
+        ArrayAdapter<String> idAdapter = new ArrayAdapter<>(
+                getContext(),
+                R.layout.spinner_item,
+                availableCameraIds
+        );
+        idAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
+        
+        spinnerFrontId.setAdapter(idAdapter);
+        spinnerBackId.setAdapter(idAdapter);
+        spinnerLeftId.setAdapter(idAdapter);
+        spinnerRightId.setAdapter(idAdapter);
+
+        // 旋转角度选择器
+        ArrayAdapter<String> rotationAdapter = new ArrayAdapter<>(
+                getContext(),
+                R.layout.spinner_item,
+                ROTATION_OPTIONS
+        );
+        rotationAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
+
+        spinnerFrontRotation.setAdapter(rotationAdapter);
+        spinnerBackRotation.setAdapter(rotationAdapter);
+        spinnerLeftRotation.setAdapter(rotationAdapter);
+        spinnerRightRotation.setAdapter(rotationAdapter);
+    }
+    
+    /**
+     * 根据摄像头数量更新配置区域的可见性
+     */
+    private void updateConfigVisibility(int count) {
+        // 位置1（前）始终显示
+        configFront.setVisibility(View.VISIBLE);
+        
+        // 位置2（后）在2个或4个摄像头时显示
+        configBack.setVisibility(count >= 2 ? View.VISIBLE : View.GONE);
+        
+        // 位置3和4（左右）仅在4个摄像头时显示
+        configLeft.setVisibility(count >= 4 ? View.VISIBLE : View.GONE);
+        configRight.setVisibility(count >= 4 ? View.VISIBLE : View.GONE);
+    }
+    
+    /**
+     * 加载已保存的配置
+     */
+    private void loadSavedConfig() {
+        if (appConfig == null) {
+            return;
+        }
+        
+        // 加载摄像头数量
+        int count = appConfig.getCameraCount();
+        int countIndex = count == 4 ? 0 : (count == 2 ? 1 : 2);
+        cameraCountSpinner.setSelection(countIndex);
+        updateConfigVisibility(count);
+        
+        // 加载摄像头ID
+        setSpinnerSelection(spinnerFrontId, appConfig.getCameraId("front"));
+        setSpinnerSelection(spinnerBackId, appConfig.getCameraId("back"));
+        setSpinnerSelection(spinnerLeftId, appConfig.getCameraId("left"));
+        setSpinnerSelection(spinnerRightId, appConfig.getCameraId("right"));
+
+        // 加载摄像头旋转角度
+        setRotationSpinnerSelection(spinnerFrontRotation, appConfig.getCameraRotation("front"));
+        setRotationSpinnerSelection(spinnerBackRotation, appConfig.getCameraRotation("back"));
+        setRotationSpinnerSelection(spinnerLeftRotation, appConfig.getCameraRotation("left"));
+        setRotationSpinnerSelection(spinnerRightRotation, appConfig.getCameraRotation("right"));
+
+        // 加载摄像头名称
+        editFrontName.setText(appConfig.getCameraName("front"));
+        editBackName.setText(appConfig.getCameraName("back"));
+        editLeftName.setText(appConfig.getCameraName("left"));
+        editRightName.setText(appConfig.getCameraName("right"));
+    }
+    
+    /**
+     * 设置 Spinner 的选中项
+     */
+    private void setSpinnerSelection(Spinner spinner, String value) {
+        int index = availableCameraIds.indexOf(value);
+        if (index >= 0) {
+            spinner.setSelection(index);
+        } else if (!availableCameraIds.isEmpty()) {
+            spinner.setSelection(0);
+        }
+    }
+
+    /**
+     * 设置旋转角度 Spinner 的选中项
+     */
+    private void setRotationSpinnerSelection(Spinner spinner, int rotation) {
+        int index = 0;
+        for (int i = 0; i < ROTATION_VALUES.length; i++) {
+            if (ROTATION_VALUES[i] == rotation) {
+                index = i;
+                break;
+            }
+        }
+        spinner.setSelection(index);
+    }
+
+    /**
+     * 获取旋转角度 Spinner 的值
+     */
+    private int getRotationSpinnerValue(Spinner spinner) {
+        int position = spinner.getSelectedItemPosition();
+        if (position >= 0 && position < ROTATION_VALUES.length) {
+            return ROTATION_VALUES[position];
+        }
+        return 0;  // 默认不旋转
+    }
+
+    /**
+     * 保存配置
+     */
+    private void saveConfig() {
+        if (appConfig == null || getContext() == null) {
+            return;
+        }
+        
+        // 保存摄像头数量
+        int countIndex = cameraCountSpinner.getSelectedItemPosition();
+        int count = countIndex == 0 ? 4 : (countIndex == 1 ? 2 : 1);
+        appConfig.setCameraCount(count);
+        
+        // 保存摄像头ID
+        appConfig.setCameraId("front", getSpinnerValue(spinnerFrontId));
+        if (count >= 2) {
+            appConfig.setCameraId("back", getSpinnerValue(spinnerBackId));
+        }
+        if (count >= 4) {
+            appConfig.setCameraId("left", getSpinnerValue(spinnerLeftId));
+            appConfig.setCameraId("right", getSpinnerValue(spinnerRightId));
+        }
+
+        // 保存摄像头旋转角度
+        appConfig.setCameraRotation("front", getRotationSpinnerValue(spinnerFrontRotation));
+        if (count >= 2) {
+            appConfig.setCameraRotation("back", getRotationSpinnerValue(spinnerBackRotation));
+        }
+        if (count >= 4) {
+            appConfig.setCameraRotation("left", getRotationSpinnerValue(spinnerLeftRotation));
+            appConfig.setCameraRotation("right", getRotationSpinnerValue(spinnerRightRotation));
+        }
+
+        // 保存摄像头名称
+        appConfig.setCameraName("front", editFrontName.getText().toString().trim());
+        if (count >= 2) {
+            appConfig.setCameraName("back", editBackName.getText().toString().trim());
+        }
+        if (count >= 4) {
+            appConfig.setCameraName("left", editLeftName.getText().toString().trim());
+            appConfig.setCameraName("right", editRightName.getText().toString().trim());
+        }
+        
+        Toast.makeText(getContext(), "配置已保存，重启应用后生效", Toast.LENGTH_LONG).show();
+        AppLog.d(TAG, "配置已保存: 摄像头数量=" + count);
+        
+        // 返回上一页
+        if (getActivity() != null) {
+            getActivity().getSupportFragmentManager().popBackStack();
+        }
+    }
+    
+    /**
+     * 获取 Spinner 当前选中的值
+     */
+    private String getSpinnerValue(Spinner spinner) {
+        Object selectedItem = spinner.getSelectedItem();
+        return selectedItem != null ? selectedItem.toString() : "0";
+    }
+}
