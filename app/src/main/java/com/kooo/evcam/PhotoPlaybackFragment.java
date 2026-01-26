@@ -80,7 +80,7 @@ public class PhotoPlaybackFragment extends Fragment {
         photoFiles.clear();
 
         // 获取保存目录
-        File saveDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "EVCam_Photo");
+        File saveDir = StorageHelper.getPhotoDir(getContext());
         if (saveDir.exists() && saveDir.isDirectory()) {
             File[] files = saveDir.listFiles((dir, name) -> {
                 String lowerName = name.toLowerCase();

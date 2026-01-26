@@ -2,6 +2,7 @@ package com.kooo.evcam.camera;
 
 
 import com.kooo.evcam.AppLog;
+import com.kooo.evcam.StorageHelper;
 import android.content.Context;
 import android.os.Environment;
 import android.util.Log;
@@ -467,7 +468,7 @@ public class MultiCameraManager {
     private boolean startMediaRecorderRecording(String timestamp) {
         AppLog.d(TAG, "Starting MediaRecorder recording with timestamp: " + timestamp);
 
-        File saveDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "EVCam_Video");
+        File saveDir = StorageHelper.getVideoDir(context);
         if (!saveDir.exists()) {
             saveDir.mkdirs();
         }
@@ -592,7 +593,7 @@ public class MultiCameraManager {
     private boolean startCodecRecording(String timestamp) {
         AppLog.d(TAG, "Starting CODEC recording with timestamp: " + timestamp);
 
-        File saveDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "EVCam_Video");
+        File saveDir = StorageHelper.getVideoDir(context);
         if (!saveDir.exists()) {
             saveDir.mkdirs();
         }

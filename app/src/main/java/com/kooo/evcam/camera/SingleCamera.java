@@ -2,6 +2,7 @@ package com.kooo.evcam.camera;
 
 
 import com.kooo.evcam.AppLog;
+import com.kooo.evcam.StorageHelper;
 import android.content.Context;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
@@ -966,8 +967,7 @@ public class SingleCamera {
      * 将Bitmap保存为JPEG文件（使用指定的时间戳）
      */
     private void saveBitmapAsJPEG(android.graphics.Bitmap bitmap, String timestamp) {
-        File photoDir = new File(android.os.Environment.getExternalStoragePublicDirectory(
-                android.os.Environment.DIRECTORY_DCIM), "EVCam_Photo");
+        File photoDir = StorageHelper.getPhotoDir(context);
         if (!photoDir.exists()) {
             photoDir.mkdirs();
         }

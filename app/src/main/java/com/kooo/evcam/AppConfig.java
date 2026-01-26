@@ -12,9 +12,29 @@ public class AppConfig {
     private static final String PREF_NAME = "app_config";
     
     // 配置项键名
+    private static final String KEY_FIRST_LAUNCH = "first_launch";  // 首次启动标记
     private static final String KEY_AUTO_START_ON_BOOT = "auto_start_on_boot";  // 开机自启动
     private static final String KEY_KEEP_ALIVE_ENABLED = "keep_alive_enabled";  // 保活服务
     private static final String KEY_RECORDING_MODE = "recording_mode";  // 录制模式
+    
+    // 存储位置配置
+    private static final String KEY_STORAGE_LOCATION = "storage_location";  // 存储位置
+    
+    // 存储位置常量
+    public static final String STORAGE_INTERNAL = "internal";  // 内部存储（默认）
+    public static final String STORAGE_EXTERNAL_SD = "external_sd";  // 外置SD卡
+    
+    // 悬浮窗配置
+    private static final String KEY_FLOATING_WINDOW_ENABLED = "floating_window_enabled";  // 悬浮窗开关
+    private static final String KEY_FLOATING_WINDOW_SIZE = "floating_window_size";  // 悬浮窗大小
+    private static final String KEY_FLOATING_WINDOW_ALPHA = "floating_window_alpha";  // 悬浮窗透明度
+    private static final String KEY_FLOATING_WINDOW_X = "floating_window_x";  // 悬浮窗X位置
+    private static final String KEY_FLOATING_WINDOW_Y = "floating_window_y";  // 悬浮窗Y位置
+    
+    // 悬浮窗大小常量
+    public static final int FLOATING_SIZE_SMALL = 48;   // 小
+    public static final int FLOATING_SIZE_MEDIUM = 64;  // 中
+    public static final int FLOATING_SIZE_LARGE = 80;   // 大
     
     // 录制模式常量
     public static final String RECORDING_MODE_AUTO = "auto";  // 自动（根据车型决定）
@@ -49,6 +69,26 @@ public class AppConfig {
     public AppConfig(Context context) {
         prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
     }
+    
+    // ==================== 首次启动相关方法 ====================
+    
+    /**
+     * 检查是否为首次启动
+     * @return true 表示首次启动（新安装后第一次打开）
+     */
+    public boolean isFirstLaunch() {
+        return prefs.getBoolean(KEY_FIRST_LAUNCH, true);
+    }
+    
+    /**
+     * 标记首次启动已完成
+     */
+    public void setFirstLaunchCompleted() {
+        prefs.edit().putBoolean(KEY_FIRST_LAUNCH, false).apply();
+        AppLog.d(TAG, "首次启动标记已设置为完成");
+    }
+    
+    // ==================== 开机自启动相关方法 ====================
     
     /**
      * 设置开机自启动
@@ -393,5 +433,113 @@ public class AppConfig {
         }
         
         return config;
+    }
+    
+    // ==================== 存储位置配置相关方法 ====================
+    
+    /**
+     * 设置存储位置
+     * @param location 存储位置（internal 或 external_sd）
+     */
+    public void setStorageLocation(String location) {
+        prefs.edit().putString(KEY_STORAGE_LOCATION, location).apply();
+        AppLog.d(TAG, "存储位置设置: " + location);
+    }
+    
+    /**
+     * 获取存储位置
+     * @return 存储位置，默认为内部存储
+     */
+    public String getStorageLocation() {
+        return prefs.getString(KEY_STORAGE_LOCATION, STORAGE_INTERNAL);
+    }
+    
+    /**
+     * 是否使用外置SD卡存储
+     * @return true 表示使用外置SD卡
+     */
+    public boolean isUsingExternalSdCard() {
+        return STORAGE_EXTERNAL_SD.equals(getStorageLocation());
+    }
+    
+    // ==================== 悬浮窗配置相关方法 ====================
+    
+    /**
+     * 设置悬浮窗开关
+     * @param enabled true 表示启用悬浮窗
+     */
+    public void setFloatingWindowEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_FLOATING_WINDOW_ENABLED, enabled).apply();
+        AppLog.d(TAG, "悬浮窗设置: " + (enabled ? "启用" : "禁用"));
+    }
+    
+    /**
+     * 获取悬浮窗开关状态
+     * @return true 表示启用悬浮窗
+     */
+    public boolean isFloatingWindowEnabled() {
+        return prefs.getBoolean(KEY_FLOATING_WINDOW_ENABLED, false);
+    }
+    
+    /**
+     * 设置悬浮窗大小（dp）
+     * @param sizeDp 悬浮窗大小，单位dp
+     */
+    public void setFloatingWindowSize(int sizeDp) {
+        prefs.edit().putInt(KEY_FLOATING_WINDOW_SIZE, sizeDp).apply();
+        AppLog.d(TAG, "悬浮窗大小设置: " + sizeDp + "dp");
+    }
+    
+    /**
+     * 获取悬浮窗大小（dp）
+     * @return 悬浮窗大小，默认为中等大小
+     */
+    public int getFloatingWindowSize() {
+        return prefs.getInt(KEY_FLOATING_WINDOW_SIZE, FLOATING_SIZE_MEDIUM);
+    }
+    
+    /**
+     * 设置悬浮窗透明度（0-100）
+     * @param alpha 透明度百分比，0为完全透明，100为完全不透明
+     */
+    public void setFloatingWindowAlpha(int alpha) {
+        prefs.edit().putInt(KEY_FLOATING_WINDOW_ALPHA, alpha).apply();
+        AppLog.d(TAG, "悬浮窗透明度设置: " + alpha + "%");
+    }
+    
+    /**
+     * 获取悬浮窗透明度（0-100）
+     * @return 透明度百分比，默认为100（完全不透明）
+     */
+    public int getFloatingWindowAlpha() {
+        return prefs.getInt(KEY_FLOATING_WINDOW_ALPHA, 100);
+    }
+    
+    /**
+     * 保存悬浮窗位置
+     * @param x X坐标
+     * @param y Y坐标
+     */
+    public void setFloatingWindowPosition(int x, int y) {
+        prefs.edit()
+            .putInt(KEY_FLOATING_WINDOW_X, x)
+            .putInt(KEY_FLOATING_WINDOW_Y, y)
+            .apply();
+    }
+    
+    /**
+     * 获取悬浮窗X位置
+     * @return X坐标，默认-1表示未设置
+     */
+    public int getFloatingWindowX() {
+        return prefs.getInt(KEY_FLOATING_WINDOW_X, -1);
+    }
+    
+    /**
+     * 获取悬浮窗Y位置
+     * @return Y坐标，默认-1表示未设置
+     */
+    public int getFloatingWindowY() {
+        return prefs.getInt(KEY_FLOATING_WINDOW_Y, -1);
     }
 }

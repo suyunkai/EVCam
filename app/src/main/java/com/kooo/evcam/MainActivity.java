@@ -132,6 +132,9 @@ public class MainActivity extends AppCompatActivity {
         initViews();
         setupNavigationDrawer();
 
+        // 检查是否首次启动
+        checkFirstLaunch();
+
         // 初始化钉钉配置
         dingTalkConfig = new DingTalkConfig(this);
 
@@ -175,6 +178,20 @@ public class MainActivity extends AppCompatActivity {
 
         // 检查是否有启动时传入的远程命令（冷启动）
         handleRemoteCommandFromIntent(getIntent());
+
+        // 启动悬浮窗服务（如果已启用）
+        if (appConfig.isFloatingWindowEnabled() && WakeUpHelper.hasOverlayPermission(this)) {
+            FloatingWindowService.start(this);
+            AppLog.d(TAG, "悬浮窗服务已启动");
+            
+            // 延迟发送当前状态（等待服务启动完成）
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                // 发送当前录制状态
+                broadcastCurrentRecordingState();
+                // 应用在前台，隐藏悬浮窗
+                FloatingWindowService.sendAppForegroundState(this, true);
+            }, 500);
+        }
     }
 
     @Override
@@ -541,6 +558,58 @@ public class MainActivity extends AppCompatActivity {
 
         // 默认选中录制界面
         navigationView.setCheckedItem(R.id.nav_recording);
+    }
+
+    /**
+     * 检查并处理首次启动
+     * 首次启动时自动进入设置界面并显示引导弹窗
+     */
+    private void checkFirstLaunch() {
+        if (appConfig == null || !appConfig.isFirstLaunch()) {
+            return;
+        }
+
+        AppLog.d(TAG, "检测到首次启动，进入设置界面");
+
+        // 标记首次启动已完成（在显示弹窗前标记，避免重复触发）
+        appConfig.setFirstLaunchCompleted();
+
+        // 延迟执行，确保 UI 完全初始化
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            // 进入设置界面
+            showSettingsInterface();
+            navigationView.setCheckedItem(R.id.nav_settings);
+
+            // 显示引导弹窗
+            showFirstLaunchGuideDialog();
+        }, 300);
+    }
+
+    /**
+     * 显示首次启动引导弹窗（美化版）
+     */
+    private void showFirstLaunchGuideDialog() {
+        // 创建自定义对话框
+        android.app.Dialog dialog = new android.app.Dialog(this);
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_first_launch_guide);
+        dialog.setCancelable(false);
+
+        // 设置对话框窗口属性
+        android.view.Window window = dialog.getWindow();
+        if (window != null) {
+            // 设置背景透明（让圆角生效）
+            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            // 设置对话框宽度
+            android.view.WindowManager.LayoutParams params = window.getAttributes();
+            params.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.85);
+            window.setAttributes(params);
+        }
+
+        // 设置确认按钮点击事件
+        dialog.findViewById(R.id.btn_confirm).setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
     }
 
     /**
@@ -1181,6 +1250,9 @@ public class MainActivity extends AppCompatActivity {
                 // 开始闪烁动画
                 startBlinkAnimation();
 
+                // 发送录制状态广播（通知悬浮窗）
+                FloatingWindowService.sendRecordingStateChanged(this, true);
+
                 Toast.makeText(this, "开始录制（每1分钟自动分段）", Toast.LENGTH_SHORT).show();
                 AppLog.d(TAG, "Recording started with foreground service protection");
             } else {
@@ -1199,6 +1271,9 @@ public class MainActivity extends AppCompatActivity {
 
             // 停止闪烁动画，恢复红色
             stopBlinkAnimation();
+
+            // 发送录制状态广播（通知悬浮窗）
+            FloatingWindowService.sendRecordingStateChanged(this, false);
 
             Toast.makeText(this, "录制已停止", Toast.LENGTH_SHORT).show();
             AppLog.d(TAG, "Recording stopped, foreground service stopped");
@@ -1328,6 +1403,9 @@ public class MainActivity extends AppCompatActivity {
             // 启动前台服务保护（防止后台录制被中断）
             CameraForegroundService.start(this, "远程录制进行中", "正在录制 " + durationSeconds + " 秒视频...");
 
+            // 发送录制状态广播（通知悬浮窗）
+            FloatingWindowService.sendRecordingStateChanged(this, true);
+
             // 设置指定时长后自动停止
             autoStopRunnable = () -> {
                 AppLog.d(TAG, durationSeconds + " 秒录制完成，正在停止...");
@@ -1335,6 +1413,9 @@ public class MainActivity extends AppCompatActivity {
 
                 // 停止前台服务
                 CameraForegroundService.stop(this);
+
+                // 发送录制状态广播（通知悬浮窗）
+                FloatingWindowService.sendRecordingStateChanged(this, false);
 
                 // 等待录制完全停止
                 new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
@@ -1408,8 +1489,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // 获取录制的视频文件
-        File videoDir = new File(android.os.Environment.getExternalStoragePublicDirectory(
-                android.os.Environment.DIRECTORY_DCIM), "EVCam_Video");
+        File videoDir = StorageHelper.getVideoDir(this);
 
         if (!videoDir.exists() || !videoDir.isDirectory()) {
             AppLog.e(TAG, "视频目录不存在");
@@ -1486,8 +1566,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // 获取照片文件
-        File photoDir = new File(android.os.Environment.getExternalStoragePublicDirectory(
-                android.os.Environment.DIRECTORY_DCIM), "EVCam_Photo");
+        File photoDir = StorageHelper.getPhotoDir(this);
 
         if (!photoDir.exists() || !photoDir.isDirectory()) {
             AppLog.e(TAG, "照片目录不存在");
@@ -1711,6 +1790,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
+     * 获取当前录制状态（供外部查询）
+     */
+    public boolean isCurrentlyRecording() {
+        return isRecording;
+    }
+
+    /**
+     * 发送当前录制状态广播（供悬浮窗服务查询）
+     */
+    public void broadcastCurrentRecordingState() {
+        FloatingWindowService.sendRecordingStateChanged(this, isRecording);
+    }
+
+    /**
      * 通知 RemoteViewFragment 更新 UI
      */
     private void updateRemoteViewFragmentUI() {
@@ -1726,6 +1819,11 @@ public class MainActivity extends AppCompatActivity {
         super.onPause();
         isInBackground = true;
         AppLog.d(TAG, "onPause called, isRecording=" + isRecording);
+        
+        // 通知悬浮窗服务：应用进入后台，显示悬浮窗
+        if (appConfig.isFloatingWindowEnabled()) {
+            FloatingWindowService.sendAppForegroundState(this, false);
+        }
         
         // 根据是否正在录制，决定如何处理摄像头
         if (cameraManager != null) {
@@ -1746,6 +1844,11 @@ public class MainActivity extends AppCompatActivity {
         boolean wasInBackground = isInBackground;
         isInBackground = false;
         AppLog.d(TAG, "onResume called, wasInBackground=" + wasInBackground + ", isRecording=" + isRecording);
+        
+        // 通知悬浮窗服务：应用进入前台，隐藏悬浮窗
+        if (appConfig.isFloatingWindowEnabled()) {
+            FloatingWindowService.sendAppForegroundState(this, true);
+        }
         
         // 返回前台时，检查摄像头连接状态
         if (cameraManager != null && wasInBackground) {
