@@ -565,6 +565,10 @@ public class MainActivity extends AppCompatActivity {
         // 初始化计时器 Handler
         recordingTimerHandler = new android.os.Handler(android.os.Looper.getMainLooper());
         
+        // 确保 View 可点击（即使 INVISIBLE 也能响应点击）
+        tvRecordingStats.setClickable(true);
+        tvRecordingStats.setFocusable(true);
+        
         // 设置双击切换显示/隐藏
         tvRecordingStats.setOnClickListener(v -> {
             long currentTime = System.currentTimeMillis();
@@ -575,6 +579,7 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 lastStatsClickTime = currentTime;
             }
+            AppLog.d(TAG, "录制状态显示被点击, isRecording=" + isRecording + ", enabled=" + isRecordingStatsEnabled);
         });
     }
     
@@ -585,18 +590,16 @@ public class MainActivity extends AppCompatActivity {
         isRecordingStatsEnabled = !isRecordingStatsEnabled;
         appConfig.setRecordingStatsEnabled(isRecordingStatsEnabled);
         
-        if (isRecordingStatsEnabled) {
-            // 如果正在录制，显示状态
-            if (isRecording && tvRecordingStats != null) {
-                tvRecordingStats.setVisibility(View.VISIBLE);
+        if (tvRecordingStats != null && isRecording) {
+            if (isRecordingStatsEnabled) {
+                // 显示状态（使用 alpha 恢复可见）
+                tvRecordingStats.setAlpha(1.0f);
+                Toast.makeText(this, "录制状态显示已开启", Toast.LENGTH_SHORT).show();
+            } else {
+                // 使用 alpha=0 隐藏，但保持 VISIBLE 状态以响应点击
+                tvRecordingStats.setAlpha(0.0f);
+                Toast.makeText(this, "录制状态显示已关闭", Toast.LENGTH_SHORT).show();
             }
-            Toast.makeText(this, "录制状态显示已开启", Toast.LENGTH_SHORT).show();
-        } else {
-            // 隐藏状态显示
-            if (tvRecordingStats != null) {
-                tvRecordingStats.setVisibility(View.GONE);
-            }
-            Toast.makeText(this, "录制状态显示已关闭", Toast.LENGTH_SHORT).show();
         }
         
         AppLog.d(TAG, "录制状态显示切换: " + (isRecordingStatsEnabled ? "开启" : "关闭"));
@@ -609,8 +612,10 @@ public class MainActivity extends AppCompatActivity {
         recordingStartTime = System.currentTimeMillis();
         currentSegmentCount = 1;
         
-        if (tvRecordingStats != null && isRecordingStatsEnabled) {
+        if (tvRecordingStats != null) {
+            // 始终设为 VISIBLE，通过 alpha 控制可见性
             tvRecordingStats.setVisibility(View.VISIBLE);
+            tvRecordingStats.setAlpha(isRecordingStatsEnabled ? 1.0f : 0.0f);
             updateRecordingStatsDisplay();
         }
         
@@ -649,7 +654,7 @@ public class MainActivity extends AppCompatActivity {
      * 更新录制状态显示
      */
     private void updateRecordingStatsDisplay() {
-        if (tvRecordingStats == null || !isRecordingStatsEnabled) {
+        if (tvRecordingStats == null) {
             return;
         }
         
@@ -659,7 +664,7 @@ public class MainActivity extends AppCompatActivity {
         long minutes = totalSeconds / 60;
         long seconds = totalSeconds % 60;
         
-        // 格式化时间：MM:SS / 分段数
+        // 格式化时间：MM:SS / 分段数（即使隐藏也更新文本，便于双击显示时立即看到正确时间）
         String timeStr = String.format(java.util.Locale.getDefault(), "%02d:%02d / %d", minutes, seconds, currentSegmentCount);
         tvRecordingStats.setText(timeStr);
     }
@@ -681,9 +686,9 @@ public class MainActivity extends AppCompatActivity {
     public void refreshRecordingStatsSettings() {
         isRecordingStatsEnabled = appConfig.isRecordingStatsEnabled();
         
-        // 如果正在录制，根据新设置显示或隐藏
+        // 如果正在录制，根据新设置显示或隐藏（通过 alpha 控制，保持可点击）
         if (isRecording && tvRecordingStats != null) {
-            tvRecordingStats.setVisibility(isRecordingStatsEnabled ? View.VISIBLE : View.GONE);
+            tvRecordingStats.setAlpha(isRecordingStatsEnabled ? 1.0f : 0.0f);
         }
     }
 
