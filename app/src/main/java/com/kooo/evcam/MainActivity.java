@@ -111,6 +111,9 @@ public class MainActivity extends AppCompatActivity {
     private DingTalkConfig dingTalkConfig;
     private DingTalkApiClient dingTalkApiClient;
     private DingTalkStreamManager dingTalkStreamManager;
+    
+    // 存储清理管理器
+    private StorageCleanupManager storageCleanupManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -162,6 +165,10 @@ public class MainActivity extends AppCompatActivity {
         } else {
             AppLog.d(TAG, "定时保活任务已禁用，跳过启动");
         }
+        
+        // 启动存储清理任务（如果用户设置了限制）
+        storageCleanupManager = new StorageCleanupManager(this);
+        storageCleanupManager.start();
 
         // 检查是否是开机自启动
         boolean autoStartFromBoot = getIntent().getBooleanExtra("auto_start_from_boot", false);
@@ -1802,6 +1809,18 @@ public class MainActivity extends AppCompatActivity {
     public void broadcastCurrentRecordingState() {
         FloatingWindowService.sendRecordingStateChanged(this, isRecording);
     }
+    
+    /**
+     * 重启存储清理任务（配置更改后调用）
+     */
+    public void restartStorageCleanupTask() {
+        if (storageCleanupManager != null) {
+            storageCleanupManager.stop();
+        }
+        storageCleanupManager = new StorageCleanupManager(this);
+        storageCleanupManager.start();
+        AppLog.d(TAG, "存储清理任务已重启");
+    }
 
     /**
      * 通知 RemoteViewFragment 更新 UI
@@ -1886,6 +1905,11 @@ public class MainActivity extends AppCompatActivity {
         // 停止钉钉服务
         if (dingTalkStreamManager != null) {
             dingTalkStreamManager.stop();
+        }
+        
+        // 停止存储清理任务
+        if (storageCleanupManager != null) {
+            storageCleanupManager.stop();
         }
 
         if (cameraManager != null) {

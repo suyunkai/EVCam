@@ -31,6 +31,10 @@ public class AppConfig {
     private static final String KEY_FLOATING_WINDOW_X = "floating_window_x";  // 悬浮窗X位置
     private static final String KEY_FLOATING_WINDOW_Y = "floating_window_y";  // 悬浮窗Y位置
     
+    // 存储清理配置
+    private static final String KEY_VIDEO_STORAGE_LIMIT_GB = "video_storage_limit_gb";  // 视频存储限制（GB）
+    private static final String KEY_PHOTO_STORAGE_LIMIT_GB = "photo_storage_limit_gb";  // 图片存储限制（GB）
+    
     // 悬浮窗大小常量
     public static final int FLOATING_SIZE_TINY = 32;        // 超小
     public static final int FLOATING_SIZE_EXTRA_SMALL = 40; // 特小
@@ -548,5 +552,49 @@ public class AppConfig {
      */
     public int getFloatingWindowY() {
         return prefs.getInt(KEY_FLOATING_WINDOW_Y, -1);
+    }
+    
+    // ==================== 存储清理配置相关方法 ====================
+    
+    /**
+     * 设置视频存储限制（GB）
+     * @param limitGb 存储限制，单位GB，0表示不限制
+     */
+    public void setVideoStorageLimitGb(int limitGb) {
+        prefs.edit().putInt(KEY_VIDEO_STORAGE_LIMIT_GB, limitGb).apply();
+        AppLog.d(TAG, "视频存储限制设置: " + limitGb + " GB");
+    }
+    
+    /**
+     * 获取视频存储限制（GB）
+     * @return 存储限制，单位GB，0表示不限制
+     */
+    public int getVideoStorageLimitGb() {
+        return prefs.getInt(KEY_VIDEO_STORAGE_LIMIT_GB, 0);
+    }
+    
+    /**
+     * 设置图片存储限制（GB）
+     * @param limitGb 存储限制，单位GB，0表示不限制
+     */
+    public void setPhotoStorageLimitGb(int limitGb) {
+        prefs.edit().putInt(KEY_PHOTO_STORAGE_LIMIT_GB, limitGb).apply();
+        AppLog.d(TAG, "图片存储限制设置: " + limitGb + " GB");
+    }
+    
+    /**
+     * 获取图片存储限制（GB）
+     * @return 存储限制，单位GB，0表示不限制
+     */
+    public int getPhotoStorageLimitGb() {
+        return prefs.getInt(KEY_PHOTO_STORAGE_LIMIT_GB, 0);
+    }
+    
+    /**
+     * 检查是否启用了存储清理功能
+     * @return true 如果至少有一项存储限制设置大于0
+     */
+    public boolean isStorageCleanupEnabled() {
+        return getVideoStorageLimitGb() > 0 || getPhotoStorageLimitGb() > 0;
     }
 }

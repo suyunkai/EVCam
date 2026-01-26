@@ -247,6 +247,135 @@
                 android:layout_marginBottom="16dp"
                 android:visibility="gone" />
 
+            <!-- 存储自动清理配置 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:background="@color/card_background"
+                android:layout_marginBottom="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="存储自动清理"
+                    android:textColor="@color/text_primary"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="超过限制时自动删除最早的文件（留空或0表示不限制）"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- 视频存储限制 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="12dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="视频存储限制"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp" />
+
+                    <EditText
+                        android:id="@+id/et_video_storage_limit"
+                        android:layout_width="80dp"
+                        android:layout_height="44dp"
+                        android:inputType="number"
+                        android:textSize="16sp"
+                        android:textColor="@color/text_primary"
+                        android:gravity="center"
+                        android:hint="0"
+                        android:background="@drawable/spinner_background"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text=" GB"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:layout_marginStart="8dp" />
+
+                    <TextView
+                        android:id="@+id/tv_video_used_size"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text=""
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp"
+                        android:layout_marginStart="8dp" />
+                </LinearLayout>
+
+                <!-- 图片存储限制 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="图片存储限制"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp" />
+
+                    <EditText
+                        android:id="@+id/et_photo_storage_limit"
+                        android:layout_width="80dp"
+                        android:layout_height="44dp"
+                        android:inputType="number"
+                        android:textSize="16sp"
+                        android:textColor="@color/text_primary"
+                        android:gravity="center"
+                        android:hint="0"
+                        android:background="@drawable/spinner_background"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text=" GB"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:layout_marginStart="8dp" />
+
+                    <TextView
+                        android:id="@+id/tv_photo_used_size"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text=""
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp"
+                        android:layout_marginStart="8dp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_storage_cleanup_desc"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="删除时会额外删除20%，例如限制10GB则删到剩余8GB"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    android:layout_marginTop="12dp" />
+            </LinearLayout>
+
             <!-- 开机自启动 -->
             <LinearLayout
                 android:layout_width="match_parent"
@@ -516,7 +645,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="• 权限设置：管理应用所需的各项权限\n\n• 车型配置：选择对应车型以适配摄像头布局\n\n• 录制模式：\n  - 自动：根据车型自动选择最佳方案\n  - MediaRecorder：使用系统硬件编码\n  - OpenGL+MediaCodec：软编码方案\n\n• 存储位置：\n  - 内部存储：/DCIM/EVCam_Video/\n  - 外置SD卡：SD卡/DCIM/（需权限）\n\n• 开机自启动：系统启动后自动运行\n\n• 定时保活：每15分钟唤醒保持活跃\n\n• 悬浮窗：显示悬浮录制按钮"
+                android:text="• 权限设置：管理应用所需的各项权限\n\n• 车型配置：选择对应车型以适配摄像头布局\n\n• 录制模式：\n  - 自动：根据车型自动选择最佳方案\n  - MediaRecorder：使用系统硬件编码\n  - OpenGL+MediaCodec：软编码方案\n\n• 存储位置：\n  - 内部存储：/DCIM/EVCam_Video/\n  - 外置SD卡：SD卡/DCIM/（需权限）\n\n• 存储自动清理：\n  - 分别设置视频和图片的存储限制\n  - 冷启动30秒后和每小时自动检测\n  - 超限时删除最早的文件（留空或0不限制）\n\n• 开机自启动：系统启动后自动运行\n\n• 定时保活：每15分钟唤醒保持活跃\n\n• 悬浮窗：显示悬浮录制按钮"
                 android:textColor="@color/text_secondary"
                 android:textSize="16sp"
                 android:lineSpacingExtra="4dp" />

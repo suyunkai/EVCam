@@ -2,12 +2,15 @@ package com.kooo.evcam;
 
 import android.os.Build;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.Spinner;
@@ -69,6 +72,13 @@ public class SettingsFragment extends Fragment {
     private boolean isInitializingStorageLocation = false;
     private String lastAppliedStorageLocation = null;
     private boolean hasExternalSdCard = false;
+    
+    // 存储清理配置相关
+    private EditText videoStorageLimitEdit;
+    private EditText photoStorageLimitEdit;
+    private TextView videoUsedSizeText;
+    private TextView photoUsedSizeText;
+    private boolean isInitializingStorageCleanup = false;
 
     @Nullable
     @Override
@@ -108,6 +118,9 @@ public class SettingsFragment extends Fragment {
             
             // 初始化存储位置配置
             initStorageLocationConfig(view);
+            
+            // 初始化存储清理配置
+            initStorageCleanupConfig(view);
         }
 
         // 设置Debug开关监听器
@@ -446,6 +459,9 @@ public class SettingsFragment extends Fragment {
                     updateStorageLocationDescription(currentLocation);
                 }
             }
+            
+            // 更新存储占用大小显示
+            updateStorageUsedSizeDisplay();
         }
         
         // 更新悬浮窗开关状态
@@ -842,6 +858,151 @@ public class SettingsFragment extends Fragment {
                     Toast.makeText(getContext(), "已复制到剪贴板", Toast.LENGTH_SHORT).show();
                 })
                 .show();
+    }
+    
+    /**
+     * 初始化存储清理配置
+     */
+    private void initStorageCleanupConfig(View view) {
+        videoStorageLimitEdit = view.findViewById(R.id.et_video_storage_limit);
+        photoStorageLimitEdit = view.findViewById(R.id.et_photo_storage_limit);
+        videoUsedSizeText = view.findViewById(R.id.tv_video_used_size);
+        photoUsedSizeText = view.findViewById(R.id.tv_photo_used_size);
+        
+        if (videoStorageLimitEdit == null || photoStorageLimitEdit == null || getContext() == null) {
+            return;
+        }
+        
+        isInitializingStorageCleanup = true;
+        
+        // 加载当前设置
+        int videoLimit = appConfig.getVideoStorageLimitGb();
+        int photoLimit = appConfig.getPhotoStorageLimitGb();
+        
+        // 设置初始值（0显示为空）
+        if (videoLimit > 0) {
+            videoStorageLimitEdit.setText(String.valueOf(videoLimit));
+        } else {
+            videoStorageLimitEdit.setText("");
+        }
+        
+        if (photoLimit > 0) {
+            photoStorageLimitEdit.setText(String.valueOf(photoLimit));
+        } else {
+            photoStorageLimitEdit.setText("");
+        }
+        
+        // 更新当前占用大小显示
+        updateStorageUsedSizeDisplay();
+        
+        // 添加文本变化监听器 - 视频
+        videoStorageLimitEdit.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (isInitializingStorageCleanup) {
+                    return;
+                }
+                
+                int limit = 0;
+                String text = s.toString().trim();
+                if (!text.isEmpty()) {
+                    try {
+                        limit = Integer.parseInt(text);
+                    } catch (NumberFormatException e) {
+                        // 忽略无效输入
+                    }
+                }
+                
+                appConfig.setVideoStorageLimitGb(limit);
+                AppLog.d("SettingsFragment", "视频存储限制已设置为: " + limit + " GB");
+                
+                // 通知 MainActivity 重启清理任务
+                notifyStorageCleanupConfigChanged();
+            }
+        });
+        
+        // 添加文本变化监听器 - 图片
+        photoStorageLimitEdit.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (isInitializingStorageCleanup) {
+                    return;
+                }
+                
+                int limit = 0;
+                String text = s.toString().trim();
+                if (!text.isEmpty()) {
+                    try {
+                        limit = Integer.parseInt(text);
+                    } catch (NumberFormatException e) {
+                        // 忽略无效输入
+                    }
+                }
+                
+                appConfig.setPhotoStorageLimitGb(limit);
+                AppLog.d("SettingsFragment", "图片存储限制已设置为: " + limit + " GB");
+                
+                // 通知 MainActivity 重启清理任务
+                notifyStorageCleanupConfigChanged();
+            }
+        });
+        
+        // 延迟结束初始化标记
+        videoStorageLimitEdit.post(() -> {
+            isInitializingStorageCleanup = false;
+        });
+    }
+    
+    /**
+     * 更新存储占用大小显示
+     */
+    private void updateStorageUsedSizeDisplay() {
+        if (getContext() == null) {
+            return;
+        }
+        
+        // 在后台线程计算大小，避免阻塞UI
+        new Thread(() -> {
+            StorageCleanupManager cleanupManager = new StorageCleanupManager(getContext());
+            long videoSize = cleanupManager.getVideoUsedSize();
+            long photoSize = cleanupManager.getPhotoUsedSize();
+            
+            String videoSizeStr = "已用: " + StorageHelper.formatSize(videoSize);
+            String photoSizeStr = "已用: " + StorageHelper.formatSize(photoSize);
+            
+            // 回到主线程更新UI
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> {
+                    if (videoUsedSizeText != null) {
+                        videoUsedSizeText.setText(videoSizeStr);
+                    }
+                    if (photoUsedSizeText != null) {
+                        photoUsedSizeText.setText(photoSizeStr);
+                    }
+                });
+            }
+        }).start();
+    }
+    
+    /**
+     * 通知 MainActivity 存储清理配置已更改
+     */
+    private void notifyStorageCleanupConfigChanged() {
+        if (getActivity() instanceof MainActivity) {
+            ((MainActivity) getActivity()).restartStorageCleanupTask();
+        }
     }
     
     /**
