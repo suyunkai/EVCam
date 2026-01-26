@@ -80,7 +80,7 @@ public class PlaybackFragment extends Fragment {
         videoFiles.clear();
 
         // 获取保存目录
-        File saveDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "EVCam_Video");
+        File saveDir = StorageHelper.getVideoDir(getContext());
         if (saveDir.exists() && saveDir.isDirectory()) {
             File[] files = saveDir.listFiles((dir, name) -> name.toLowerCase().endsWith(".mp4"));
             if (files != null && files.length > 0) {

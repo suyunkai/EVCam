@@ -15,6 +15,9 @@
     <!-- Android 13+ 媒体权限 -->
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Android 11+ 所有文件访问权限（用于访问外置SD卡公共目录） -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
     <!-- 网络权限（用于钉钉远程查看） -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -90,6 +93,11 @@
         <service
             android:name=".CameraForegroundService"
             android:foregroundServiceType="camera"
+            android:exported="false" />
+
+        <!-- 悬浮窗服务：显示悬浮录制按钮 -->
+        <service
+            android:name=".FloatingWindowService"
             android:exported="false" />
 
         <!-- 无障碍服务：用于保活 -->

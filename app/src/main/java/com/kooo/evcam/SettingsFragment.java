@@ -1,16 +1,15 @@
 package com.kooo.evcam;
 
-import android.content.Context;
-import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -25,6 +24,7 @@ import androidx.fragment.app.FragmentTransaction;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.io.File;
+import java.util.List;
 
 /**
  * 软件设置界面 Fragment
@@ -33,20 +33,25 @@ public class SettingsFragment extends Fragment {
 
     private SwitchMaterial debugSwitch;
     private Button saveLogsButton;
-    private Button overlayPermissionButton;
-    private TextView overlayStatusText;
-    private Button accessibilityPermissionButton;
-    private TextView accessibilityStatusText;
     private SwitchMaterial autoStartSwitch;
     private SwitchMaterial keepAliveSwitch;
     private AppConfig appConfig;
+    
+    // 悬浮窗相关
+    private SwitchMaterial floatingWindowSwitch;
+    private LinearLayout floatingWindowSettingsLayout;
+    private Spinner floatingWindowSizeSpinner;
+    private SeekBar floatingWindowAlphaSeekBar;
+    private TextView floatingWindowAlphaText;
+    private static final String[] FLOATING_SIZE_OPTIONS = {"小", "中", "大"};
+    private boolean isInitializingFloatingSize = false;
     
     // 车型配置相关
     private Spinner carModelSpinner;
     private Button customCameraConfigButton;
     private static final String[] CAR_MODEL_OPTIONS = {"银河E5", "银河L6/L7", "手机", "自定义车型"};
-    private boolean isInitializingCarModel = false;  // 标志位：是否正在初始化车型配置
-    private String lastAppliedCarModel = null;  // 记录上次已应用的车型，避免初始化触发
+    private boolean isInitializingCarModel = false;
+    private String lastAppliedCarModel = null;
     
     // 录制模式配置相关
     private Spinner recordingModeSpinner;
@@ -54,6 +59,15 @@ public class SettingsFragment extends Fragment {
     private static final String[] RECORDING_MODE_OPTIONS = {"自动（推荐）", "MediaRecorder", "OpenGL+MediaCodec"};
     private boolean isInitializingRecordingMode = false;
     private String lastAppliedRecordingMode = null;
+    
+    // 存储位置配置相关
+    private Spinner storageLocationSpinner;
+    private TextView storageLocationDescText;
+    private Button storageDebugButton;
+    private String[] storageLocationOptions;
+    private boolean isInitializingStorageLocation = false;
+    private String lastAppliedStorageLocation = null;
+    private boolean hasExternalSdCard = false;
 
     @Nullable
     @Override
@@ -90,6 +104,9 @@ public class SettingsFragment extends Fragment {
             
             // 初始化录制模式配置
             initRecordingModeConfig(view);
+            
+            // 初始化存储位置配置
+            initStorageLocationConfig(view);
         }
 
         // 设置Debug开关监听器
@@ -114,43 +131,9 @@ public class SettingsFragment extends Fragment {
             }
         });
 
-        // 初始化悬浮窗权限控件
-        overlayPermissionButton = view.findViewById(R.id.btn_overlay_permission);
-        overlayStatusText = view.findViewById(R.id.tv_overlay_status);
-
-        // 更新悬浮窗权限状态
-        updateOverlayPermissionStatus();
-
-        // 设置悬浮窗权限按钮监听器
-        overlayPermissionButton.setOnClickListener(v -> {
-            if (getContext() != null) {
-                if (WakeUpHelper.hasOverlayPermission(getContext())) {
-                    Toast.makeText(getContext(), "已授权悬浮窗权限", Toast.LENGTH_SHORT).show();
-                } else {
-                    WakeUpHelper.requestOverlayPermission(getContext());
-                    Toast.makeText(getContext(), "请在设置中授权悬浮窗权限", Toast.LENGTH_LONG).show();
-                }
-            }
-        });
-
-        // 初始化无障碍服务控件
-        accessibilityPermissionButton = view.findViewById(R.id.btn_accessibility_permission);
-        accessibilityStatusText = view.findViewById(R.id.tv_accessibility_status);
-
-        // 更新无障碍服务状态
-        updateAccessibilityServiceStatus();
-
-        // 设置无障碍服务按钮监听器
-        accessibilityPermissionButton.setOnClickListener(v -> {
-            if (getContext() != null) {
-                if (isAccessibilityServiceEnabled(getContext())) {
-                    Toast.makeText(getContext(), "保活服务已启用", Toast.LENGTH_SHORT).show();
-                } else {
-                    openAccessibilitySettings();
-                    Toast.makeText(getContext(), "请在无障碍设置中启用「电车记录仪 - 保活服务」", Toast.LENGTH_LONG).show();
-                }
-            }
-        });
+        // 初始化权限设置入口
+        Button btnPermissionSettings = view.findViewById(R.id.btn_permission_settings);
+        btnPermissionSettings.setOnClickListener(v -> openPermissionSettings());
 
         // 初始化开机自启动开关
         autoStartSwitch = view.findViewById(R.id.switch_auto_start);
@@ -179,7 +162,6 @@ public class SettingsFragment extends Fragment {
             if (getContext() != null && appConfig != null) {
                 appConfig.setKeepAliveEnabled(isChecked);
                 
-                // 根据开关状态启动或停止保活任务
                 if (isChecked) {
                     KeepAliveManager.startKeepAliveWork(getContext());
                     Toast.makeText(getContext(), "定时保活任务已启动", Toast.LENGTH_SHORT).show();
@@ -192,99 +174,234 @@ public class SettingsFragment extends Fragment {
             }
         });
 
+        // 初始化悬浮窗设置
+        initFloatingWindowSettings(view);
+
         return view;
+    }
+    
+    /**
+     * 打开权限设置页面
+     */
+    private void openPermissionSettings() {
+        if (getActivity() == null) return;
+        
+        FragmentTransaction transaction = getActivity().getSupportFragmentManager().beginTransaction();
+        transaction.replace(R.id.fragment_container, new PermissionSettingsFragment());
+        transaction.addToBackStack(null);
+        transaction.commit();
+    }
+    
+    /**
+     * 初始化悬浮窗设置
+     */
+    private void initFloatingWindowSettings(View view) {
+        floatingWindowSwitch = view.findViewById(R.id.switch_floating_window);
+        floatingWindowSettingsLayout = view.findViewById(R.id.layout_floating_window_settings);
+        floatingWindowSizeSpinner = view.findViewById(R.id.spinner_floating_window_size);
+        floatingWindowAlphaSeekBar = view.findViewById(R.id.seekbar_floating_window_alpha);
+        floatingWindowAlphaText = view.findViewById(R.id.tv_floating_window_alpha_value);
+        
+        if (floatingWindowSwitch == null || getContext() == null || appConfig == null) {
+            return;
+        }
+        
+        // 初始化悬浮窗开关状态
+        boolean floatingEnabled = appConfig.isFloatingWindowEnabled();
+        floatingWindowSwitch.setChecked(floatingEnabled);
+        updateFloatingWindowSettingsVisibility(floatingEnabled);
+        
+        // 设置悬浮窗开关监听器
+        floatingWindowSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (getContext() == null || appConfig == null) {
+                return;
+            }
+            
+            // 检查悬浮窗权限
+            if (isChecked && !WakeUpHelper.hasOverlayPermission(getContext())) {
+                Toast.makeText(getContext(), "请先在权限设置中授权悬浮窗权限", Toast.LENGTH_SHORT).show();
+                buttonView.setChecked(false);
+                WakeUpHelper.requestOverlayPermission(getContext());
+                return;
+            }
+            
+            appConfig.setFloatingWindowEnabled(isChecked);
+            updateFloatingWindowSettingsVisibility(isChecked);
+            
+            if (isChecked) {
+                FloatingWindowService.start(getContext());
+                Toast.makeText(getContext(), "悬浮窗已开启", Toast.LENGTH_SHORT).show();
+                
+                if (getActivity() instanceof MainActivity) {
+                    ((MainActivity) getActivity()).broadcastCurrentRecordingState();
+                }
+            } else {
+                FloatingWindowService.stop(getContext());
+                Toast.makeText(getContext(), "悬浮窗已关闭", Toast.LENGTH_SHORT).show();
+            }
+        });
+        
+        // 初始化悬浮窗大小选择器
+        initFloatingWindowSizeSpinner();
+        
+        // 初始化悬浮窗透明度滑块
+        initFloatingWindowAlphaSeekBar();
+    }
+    
+    /**
+     * 初始化悬浮窗大小选择器
+     */
+    private void initFloatingWindowSizeSpinner() {
+        if (floatingWindowSizeSpinner == null || getContext() == null) {
+            return;
+        }
+        
+        isInitializingFloatingSize = true;
+        
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                getContext(),
+                R.layout.spinner_item,
+                FLOATING_SIZE_OPTIONS
+        );
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
+        floatingWindowSizeSpinner.setAdapter(adapter);
+        
+        floatingWindowSizeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (isInitializingFloatingSize) {
+                    return;
+                }
+                
+                int sizeDp;
+                String sizeName;
+                switch (position) {
+                    case 0:
+                        sizeDp = AppConfig.FLOATING_SIZE_SMALL;
+                        sizeName = "小";
+                        break;
+                    case 1:
+                        sizeDp = AppConfig.FLOATING_SIZE_MEDIUM;
+                        sizeName = "中";
+                        break;
+                    default:
+                        sizeDp = AppConfig.FLOATING_SIZE_LARGE;
+                        sizeName = "大";
+                        break;
+                }
+                
+                appConfig.setFloatingWindowSize(sizeDp);
+                
+                if (getContext() != null && appConfig.isFloatingWindowEnabled()) {
+                    FloatingWindowService.sendUpdateFloatingWindow(getContext());
+                    Toast.makeText(getContext(), "悬浮窗大小已设置为「" + sizeName + "」", Toast.LENGTH_SHORT).show();
+                }
+            }
+            
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+        
+        int currentSize = appConfig.getFloatingWindowSize();
+        int selectedIndex;
+        if (currentSize <= AppConfig.FLOATING_SIZE_SMALL) {
+            selectedIndex = 0;
+        } else if (currentSize <= AppConfig.FLOATING_SIZE_MEDIUM) {
+            selectedIndex = 1;
+        } else {
+            selectedIndex = 2;
+        }
+        floatingWindowSizeSpinner.setSelection(selectedIndex);
+        
+        floatingWindowSizeSpinner.post(() -> {
+            isInitializingFloatingSize = false;
+        });
+    }
+    
+    /**
+     * 初始化悬浮窗透明度滑块
+     */
+    private void initFloatingWindowAlphaSeekBar() {
+        if (floatingWindowAlphaSeekBar == null || floatingWindowAlphaText == null || getContext() == null) {
+            return;
+        }
+        
+        floatingWindowAlphaSeekBar.setMax(80);
+        
+        int currentAlpha = appConfig.getFloatingWindowAlpha();
+        floatingWindowAlphaSeekBar.setProgress(currentAlpha - 20);
+        floatingWindowAlphaText.setText(currentAlpha + "%");
+        
+        floatingWindowAlphaSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                int alpha = progress + 20;
+                floatingWindowAlphaText.setText(alpha + "%");
+            }
+            
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+            
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                int alpha = seekBar.getProgress() + 20;
+                appConfig.setFloatingWindowAlpha(alpha);
+                
+                if (getContext() != null && appConfig.isFloatingWindowEnabled()) {
+                    FloatingWindowService.sendUpdateFloatingWindow(getContext());
+                }
+            }
+        });
+    }
+    
+    /**
+     * 更新悬浮窗设置区域的可见性
+     */
+    private void updateFloatingWindowSettingsVisibility(boolean visible) {
+        if (floatingWindowSettingsLayout != null) {
+            floatingWindowSettingsLayout.setVisibility(visible ? View.VISIBLE : View.GONE);
+        }
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        // 每次返回时更新权限状态
-        updateOverlayPermissionStatus();
-        updateAccessibilityServiceStatus();
-    }
-
-    /**
-     * 更新悬浮窗权限状态显示
-     */
-    private void updateOverlayPermissionStatus() {
-        if (getContext() == null || overlayStatusText == null || overlayPermissionButton == null) {
-            return;
-        }
-
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            // Android 6.0 以下不需要此权限
-            overlayStatusText.setText("系统版本低于 Android 6.0，无需授权");
-            overlayPermissionButton.setVisibility(View.GONE);
-        } else if (WakeUpHelper.hasOverlayPermission(getContext())) {
-            overlayStatusText.setText("已授权 ✓");
-            overlayStatusText.setTextColor(getResources().getColor(android.R.color.holo_green_dark, null));
-            overlayPermissionButton.setText("已授权");
-            overlayPermissionButton.setEnabled(false);
-        } else {
-            overlayStatusText.setText("未授权 - 后台钉钉命令需要此权限");
-            overlayStatusText.setTextColor(getResources().getColor(android.R.color.holo_orange_dark, null));
-            overlayPermissionButton.setText("去授权");
-            overlayPermissionButton.setEnabled(true);
-        }
-    }
-
-    /**
-     * 更新无障碍服务状态显示
-     */
-    private void updateAccessibilityServiceStatus() {
-        if (getContext() == null || accessibilityStatusText == null || accessibilityPermissionButton == null) {
-            return;
-        }
-
-        if (isAccessibilityServiceEnabled(getContext())) {
-            accessibilityStatusText.setText("已启用 ✓ - 应用进程保护中");
-            accessibilityStatusText.setTextColor(getResources().getColor(android.R.color.holo_green_dark, null));
-            accessibilityPermissionButton.setText("已启用");
-            accessibilityPermissionButton.setEnabled(false);
-        } else {
-            accessibilityStatusText.setText("未启用 - 防止应用被系统清理");
-            accessibilityStatusText.setTextColor(getResources().getColor(android.R.color.holo_orange_dark, null));
-            accessibilityPermissionButton.setText("去启用");
-            accessibilityPermissionButton.setEnabled(true);
-        }
-    }
-
-    /**
-     * 检查无障碍服务是否已启用
-     */
-    private boolean isAccessibilityServiceEnabled(Context context) {
-        try {
-            int accessibilityEnabled = Settings.Secure.getInt(
-                    context.getContentResolver(),
-                    Settings.Secure.ACCESSIBILITY_ENABLED);
-            
-            if (accessibilityEnabled == 1) {
-                String services = Settings.Secure.getString(
-                        context.getContentResolver(),
-                        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-                
-                if (services != null) {
-                    String serviceName = context.getPackageName() + "/" + KeepAliveAccessibilityService.class.getName();
-                    return services.contains(serviceName);
+        
+        // 重新检测 SD 卡（可能在授权后返回）
+        if (getContext() != null) {
+            boolean newHasSdCard = StorageHelper.hasExternalSdCard(getContext());
+            if (newHasSdCard != hasExternalSdCard) {
+                hasExternalSdCard = newHasSdCard;
+                if (storageDebugButton != null) {
+                    storageDebugButton.setVisibility(hasExternalSdCard ? View.GONE : View.VISIBLE);
+                }
+                if (hasExternalSdCard && storageLocationSpinner != null) {
+                    storageLocationOptions = new String[] {"内部存储", "外置SD卡"};
+                    ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                            getContext(),
+                            R.layout.spinner_item,
+                            storageLocationOptions
+                    );
+                    adapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
+                    storageLocationSpinner.setAdapter(adapter);
+                    Toast.makeText(getContext(), "检测到外置SD卡", Toast.LENGTH_SHORT).show();
+                    // 更新描述文字
+                    String currentLocation = appConfig != null ? appConfig.getStorageLocation() : AppConfig.STORAGE_INTERNAL;
+                    updateStorageLocationDescription(currentLocation);
                 }
             }
-        } catch (Exception e) {
-            AppLog.e("SettingsFragment", "检查无障碍服务状态失败", e);
         }
-        return false;
-    }
-
-    /**
-     * 打开无障碍设置页面
-     */
-    private void openAccessibilitySettings() {
-        try {
-            Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
-        } catch (Exception e) {
-            AppLog.e("SettingsFragment", "打开无障碍设置失败", e);
-            Toast.makeText(getContext(), "无法打开设置页面", Toast.LENGTH_SHORT).show();
+        
+        // 更新悬浮窗开关状态
+        if (floatingWindowSwitch != null && getContext() != null && appConfig != null) {
+            boolean hasPermission = WakeUpHelper.hasOverlayPermission(getContext());
+            boolean isEnabled = appConfig.isFloatingWindowEnabled();
+            
+            if (isEnabled && hasPermission) {
+                FloatingWindowService.start(getContext());
+            }
         }
     }
     
@@ -299,11 +416,9 @@ public class SettingsFragment extends Fragment {
             return;
         }
 
-        // 进入初始化阶段：Spinner 绑定 adapter/监听器 也可能触发一次 onItemSelected
         isInitializingCarModel = true;
         lastAppliedCarModel = (appConfig != null) ? appConfig.getCarModel() : null;
         
-        // 设置下拉选择框适配器
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
                 getContext(),
                 R.layout.spinner_item,
@@ -312,7 +427,6 @@ public class SettingsFragment extends Fragment {
         adapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
         carModelSpinner.setAdapter(adapter);
         
-        // 设置下拉选择监听器（必须在 setSelection 之前设置）
         carModelSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -333,15 +447,12 @@ public class SettingsFragment extends Fragment {
                     modelName = "自定义车型";
                 }
 
-                // 始终更新 UI（按钮显隐）- 仅自定义车型显示配置按钮
                 updateCustomConfigButtonVisibility(position == 3);
 
-                // 初始化阶段不做“保存/提示”
                 if (isInitializingCarModel) {
                     return;
                 }
 
-                // 与当前已保存车型相同：不重复写入、不提示（避免进入页面触发、避免重复选择触发）
                 if (newModel.equals(lastAppliedCarModel)) {
                     return;
                 }
@@ -349,7 +460,6 @@ public class SettingsFragment extends Fragment {
                 lastAppliedCarModel = newModel;
                 appConfig.setCarModel(newModel);
                 
-                // 提示需要重启应用
                 if (getContext() != null) {
                     Toast.makeText(getContext(), "已切换为「" + modelName + "」，重启应用后生效", Toast.LENGTH_SHORT).show();
                 }
@@ -357,13 +467,11 @@ public class SettingsFragment extends Fragment {
             
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
-                // 不处理
             }
         });
         
-        // 根据当前配置设置选中项（仍处于初始化状态）
         String currentModel = appConfig.getCarModel();
-        int selectedIndex = 0;  // 默认银河E5
+        int selectedIndex = 0;
         if (AppConfig.CAR_MODEL_L7.equals(currentModel)) {
             selectedIndex = 1;
         } else if (AppConfig.CAR_MODEL_PHONE.equals(currentModel)) {
@@ -373,14 +481,11 @@ public class SettingsFragment extends Fragment {
         }
         carModelSpinner.setSelection(selectedIndex);
         
-        // 延迟重置标志位，确保 setSelection 的回调已执行完毕
         carModelSpinner.post(() -> {
             isInitializingCarModel = false;
         });
         
-        // 设置自定义配置按钮点击事件
         customCameraConfigButton.setOnClickListener(v -> {
-            // 打开自定义摄像头配置界面
             openCustomCameraConfig();
         });
     }
@@ -408,7 +513,6 @@ public class SettingsFragment extends Fragment {
         isInitializingRecordingMode = true;
         lastAppliedRecordingMode = (appConfig != null) ? appConfig.getRecordingMode() : null;
         
-        // 设置下拉选择框适配器
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
                 getContext(),
                 R.layout.spinner_item,
@@ -417,7 +521,6 @@ public class SettingsFragment extends Fragment {
         adapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
         recordingModeSpinner.setAdapter(adapter);
         
-        // 设置下拉选择监听器
         recordingModeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -428,7 +531,7 @@ public class SettingsFragment extends Fragment {
                 if (position == 0) {
                     newMode = AppConfig.RECORDING_MODE_AUTO;
                     modeName = "自动";
-                    modeDesc = "L6/L7用软编码，其他用硬编码";
+                    modeDesc = "MediaRecorder编码更稳定，MediaCodec兼容性更好，如果无法存储视频，尝试修改";
                 } else if (position == 1) {
                     newMode = AppConfig.RECORDING_MODE_MEDIA_RECORDER;
                     modeName = "MediaRecorder";
@@ -439,15 +542,12 @@ public class SettingsFragment extends Fragment {
                     modeDesc = "软编码方案，解决部分设备兼容问题";
                 }
                 
-                // 更新描述文字
                 updateRecordingModeDescription(modeDesc);
                 
-                // 初始化阶段不保存
                 if (isInitializingRecordingMode) {
                     return;
                 }
                 
-                // 与当前已保存模式相同，不重复写入
                 if (newMode.equals(lastAppliedRecordingMode)) {
                     return;
                 }
@@ -462,13 +562,11 @@ public class SettingsFragment extends Fragment {
             
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
-                // 不处理
             }
         });
         
-        // 根据当前配置设置选中项
         String currentMode = appConfig.getRecordingMode();
-        int selectedIndex = 0;  // 默认自动
+        int selectedIndex = 0;
         if (AppConfig.RECORDING_MODE_MEDIA_RECORDER.equals(currentMode)) {
             selectedIndex = 1;
         } else if (AppConfig.RECORDING_MODE_CODEC.equals(currentMode)) {
@@ -476,7 +574,6 @@ public class SettingsFragment extends Fragment {
         }
         recordingModeSpinner.setSelection(selectedIndex);
         
-        // 延迟重置标志位
         recordingModeSpinner.post(() -> {
             isInitializingRecordingMode = false;
         });
@@ -489,6 +586,208 @@ public class SettingsFragment extends Fragment {
         if (recordingModeDescText != null) {
             recordingModeDescText.setText(desc);
         }
+    }
+    
+    /**
+     * 初始化存储位置配置
+     */
+    private void initStorageLocationConfig(View view) {
+        storageLocationSpinner = view.findViewById(R.id.spinner_storage_location);
+        storageLocationDescText = view.findViewById(R.id.tv_storage_location_desc);
+        storageDebugButton = view.findViewById(R.id.btn_storage_debug);
+        
+        if (storageLocationSpinner == null || getContext() == null) {
+            return;
+        }
+        
+        isInitializingStorageLocation = true;
+        lastAppliedStorageLocation = (appConfig != null) ? appConfig.getStorageLocation() : null;
+        
+        // 检测是否有外置SD卡
+        hasExternalSdCard = StorageHelper.hasExternalSdCard(getContext());
+        
+        // 如果未检测到SD卡，显示调试按钮
+        if (storageDebugButton != null) {
+            storageDebugButton.setVisibility(hasExternalSdCard ? View.GONE : View.VISIBLE);
+            storageDebugButton.setOnClickListener(v -> showStorageDebugInfo());
+        }
+        
+        // 动态生成选项（简短文字，详细信息在描述中显示）
+        if (hasExternalSdCard) {
+            storageLocationOptions = new String[] {"内部存储", "外置SD卡"};
+        } else {
+            storageLocationOptions = new String[] {"内部存储", "外置SD卡（未检测到）"};
+        }
+        
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                getContext(),
+                R.layout.spinner_item,
+                storageLocationOptions
+        );
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
+        storageLocationSpinner.setAdapter(adapter);
+        
+        storageLocationSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String newLocation;
+                String locationName;
+                
+                if (position == 0) {
+                    newLocation = AppConfig.STORAGE_INTERNAL;
+                    locationName = "内部存储";
+                } else {
+                    if (!hasExternalSdCard) {
+                        if (!isInitializingStorageLocation && getContext() != null) {
+                            Toast.makeText(getContext(), "未检测到外置SD卡，请先在权限设置中授予「所有文件访问权限」", Toast.LENGTH_LONG).show();
+                            storageLocationSpinner.setSelection(0);
+                        }
+                        return;
+                    }
+                    newLocation = AppConfig.STORAGE_EXTERNAL_SD;
+                    locationName = "外置SD卡";
+                }
+                
+                updateStorageLocationDescription(newLocation);
+                
+                if (isInitializingStorageLocation) {
+                    return;
+                }
+                
+                if (newLocation.equals(lastAppliedStorageLocation)) {
+                    return;
+                }
+                
+                lastAppliedStorageLocation = newLocation;
+                appConfig.setStorageLocation(newLocation);
+                
+                if (getContext() != null) {
+                    Toast.makeText(getContext(), "存储位置已切换为「" + locationName + "」", Toast.LENGTH_SHORT).show();
+                    AppLog.d("SettingsFragment", "存储位置已切换为: " + newLocation + 
+                            "，路径: " + StorageHelper.getCurrentStoragePathDesc(getContext()));
+                }
+            }
+            
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+        
+        String currentLocation = appConfig.getStorageLocation();
+        int selectedIndex = 0;
+        if (AppConfig.STORAGE_EXTERNAL_SD.equals(currentLocation) && hasExternalSdCard) {
+            selectedIndex = 1;
+        }
+        storageLocationSpinner.setSelection(selectedIndex);
+        
+        updateStorageLocationDescription(currentLocation);
+        
+        storageLocationSpinner.post(() -> {
+            isInitializingStorageLocation = false;
+        });
+    }
+    
+    /**
+     * 更新存储位置描述文字
+     */
+    private void updateStorageLocationDescription(String location) {
+        if (storageLocationDescText == null || getContext() == null) {
+            return;
+        }
+        
+        boolean useExternal = AppConfig.STORAGE_EXTERNAL_SD.equals(location);
+        java.io.File videoDir = useExternal ? 
+                StorageHelper.getVideoDir(getContext(), true) :
+                StorageHelper.getVideoDir(getContext(), false);
+        String path = videoDir.getAbsolutePath();
+        
+        // 简化路径显示
+        String displayPath;
+        if (path.startsWith("/storage/emulated/0/")) {
+            displayPath = path.replace("/storage/emulated/0/", "内部存储/");
+        } else if (path.startsWith("/storage/")) {
+            int dcimIndex = path.indexOf("/DCIM/");
+            if (dcimIndex > 0) {
+                displayPath = "SD卡" + path.substring(dcimIndex);
+            } else {
+                displayPath = path;
+            }
+        } else {
+            displayPath = path;
+        }
+        
+        // 获取容量信息
+        long availableSpace = StorageHelper.getAvailableSpace(videoDir);
+        long totalSpace = StorageHelper.getTotalSpace(videoDir);
+        String availableStr = StorageHelper.formatSize(availableSpace);
+        String totalStr = StorageHelper.formatSize(totalSpace);
+        
+        storageLocationDescText.setText(displayPath + "\n可用: " + availableStr + " / 共: " + totalStr);
+    }
+    
+    /**
+     * 显示存储设备调试信息
+     */
+    private void showStorageDebugInfo() {
+        if (getContext() == null) {
+            return;
+        }
+        
+        StringBuilder sb = new StringBuilder();
+        
+        // 首先检测存储权限状态
+        sb.append("=== 存储权限状态 ===\n");
+        
+        // 检查所有文件访问权限（Android 11+）
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            boolean hasAllFilesAccess = android.os.Environment.isExternalStorageManager();
+            sb.append("所有文件访问权限 (Android 11+): ");
+            if (hasAllFilesAccess) {
+                sb.append("已授权 ✓\n");
+            } else {
+                sb.append("未授权 ✗\n");
+                sb.append("⚠️ 提示: 访问外置SD卡需要此权限！\n");
+                sb.append("   请前往「权限设置」授予「所有文件访问权限」\n");
+            }
+        } else {
+            sb.append("Android 版本低于 11，无需「所有文件访问权限」\n");
+        }
+        
+        // 检查基础存储权限
+        boolean hasStoragePermission;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            hasStoragePermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                    getContext(), android.Manifest.permission.READ_MEDIA_VIDEO) 
+                    == android.content.pm.PackageManager.PERMISSION_GRANTED;
+            sb.append("媒体文件权限 (Android 13+): ");
+        } else {
+            hasStoragePermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                    getContext(), android.Manifest.permission.WRITE_EXTERNAL_STORAGE) 
+                    == android.content.pm.PackageManager.PERMISSION_GRANTED;
+            sb.append("存储读写权限: ");
+        }
+        sb.append(hasStoragePermission ? "已授权 ✓\n" : "未授权 ✗\n");
+        
+        sb.append("\n");
+        
+        // 然后显示存储设备检测信息
+        List<String> debugInfo = StorageHelper.getStorageDebugInfo(getContext());
+        for (String line : debugInfo) {
+            sb.append(line).append("\n");
+        }
+        
+        new android.app.AlertDialog.Builder(getContext())
+                .setTitle("存储设备检测信息")
+                .setMessage(sb.toString())
+                .setPositiveButton("确定", null)
+                .setNeutralButton("复制", (dialog, which) -> {
+                    android.content.ClipboardManager clipboard = 
+                            (android.content.ClipboardManager) getContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                    android.content.ClipData clip = android.content.ClipData.newPlainText("存储调试信息", sb.toString());
+                    clipboard.setPrimaryClip(clip);
+                    Toast.makeText(getContext(), "已复制到剪贴板", Toast.LENGTH_SHORT).show();
+                })
+                .show();
     }
     
     /**
@@ -508,10 +807,9 @@ public class SettingsFragment extends Fragment {
             return;
         }
         
-        // 切换到 CustomCameraConfigFragment
         FragmentTransaction transaction = getActivity().getSupportFragmentManager().beginTransaction();
         transaction.replace(R.id.fragment_container, new CustomCameraConfigFragment());
-        transaction.addToBackStack(null);  // 允许返回
+        transaction.addToBackStack(null);
         transaction.commit();
     }
 }
