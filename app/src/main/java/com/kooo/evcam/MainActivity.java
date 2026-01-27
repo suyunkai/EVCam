@@ -438,6 +438,24 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
+        
+        // 动态设置内容区域的顶部内边距，适配沉浸式状态栏
+        // 保留 50dp 的额外间距，再加上状态栏高度（沉浸式设备状态栏高度 > 0，非沉浸式设备为 0）
+        View mainLayout = findViewById(R.id.main);
+        if (mainLayout != null) {
+            final int extraPaddingDp = 50;
+            final float density = getResources().getDisplayMetrics().density;
+            final int extraPaddingPx = (int) (extraPaddingDp * density + 0.5f);
+            
+            androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(mainLayout, (v, insets) -> {
+                int statusBarHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top;
+                // 状态栏高度 + 50dp 额外间距
+                v.setPadding(v.getPaddingLeft(), statusBarHeight + extraPaddingPx, v.getPaddingRight(), v.getPaddingBottom());
+                return insets;
+            });
+            // 触发 WindowInsets 处理
+            androidx.core.view.ViewCompat.requestApplyInsets(mainLayout);
+        }
     }
 
     private void initViews() {

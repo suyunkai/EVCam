@@ -18,7 +18,6 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="horizontal"
-            android:paddingTop="50dp"
             android:background="@color/menu_background">
 
     <!-- 左侧：前后摄像头垂直排列 (横向1280x800) -->
