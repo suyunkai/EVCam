@@ -1309,7 +1309,7 @@ public class SettingsFragment extends Fragment {
             sb.append(line).append("\n");
         }
         
-        new android.app.AlertDialog.Builder(getContext())
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext())
                 .setTitle("存储设备检测信息")
                 .setMessage(sb.toString())
                 .setPositiveButton("确定", null)
@@ -1352,13 +1352,10 @@ public class SettingsFragment extends Fragment {
         input.setLayoutParams(params);
         container.addView(input);
         
-        new android.app.AlertDialog.Builder(getContext())
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext())
                 .setTitle("手动设置SD卡路径")
                 .setMessage("如果自动检测失败，你可以手动输入SD卡的挂载路径。\n\n" +
-                        "常见格式：\n" +
-                        "• /storage/XXXX-XXXX（十六进制ID）\n" +
-                        "• /storage/sdcard1\n" +
-                        "• /mnt/sdcard1\n\n" +
+                        "常见格式：/storage/XXXX-XXXX（十六进制ID）\n\n" +
                         "留空表示使用自动检测。")
                 .setView(container)
                 .setPositiveButton("保存", (dialog, which) -> {

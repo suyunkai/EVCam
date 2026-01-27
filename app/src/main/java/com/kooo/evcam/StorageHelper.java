@@ -247,12 +247,6 @@ public class StorageHelper {
             return sdRoot;
         }
         
-        // 方法3：扫描 /storage/ 目录（只识别 XXXX-XXXX 格式）
-        sdRoot = getSdCardFromStorageDir();
-        if (sdRoot != null) {
-            return sdRoot;
-        }
-        
         AppLog.d(TAG, "未检测到外置SD卡");
         return null;
     }
@@ -326,33 +320,6 @@ public class StorageHelper {
         return null;
     }
     
-    /**
-     * 方法3：扫描 /storage/ 目录查找 SD 卡
-     * 简化版：只扫描一次，只识别 XXXX-XXXX 格式
-     */
-    private static File getSdCardFromStorageDir() {
-        try {
-            File storageDir = new File("/storage");
-            File[] files = storageDir.listFiles();
-            if (files == null || files.length == 0) {
-                return null;
-            }
-            
-            for (File file : files) {
-                String name = file.getName();
-                // 只识别 XXXX-XXXX 格式（典型的 SD 卡命名）
-                if (name.matches("[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}")) {
-                    if (file.isDirectory() && file.canRead()) {
-                        AppLog.d(TAG, "通过扫描 /storage/ 找到SD卡: " + file.getAbsolutePath());
-                        return file;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // 忽略错误，继续其他方法
-        }
-        return null;
-    }
     
     
     /**
@@ -369,7 +336,35 @@ public class StorageHelper {
         info.add("路径: " + internalPath);
         info.add("");
         
-        // 1. getExternalFilesDirs 信息
+        // 1. /proc/mounts 内容（最可靠的挂载信息）
+        info.add("=== /proc/mounts ===");
+        try {
+            java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.FileReader("/proc/mounts"));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split("\\s+");
+                if (parts.length >= 2) {
+                    String mountPoint = parts[1];
+                    // 只显示 /storage/ 相关的挂载点
+                    if (mountPoint.startsWith("/storage/")) {
+                        String marker = "";
+                        if (mountPoint.contains("emulated")) {
+                            marker = " [内部]";
+                        } else if (mountPoint.matches("/storage/[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}")) {
+                            marker = " [SD卡]";
+                        }
+                        info.add(mountPoint + marker);
+                    }
+                }
+            }
+            reader.close();
+        } catch (Exception e) {
+            info.add("读取失败: " + e.getMessage());
+        }
+        
+        // 2. getExternalFilesDirs 信息
+        info.add("");
         info.add("=== getExternalFilesDirs ===");
         try {
             File[] externalDirs = context.getExternalFilesDirs(null);
@@ -379,7 +374,6 @@ public class StorageHelper {
                     if (dir != null) {
                         String label = (i == 0) ? "[0] 内部" : "[" + i + "] 外部";
                         info.add(label + ": " + dir.getAbsolutePath());
-                        info.add("    exists=" + dir.exists() + ", canWrite=" + dir.canWrite());
                     } else {
                         info.add("[" + i + "] null");
                     }
@@ -391,63 +385,17 @@ public class StorageHelper {
             info.add("错误: " + e.getMessage());
         }
         
-        // 2. /storage/ 目录内容
+        // 3. 自定义路径
         info.add("");
-        info.add("=== /storage/ 目录 ===");
-        try {
-            File storageDir = new File("/storage");
-            File[] files = storageDir.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    String name = file.getName();
-                    String marker = "";
-                    // 标记内部存储相关目录
-                    if (name.equals("emulated") || name.equals("self") || name.equals("sdcard0")) {
-                        marker = " [内部]";
-                    } else if (name.matches("[0-9a-fA-F]{4}-[0-9a-fA-F]{4}")) {
-                        marker = " [可能是SD卡]";
-                    }
-                    info.add(name + marker + " (dir=" + file.isDirectory() + 
-                            ", read=" + file.canRead() + ", write=" + file.canWrite() + ")");
-                    
-                    // 检查是否有 DCIM 目录
-                    if (file.isDirectory()) {
-                        File dcim = new File(file, "DCIM");
-                        if (dcim.exists()) {
-                            info.add("    └─ 有 DCIM 目录");
-                        }
-                    }
-                }
-            } else {
-                info.add("无法列出目录内容（可能需要权限）");
-            }
-        } catch (Exception e) {
-            info.add("错误: " + e.getMessage());
-        }
-        
-        // 3. /mnt/ 目录内容
-        info.add("");
-        info.add("=== /mnt/ 目录 ===");
-        try {
-            File mntDir = new File("/mnt");
-            File[] files = mntDir.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    String name = file.getName();
-                    String marker = "";
-                    if (name.contains("sd") || name.contains("SD") || 
-                        name.contains("usb") || name.contains("USB") ||
-                        name.contains("external") || name.contains("tf") || name.contains("TF")) {
-                        marker = " [可能是外部存储]";
-                    }
-                    info.add(name + marker + " (dir=" + file.isDirectory() + 
-                            ", read=" + file.canRead() + ", write=" + file.canWrite() + ")");
-                }
-            } else {
-                info.add("无法列出目录内容（可能需要权限）");
-            }
-        } catch (Exception e) {
-            info.add("错误: " + e.getMessage());
+        info.add("=== 自定义路径 ===");
+        AppConfig config = new AppConfig(context);
+        String customPath = config.getCustomSdCardPath();
+        if (customPath != null && !customPath.isEmpty()) {
+            File customDir = new File(customPath);
+            info.add("路径: " + customPath);
+            info.add("存在: " + customDir.exists() + ", 可读: " + customDir.canRead() + ", 可写: " + customDir.canWrite());
+        } else {
+            info.add("未设置");
         }
         
         // 4. 检测结果
@@ -457,13 +405,6 @@ public class StorageHelper {
         if (sdCard != null) {
             info.add("检测到SD卡: " + sdCard.getAbsolutePath());
             info.add("可写入: " + sdCard.canWrite());
-            
-            // 检查是否与内部存储相同（错误检测）
-            if (sdCard.getAbsolutePath().equals(internalPath) ||
-                sdCard.getAbsolutePath().startsWith(internalPath + "/") ||
-                internalPath.startsWith(sdCard.getAbsolutePath() + "/")) {
-                info.add("⚠️ 警告: 检测的路径可能与内部存储重叠！");
-            }
         } else {
             info.add("未检测到SD卡");
         }
