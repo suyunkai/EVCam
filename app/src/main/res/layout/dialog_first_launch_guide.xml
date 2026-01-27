@@ -1,127 +1,162 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
     android:background="@drawable/dialog_rounded_background"
-    android:padding="24dp">
+    android:fillViewport="true">
 
-    <!-- 图标 -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:text="💡"
-        android:textSize="48sp"
-        android:layout_marginBottom="16dp" />
-
-    <!-- 标题 -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:text="使用提示"
-        android:textSize="22sp"
-        android:textColor="#1A1A1A"
-        android:textStyle="bold"
-        android:layout_marginBottom="20dp" />
-
-    <!-- 分隔线 -->
-    <View
-        android:layout_width="60dp"
-        android:layout_height="3dp"
-        android:layout_gravity="center_horizontal"
-        android:background="#1976D2"
-        android:layout_marginBottom="20dp" />
-
-    <!-- 提示内容1 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="12dp">
-        
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <!-- 标题 -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="①"
-            android:textSize="16sp"
+            android:layout_gravity="center_horizontal"
+            android:text="使用提示"
+            android:textSize="22sp"
+            android:textColor="#1A1A1A"
+            android:textStyle="bold"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="20dp" />
+
+        <!-- 分隔线 -->
+        <View
+            android:layout_width="60dp"
+            android:layout_height="3dp"
+            android:layout_gravity="center_horizontal"
+            android:background="#1976D2"
+            android:layout_marginBottom="20dp" />
+
+        <!-- 提示内容1 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+            
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="①"
+                android:textSize="16sp"
+                android:textColor="#1976D2"
+                android:textStyle="bold"
+                android:layout_marginEnd="8dp" />
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="使用前，请务必授予软件所有可能需要的权限，并配置车型。"
+                android:textSize="15sp"
+                android:textColor="#333333"
+                android:lineSpacingExtra="4dp" />
+        </LinearLayout>
+
+        <!-- 提示内容2 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+            
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="②"
+                android:textSize="16sp"
+                android:textColor="#1976D2"
+                android:textStyle="bold"
+                android:layout_marginEnd="8dp" />
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="若您的车型未适配，请选择自定义车型并自行调试。"
+                android:textSize="15sp"
+                android:textColor="#333333"
+                android:lineSpacingExtra="4dp" />
+        </LinearLayout>
+
+        <!-- 提示内容3 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="20dp">
+            
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="③"
+                android:textSize="16sp"
+                android:textColor="#1976D2"
+                android:textStyle="bold"
+                android:layout_marginEnd="8dp" />
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="若录制视频无法储存，请尝试修改「录制模式」。"
+                android:textSize="15sp"
+                android:textColor="#333333"
+                android:lineSpacingExtra="4dp" />
+        </LinearLayout>
+
+        <!-- 分隔线2 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#E0E0E0"
+            android:layout_marginBottom="16dp" />
+
+        <!-- 作者信息 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="本软件作者 @greenteacher46，当前版本免费开源，如遇收费售卖等商业行为，请告知作者。"
+            android:textSize="13sp"
+            android:textColor="#666666"
+            android:lineSpacingExtra="3dp"
+            android:layout_marginBottom="12dp" />
+
+        <!-- 打赏支持 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="开发不易，如果这个项目对你有帮助，欢迎打赏支持！"
+            android:textSize="13sp"
             android:textColor="#1976D2"
             android:textStyle="bold"
-            android:layout_marginEnd="8dp" />
-        
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="使用前，请务必授予软件所有可能需要的权限，并配置车型。"
-            android:textSize="15sp"
-            android:textColor="#333333"
-            android:lineSpacingExtra="4dp" />
-    </LinearLayout>
+            android:layout_marginBottom="12dp" />
 
-    <!-- 提示内容2 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="12dp">
-        
+        <!-- 二维码图片 -->
+        <ImageView
+            android:id="@+id/iv_qrcode"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:layout_gravity="center_horizontal"
+            android:scaleType="fitCenter"
+            android:contentDescription="打赏二维码"
+            android:layout_marginBottom="20dp" />
+
+        <!-- 确认按钮 -->
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="②"
+            android:id="@+id/btn_confirm"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@drawable/dialog_button_background"
+            android:gravity="center"
+            android:text="我知道了"
+            android:textColor="#FFFFFF"
             android:textSize="16sp"
-            android:textColor="#1976D2"
-            android:textStyle="bold"
-            android:layout_marginEnd="8dp" />
-        
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="若您的车型未适配，请选择自定义车型并自行调试。"
-            android:textSize="15sp"
-            android:textColor="#333333"
-            android:lineSpacingExtra="4dp" />
+            android:textStyle="bold" />
+
     </LinearLayout>
-
-    <!-- 提示内容3 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="24dp">
-        
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="③"
-            android:textSize="16sp"
-            android:textColor="#1976D2"
-            android:textStyle="bold"
-            android:layout_marginEnd="8dp" />
-        
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="若录制视频无法储存，请尝试修改「录制模式」。"
-            android:textSize="15sp"
-            android:textColor="#333333"
-            android:lineSpacingExtra="4dp" />
-    </LinearLayout>
-
-    <!-- 确认按钮 -->
-    <TextView
-        android:id="@+id/btn_confirm"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:background="@drawable/dialog_button_background"
-        android:gravity="center"
-        android:text="我知道了"
-        android:textColor="#FFFFFF"
-        android:textSize="16sp"
-        android:textStyle="bold" />
-
-</LinearLayout>
+</ScrollView>

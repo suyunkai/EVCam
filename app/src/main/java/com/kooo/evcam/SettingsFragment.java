@@ -155,6 +155,10 @@ public class SettingsFragment extends Fragment {
             }
         });
 
+        // 初始化使用提示入口
+        Button btnUsageGuide = view.findViewById(R.id.btn_usage_guide);
+        btnUsageGuide.setOnClickListener(v -> showUsageGuideDialog());
+
         // 初始化权限设置入口
         Button btnPermissionSettings = view.findViewById(R.id.btn_permission_settings);
         btnPermissionSettings.setOnClickListener(v -> openPermissionSettings());
@@ -225,6 +229,82 @@ public class SettingsFragment extends Fragment {
         return view;
     }
     
+    /**
+     * 显示使用提示对话框
+     */
+    private void showUsageGuideDialog() {
+        if (getContext() == null) return;
+
+        // 创建自定义对话框
+        android.app.Dialog dialog = new android.app.Dialog(getContext());
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_first_launch_guide);
+        dialog.setCancelable(true);
+
+        // 设置对话框窗口属性
+        android.view.Window window = dialog.getWindow();
+        if (window != null) {
+            // 设置背景透明（让圆角生效）
+            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            // 设置对话框宽度
+            android.view.WindowManager.LayoutParams params = window.getAttributes();
+            params.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.85);
+            window.setAttributes(params);
+        }
+
+        // 加载二维码图片
+        android.widget.ImageView ivQrcode = dialog.findViewById(R.id.iv_qrcode);
+        loadQrcodeImage(ivQrcode);
+
+        // 设置确认按钮点击事件
+        dialog.findViewById(R.id.btn_confirm).setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
+    }
+
+    /**
+     * 加载打赏二维码图片（URL经过混淆处理）
+     */
+    private void loadQrcodeImage(android.widget.ImageView imageView) {
+        if (getActivity() == null) return;
+        
+        // URL混淆存储，防止被轻易修改
+        // 原始URL经过Base64编码后分段存储
+        final String[] p = {
+            "aHR0cHM6Ly9ldmNhbS5jaGF0d2Vi", // 第一段
+            "LmNsb3VkLzE3Njk0NzcxOTc4NTUu", // 第二段  
+            "anBn"                           // 第三段
+        };
+        
+        new Thread(() -> {
+            try {
+                // 组合并解码URL
+                String encoded = p[0] + p[1] + p[2];
+                String url = new String(android.util.Base64.decode(encoded, android.util.Base64.DEFAULT));
+                
+                // 下载图片
+                java.net.URL imageUrl = new java.net.URL(url);
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) imageUrl.openConnection();
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
+                conn.setDoInput(true);
+                conn.connect();
+                
+                java.io.InputStream is = conn.getInputStream();
+                final android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeStream(is);
+                is.close();
+                conn.disconnect();
+                
+                // 在主线程更新UI
+                if (bitmap != null && getActivity() != null) {
+                    getActivity().runOnUiThread(() -> imageView.setImageBitmap(bitmap));
+                }
+            } catch (Exception e) {
+                AppLog.e("SettingsFragment", "加载二维码图片失败: " + e.getMessage());
+            }
+        }).start();
+    }
+
     /**
      * 打开权限设置页面
      */

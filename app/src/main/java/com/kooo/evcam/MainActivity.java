@@ -796,10 +796,55 @@ public class MainActivity extends AppCompatActivity {
             window.setAttributes(params);
         }
 
+        // 加载二维码图片
+        android.widget.ImageView ivQrcode = dialog.findViewById(R.id.iv_qrcode);
+        loadQrcodeImage(ivQrcode);
+
         // 设置确认按钮点击事件
         dialog.findViewById(R.id.btn_confirm).setOnClickListener(v -> dialog.dismiss());
 
         dialog.show();
+    }
+
+    /**
+     * 加载打赏二维码图片（URL经过混淆处理）
+     */
+    private void loadQrcodeImage(android.widget.ImageView imageView) {
+        // URL混淆存储，防止被轻易修改
+        // 原始URL经过Base64编码后分段存储
+        final String[] p = {
+            "aHR0cHM6Ly9ldmNhbS5jaGF0d2Vi", // 第一段
+            "LmNsb3VkLzE3Njk0NzcxOTc4NTUu", // 第二段  
+            "anBn"                           // 第三段
+        };
+        
+        new Thread(() -> {
+            try {
+                // 组合并解码URL
+                String encoded = p[0] + p[1] + p[2];
+                String url = new String(android.util.Base64.decode(encoded, android.util.Base64.DEFAULT));
+                
+                // 下载图片
+                java.net.URL imageUrl = new java.net.URL(url);
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) imageUrl.openConnection();
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
+                conn.setDoInput(true);
+                conn.connect();
+                
+                java.io.InputStream is = conn.getInputStream();
+                final android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeStream(is);
+                is.close();
+                conn.disconnect();
+                
+                // 在主线程更新UI
+                if (bitmap != null) {
+                    runOnUiThread(() -> imageView.setImageBitmap(bitmap));
+                }
+            } catch (Exception e) {
+                AppLog.e(TAG, "加载二维码图片失败: " + e.getMessage());
+            }
+        }).start();
     }
 
     /**
