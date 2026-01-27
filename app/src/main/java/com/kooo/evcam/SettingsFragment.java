@@ -106,6 +106,7 @@ public class SettingsFragment extends Fragment {
         debugSwitch = view.findViewById(R.id.switch_debug_to_info);
         saveLogsButton = view.findViewById(R.id.btn_save_logs);
         Button menuButton = view.findViewById(R.id.btn_menu);
+        Button homeButton = view.findViewById(R.id.btn_home);
 
         // 设置菜单按钮点击事件
         menuButton.setOnClickListener(v -> {
@@ -114,6 +115,13 @@ public class SettingsFragment extends Fragment {
                 if (drawerLayout != null) {
                     drawerLayout.openDrawer(GravityCompat.START);
                 }
+            }
+        });
+
+        // 主页按钮 - 返回预览界面
+        homeButton.setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).goToRecordingInterface();
             }
         });
 

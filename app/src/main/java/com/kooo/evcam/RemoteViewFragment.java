@@ -44,6 +44,7 @@ public class RemoteViewFragment extends Fragment {
 
     private void initViews(View view) {
         btnMenu = view.findViewById(R.id.btn_menu);
+        Button btnHome = view.findViewById(R.id.btn_home);
         etClientId = view.findViewById(R.id.et_client_id);
         etClientSecret = view.findViewById(R.id.et_client_secret);
         btnSaveConfig = view.findViewById(R.id.btn_save_config);
@@ -52,6 +53,13 @@ public class RemoteViewFragment extends Fragment {
         tvConnectionStatus = view.findViewById(R.id.tv_connection_status);
         switchAutoStart = view.findViewById(R.id.switch_auto_start);
         config = new DingTalkConfig(requireContext());
+
+        // 主页按钮 - 返回预览界面
+        btnHome.setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).goToRecordingInterface();
+            }
+        });
 
         // 沉浸式状态栏兼容
         View toolbar = view.findViewById(R.id.toolbar);

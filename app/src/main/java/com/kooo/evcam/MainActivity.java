@@ -924,6 +924,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
+     * 公共方法：返回预览/录制界面
+     * 供 Fragment 中的主页按钮调用
+     */
+    public void goToRecordingInterface() {
+        // 关闭侧边栏（如果打开的话）
+        if (drawerLayout != null && drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START);
+        }
+        showRecordingInterface();
+    }
+
+    /**
      * 显示回看界面
      */
     private void showPlaybackInterface() {

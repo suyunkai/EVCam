@@ -45,6 +45,18 @@
             android:minHeight="48dp"
             android:backgroundTint="@color/button_background"
             android:textColor="@color/button_text" />
+
+        <Button
+            android:id="@+id/btn_home"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⌂"
+            android:textSize="22sp"
+            android:minWidth="48dp"
+            android:minHeight="48dp"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="@color/button_background"
+            android:textColor="@color/button_text" />
     </LinearLayout>
 
     <!-- Photo list -->

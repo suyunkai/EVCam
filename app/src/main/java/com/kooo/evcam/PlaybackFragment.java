@@ -43,12 +43,20 @@ public class PlaybackFragment extends Fragment {
         emptyText = view.findViewById(R.id.empty_text);
         btnRefresh = view.findViewById(R.id.btn_refresh);
         btnMenu = view.findViewById(R.id.btn_menu);
+        Button btnHome = view.findViewById(R.id.btn_home);
 
         // 设置RecyclerView为网格布局（4列）
         videoList.setLayoutManager(new GridLayoutManager(getContext(), 4));
         adapter = new VideoAdapter(getContext(), videoFiles);
         adapter.setOnVideoDeleteListener(this::updateVideoList);
         videoList.setAdapter(adapter);
+
+        // 主页按钮 - 返回预览界面
+        btnHome.setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).goToRecordingInterface();
+            }
+        });
 
         // 菜单按钮
         btnMenu.setOnClickListener(v -> {

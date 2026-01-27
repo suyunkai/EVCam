@@ -36,6 +36,17 @@
             android:textColor="@color/text_primary"
             android:textSize="28sp"
             android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btn_home"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⌂"
+            android:textSize="22sp"
+            android:minWidth="48dp"
+            android:minHeight="48dp"
+            android:backgroundTint="@color/button_background"
+            android:textColor="@color/button_text" />
     </LinearLayout>
 
     <!-- Settings content -->
