@@ -277,6 +277,51 @@
                     android:popupBackground="@color/card_background" />
             </LinearLayout>
 
+            <!-- 分辨率设置入口 -->
+            <LinearLayout
+                android:id="@+id/layout_resolution_settings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="16dp"
+                android:background="@color/card_background"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="分辨率设置"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="设置视频预览和录制的分辨率"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btn_resolution_settings"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="进入 →"
+                    android:textSize="16sp"
+                    android:minHeight="48dp"
+                    android:backgroundTint="@color/button_background"
+                    android:textColor="@color/button_text" />
+            </LinearLayout>
+
             <!-- 录制摄像头选择 -->
             <LinearLayout
                 android:id="@+id/layout_recording_camera_selection"
@@ -667,6 +712,46 @@
                     android:layout_marginStart="16dp" />
             </LinearLayout>
 
+            <!-- 启动自动录制 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="16dp"
+                android:background="@color/card_background"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="启动自动录制"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="应用启动后自动开始录制，运行期间保持录制（长时间录制会占用大量性能，请谨慎使用）"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="16sp"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switch_auto_start_recording"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp" />
+            </LinearLayout>
+
             <!-- 定时保活 -->
             <LinearLayout
                 android:layout_width="match_parent"
@@ -936,7 +1021,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="• 权限设置：管理应用所需的各项权限\n\n• 车型配置：选择对应车型以适配摄像头布局\n\n• 录制模式：\n  - 自动：根据车型自动选择最佳方案\n  - MediaRecorder：使用系统硬件编码\n  - OpenGL+MediaCodec：软编码方案\n\n• 分段时长：设置每段视频的最大时长\n  - 1分钟：文件小巧，便于分享\n  - 3分钟：平衡文件大小和连续性\n  - 5分钟：减少文件数量\n\n• 存储位置：\n  - 内部存储：/DCIM/EVCam_Video/\n  - 外置SD卡：SD卡/DCIM/（需权限）\n\n• 存储自动清理：\n  - 分别设置视频和图片的存储限制\n  - 冷启动30秒后和每小时自动检测\n  - 超限时删除最早的文件（留空或0不限制）\n\n• 录制状态显示：\n  - 录制时在右上角显示时间和分段数\n  - 双击可快速切换显示/隐藏\n\n• 时间角标：\n  - 在保存的视频/图片左上角添加时间水印\n  - 仅影响存储文件，预览界面不显示\n  - 视频角标仅支持OpenGL+MediaCodec模式\n\n• 开机自启动：系统启动后自动运行\n\n• 定时保活：每15分钟唤醒保持活跃\n\n• 防止休眠：阻止系统深度休眠\n  - 开启后熄火也能接收远程消息\n  - 会增加电瓶功耗，按需开启\n\n• 悬浮窗：显示悬浮录制按钮"
+                android:text="• 权限设置：管理应用所需的各项权限\n\n• 车型配置：选择对应车型以适配摄像头布局\n\n• 录制模式：\n  - 自动：根据车型自动选择最佳方案\n  - MediaRecorder：使用系统硬件编码\n  - OpenGL+MediaCodec：软编码方案\n\n• 分段时长：设置每段视频的最大时长\n  - 1分钟：文件小巧，便于分享\n  - 3分钟：平衡文件大小和连续性\n  - 5分钟：减少文件数量\n\n• 存储位置：\n  - 内部存储：/DCIM/EVCam_Video/\n  - 外置SD卡：SD卡/DCIM/（需权限）\n\n• 存储自动清理：\n  - 分别设置视频和图片的存储限制\n  - 冷启动30秒后和每小时自动检测\n  - 超限时删除最早的文件（留空或0不限制）\n\n• 录制状态显示：\n  - 录制时在右上角显示时间和分段数\n  - 双击可快速切换显示/隐藏\n\n• 时间角标：\n  - 在保存的视频/图片左上角添加时间水印\n  - 仅影响存储文件，预览界面不显示\n  - 视频角标仅支持OpenGL+MediaCodec模式\n\n• 开机自启动：系统启动后自动运行\n\n• 启动自动录制：\n  - 应用启动后自动开始录制\n  - 从后台返回前台时自动恢复录制\n  - 配合前台服务保持录制不被中断\n\n• 定时保活：每15分钟唤醒保持活跃\n\n• 防止休眠：阻止系统深度休眠\n  - 开启后熄火也能接收远程消息\n  - 会增加电瓶功耗，按需开启\n\n• 悬浮窗：显示悬浮录制按钮"
                 android:textColor="@color/text_secondary"
                 android:textSize="16sp"
                 android:lineSpacingExtra="4dp" />

@@ -82,6 +82,7 @@ public class MainActivity extends AppCompatActivity {
     private long lastRecordButtonClickTime = 0;  // 上次点击录制按钮的时间
     private static final long RECORD_BUTTON_CLICK_INTERVAL = 1000;  // 最小点击间隔（1秒）
     private boolean shouldMoveToBackgroundOnReady = false;  // 开机自启动后，窗口准备好时移到后台
+    private boolean autoStartRecordingTriggered = false;  // 标记自动录制是否已触发（避免重复触发）
     
     // 车型配置相关
     private AppConfig appConfig;
@@ -726,6 +727,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
+     * 获取当前各摄像头的分辨率信息（供分辨率设置界面使用）
+     * @return 格式化的分辨率信息字符串
+     */
+    public String getCurrentCameraResolutionsInfo() {
+        if (cameraManager != null) {
+            return cameraManager.getCameraResolutionsInfo();
+        }
+        return null;
+    }
+
+    /**
      * 设置导航抽屉
      */
     private void setupNavigationDrawer() {
@@ -1231,6 +1243,9 @@ public class MainActivity extends AppCompatActivity {
 
                 AppLog.d(TAG, "Camera initialized with " + configuredCameraCount + " cameras");
                 Toast.makeText(this, "已打开 " + configuredCameraCount + " 个摄像头", Toast.LENGTH_SHORT).show();
+                
+                // 检查并触发自动录制（延迟执行，确保摄像头准备就绪）
+                checkAutoStartRecording();
 
             } catch (CameraAccessException e) {
                 AppLog.e(TAG, "Failed to access camera", e);
@@ -1494,6 +1509,48 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * 检查并触发自动录制
+     * 在摄像头初始化完成后调用，如果用户启用了"启动自动录制"则自动开始录制
+     */
+    private void checkAutoStartRecording() {
+        // 避免重复触发
+        if (autoStartRecordingTriggered) {
+            AppLog.d(TAG, "自动录制已触发过，跳过");
+            return;
+        }
+        
+        // 检查是否启用了自动录制
+        if (!appConfig.isAutoStartRecording()) {
+            AppLog.d(TAG, "未启用启动自动录制");
+            return;
+        }
+        
+        // 标记已触发
+        autoStartRecordingTriggered = true;
+        AppLog.d(TAG, "检测到启用了启动自动录制，将在2秒后自动开始录制...");
+        
+        // 延迟2秒后开始录制，确保所有摄像头都已准备就绪
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            // 再次检查是否已经在录制（可能用户手动开始了）
+            if (isRecording) {
+                AppLog.d(TAG, "已在录制中，跳过自动录制");
+                return;
+            }
+            
+            // 检查摄像头是否就绪
+            if (cameraManager == null || !cameraManager.hasConnectedCameras()) {
+                AppLog.w(TAG, "摄像头未就绪，无法自动开始录制");
+                Toast.makeText(this, "摄像头未就绪，自动录制失败", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            AppLog.d(TAG, "自动开始录制...");
+            startRecording();
+            Toast.makeText(this, "已自动开始录制", Toast.LENGTH_SHORT).show();
+        }, 2000);  // 延迟2秒
+    }
+    
     /**
      * 切换录制状态（开始/停止）
      */
@@ -2174,6 +2231,18 @@ public class MainActivity extends AppCompatActivity {
                         AppLog.d(TAG, "Has pending remote command, will execute after cameras ready");
                         // 等待摄像头准备好后执行命令（在 handleRemoteCommand 中处理）
                     }
+                    
+                    // 如果启用了自动录制，从后台返回时自动恢复录制
+                    if (appConfig.isAutoStartRecording()) {
+                        AppLog.d(TAG, "启用了自动录制，从后台返回后将自动恢复录制");
+                        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                            if (!isRecording && cameraManager != null && cameraManager.hasConnectedCameras()) {
+                                AppLog.d(TAG, "自动恢复录制...");
+                                startRecording();
+                                Toast.makeText(this, "已自动恢复录制", Toast.LENGTH_SHORT).show();
+                            }
+                        }, 1500);  // 等待摄像头准备好
+                    }
                 } else {
                     AppLog.d(TAG, "Recording in progress, cameras should still be connected");
                 }
@@ -2206,6 +2275,9 @@ public class MainActivity extends AppCompatActivity {
         if (cameraManager != null) {
             cameraManager.release();
         }
+        
+        // 重置自动录制触发标志（下次启动时可以再次触发）
+        autoStartRecordingTriggered = false;
     }
 
     @Override

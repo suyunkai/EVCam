@@ -1102,4 +1102,30 @@ public class MultiCameraManager {
             camera.forceReopen();
         }
     }
+
+    /**
+     * 获取所有摄像头当前使用的分辨率信息
+     * @return 格式化的分辨率信息字符串
+     */
+    public String getCameraResolutionsInfo() {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, SingleCamera> entry : cameras.entrySet()) {
+            String key = entry.getKey();
+            SingleCamera camera = entry.getValue();
+            String cameraId = camera.getCameraId();
+            Size previewSize = camera.getPreviewSize();
+            
+            if (sb.length() > 0) {
+                sb.append("\n");
+            }
+            
+            sb.append(key).append(" (摄像头").append(cameraId).append("): ");
+            if (previewSize != null) {
+                sb.append(previewSize.getWidth()).append("×").append(previewSize.getHeight());
+            } else {
+                sb.append("未初始化");
+            }
+        }
+        return sb.toString();
+    }
 }

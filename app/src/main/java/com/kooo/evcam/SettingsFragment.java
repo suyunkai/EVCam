@@ -37,6 +37,7 @@ public class SettingsFragment extends Fragment {
     private SwitchMaterial debugSwitch;
     private Button saveLogsButton;
     private SwitchMaterial autoStartSwitch;
+    private SwitchMaterial autoStartRecordingSwitch;
     private SwitchMaterial keepAliveSwitch;
     private SwitchMaterial preventSleepSwitch;
     private SwitchMaterial recordingStatsSwitch;
@@ -175,6 +176,10 @@ public class SettingsFragment extends Fragment {
         Button btnPermissionSettings = view.findViewById(R.id.btn_permission_settings);
         btnPermissionSettings.setOnClickListener(v -> openPermissionSettings());
 
+        // 初始化分辨率设置入口
+        Button btnResolutionSettings = view.findViewById(R.id.btn_resolution_settings);
+        btnResolutionSettings.setOnClickListener(v -> openResolutionSettings());
+
         // 初始化录制状态显示开关
         recordingStatsSwitch = view.findViewById(R.id.switch_recording_stats);
         if (getContext() != null && appConfig != null) {
@@ -223,6 +228,22 @@ public class SettingsFragment extends Fragment {
             if (getContext() != null && appConfig != null) {
                 appConfig.setAutoStartOnBoot(isChecked);
                 String message = isChecked ? "开机自启动已启用" : "开机自启动已禁用";
+                Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+                AppLog.d("SettingsFragment", message);
+            }
+        });
+
+        // 初始化启动自动录制开关
+        autoStartRecordingSwitch = view.findViewById(R.id.switch_auto_start_recording);
+        if (getContext() != null && appConfig != null) {
+            autoStartRecordingSwitch.setChecked(appConfig.isAutoStartRecording());
+        }
+
+        // 设置启动自动录制开关监听器
+        autoStartRecordingSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (getContext() != null && appConfig != null) {
+                appConfig.setAutoStartRecording(isChecked);
+                String message = isChecked ? "启动自动录制已启用，下次启动生效" : "启动自动录制已禁用";
                 Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
                 AppLog.d("SettingsFragment", message);
             }
@@ -1545,6 +1566,20 @@ public class SettingsFragment extends Fragment {
         
         FragmentTransaction transaction = getActivity().getSupportFragmentManager().beginTransaction();
         transaction.replace(R.id.fragment_container, new CustomCameraConfigFragment());
+        transaction.addToBackStack(null);
+        transaction.commit();
+    }
+    
+    /**
+     * 打开分辨率设置界面
+     */
+    private void openResolutionSettings() {
+        if (getActivity() == null) {
+            return;
+        }
+        
+        FragmentTransaction transaction = getActivity().getSupportFragmentManager().beginTransaction();
+        transaction.replace(R.id.fragment_container, new ResolutionSettingsFragment());
         transaction.addToBackStack(null);
         transaction.commit();
     }

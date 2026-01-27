@@ -14,6 +14,7 @@ public class AppConfig {
     // 配置项键名
     private static final String KEY_FIRST_LAUNCH = "first_launch";  // 首次启动标记
     private static final String KEY_AUTO_START_ON_BOOT = "auto_start_on_boot";  // 开机自启动
+    private static final String KEY_AUTO_START_RECORDING = "auto_start_recording";  // 启动自动录制
     private static final String KEY_KEEP_ALIVE_ENABLED = "keep_alive_enabled";  // 保活服务
     private static final String KEY_PREVENT_SLEEP_ENABLED = "prevent_sleep_enabled";  // 防止休眠（持续WakeLock）
     private static final String KEY_RECORDING_MODE = "recording_mode";  // 录制模式
@@ -73,6 +74,12 @@ public class AppConfig {
     public static final String RECORDING_MODE_AUTO = "auto";  // 自动（根据车型决定）
     public static final String RECORDING_MODE_MEDIA_RECORDER = "media_recorder";  // MediaRecorder（硬件编码）
     public static final String RECORDING_MODE_CODEC = "codec";  // OpenGL + MediaCodec（软编码）
+    
+    // 分辨率配置相关键名
+    private static final String KEY_TARGET_RESOLUTION = "target_resolution";  // 目标分辨率
+    
+    // 分辨率常量
+    public static final String RESOLUTION_DEFAULT = "default";  // 默认（优先1280x800）
     
     // 车型配置相关键名
     private static final String KEY_CAR_MODEL = "car_model";  // 车型（galaxy_e5 / custom）
@@ -140,6 +147,24 @@ public class AppConfig {
     public boolean isAutoStartOnBoot() {
         // 默认启用开机自启动（车机系统场景）
         return prefs.getBoolean(KEY_AUTO_START_ON_BOOT, true);
+    }
+    
+    /**
+     * 设置启动自动录制
+     * @param enabled true 表示启用启动自动录制
+     */
+    public void setAutoStartRecording(boolean enabled) {
+        prefs.edit().putBoolean(KEY_AUTO_START_RECORDING, enabled).apply();
+        AppLog.d(TAG, "启动自动录制设置: " + (enabled ? "启用" : "禁用"));
+    }
+    
+    /**
+     * 获取启动自动录制设置
+     * @return true 表示启用启动自动录制
+     */
+    public boolean isAutoStartRecording() {
+        // 默认禁用启动自动录制（需要用户主动开启）
+        return prefs.getBoolean(KEY_AUTO_START_RECORDING, false);
     }
     
     /**
@@ -220,6 +245,54 @@ public class AppConfig {
     public void resetToDefault() {
         prefs.edit().clear().apply();
         AppLog.d(TAG, "配置已重置为默认值");
+    }
+    
+    // ==================== 分辨率配置相关方法 ====================
+    
+    /**
+     * 设置目标分辨率
+     * @param resolution 分辨率字符串（如 "1280x720"）或 "default"
+     */
+    public void setTargetResolution(String resolution) {
+        prefs.edit().putString(KEY_TARGET_RESOLUTION, resolution).apply();
+        AppLog.d(TAG, "目标分辨率设置: " + resolution);
+    }
+    
+    /**
+     * 获取目标分辨率
+     * @return 分辨率字符串，默认为 "default"
+     */
+    public String getTargetResolution() {
+        return prefs.getString(KEY_TARGET_RESOLUTION, RESOLUTION_DEFAULT);
+    }
+    
+    /**
+     * 是否使用默认分辨率
+     */
+    public boolean isDefaultResolution() {
+        return RESOLUTION_DEFAULT.equals(getTargetResolution());
+    }
+    
+    /**
+     * 解析分辨率字符串为宽高数组
+     * @param resolution 分辨率字符串（如 "1280x720"）
+     * @return [width, height]，解析失败返回 null
+     */
+    public static int[] parseResolution(String resolution) {
+        if (resolution == null || RESOLUTION_DEFAULT.equals(resolution)) {
+            return null;
+        }
+        try {
+            String[] parts = resolution.split("x");
+            if (parts.length == 2) {
+                int width = Integer.parseInt(parts[0].trim());
+                int height = Integer.parseInt(parts[1].trim());
+                return new int[]{width, height};
+            }
+        } catch (NumberFormatException e) {
+            AppLog.w(TAG, "无法解析分辨率: " + resolution);
+        }
+        return null;
     }
     
     // ==================== 车型配置相关方法 ====================

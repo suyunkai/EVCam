@@ -246,22 +246,48 @@ public class SingleCamera {
     }
 
     /**
-     * 选择最优分辨率（参考guardapp使用1280x800）
+     * 选择最优分辨率
+     * 根据用户配置的目标分辨率进行匹配：
+     * - 默认：优先1280x800，否则最接近的
+     * - 指定分辨率：优先精确匹配，否则最接近的
      */
     private Size chooseOptimalSize(Size[] sizes) {
-        // 目标分辨率：1280x800 (guardapp使用的分辨率)
-        final int TARGET_WIDTH = 1280;
-        final int TARGET_HEIGHT = 800;
+        // 从配置获取目标分辨率
+        AppConfig appConfig = new AppConfig(context);
+        String targetResolution = appConfig.getTargetResolution();
+        
+        int targetWidth;
+        int targetHeight;
+        
+        if (AppConfig.RESOLUTION_DEFAULT.equals(targetResolution)) {
+            // 默认：1280x800 (guardapp使用的分辨率)
+            targetWidth = 1280;
+            targetHeight = 800;
+            AppLog.d(TAG, "Camera " + cameraId + " using default target resolution: " + targetWidth + "x" + targetHeight);
+        } else {
+            // 用户指定的分辨率
+            int[] parsed = AppConfig.parseResolution(targetResolution);
+            if (parsed != null) {
+                targetWidth = parsed[0];
+                targetHeight = parsed[1];
+                AppLog.d(TAG, "Camera " + cameraId + " using user-specified target resolution: " + targetWidth + "x" + targetHeight);
+            } else {
+                // 解析失败，回退到默认
+                targetWidth = 1280;
+                targetHeight = 800;
+                AppLog.w(TAG, "Camera " + cameraId + " failed to parse resolution '" + targetResolution + "', using default 1280x800");
+            }
+        }
 
-        // 首先尝试找到精确匹配 1280x800
+        // 首先尝试找到精确匹配
         for (Size size : sizes) {
-            if (size.getWidth() == TARGET_WIDTH && size.getHeight() == TARGET_HEIGHT) {
-                AppLog.d(TAG, "Camera " + cameraId + " found exact 1280x800 match");
+            if (size.getWidth() == targetWidth && size.getHeight() == targetHeight) {
+                AppLog.d(TAG, "Camera " + cameraId + " found exact match: " + targetWidth + "x" + targetHeight);
                 return size;
             }
         }
 
-        // 找到最接近 1280x800 的分辨率
+        // 找到最接近目标分辨率的
         Size bestSize = null;
         int minDiff = Integer.MAX_VALUE;
 
@@ -270,7 +296,7 @@ public class SingleCamera {
             int height = size.getHeight();
 
             // 计算与目标分辨率的差距
-            int diff = Math.abs(TARGET_WIDTH - width) + Math.abs(TARGET_HEIGHT - height);
+            int diff = Math.abs(targetWidth - width) + Math.abs(targetHeight - height);
             if (diff < minDiff) {
                 minDiff = diff;
                 bestSize = size;
@@ -280,7 +306,10 @@ public class SingleCamera {
         if (bestSize == null) {
             // 如果还是没找到，使用第一个可用分辨率
             bestSize = sizes[0];
-            AppLog.d(TAG, "Camera " + cameraId + " using first available size");
+            AppLog.d(TAG, "Camera " + cameraId + " using first available size: " + bestSize.getWidth() + "x" + bestSize.getHeight());
+        } else {
+            AppLog.d(TAG, "Camera " + cameraId + " selected closest match: " + bestSize.getWidth() + "x" + bestSize.getHeight() + 
+                    " (target was " + targetWidth + "x" + targetHeight + ")");
         }
 
         return bestSize;
