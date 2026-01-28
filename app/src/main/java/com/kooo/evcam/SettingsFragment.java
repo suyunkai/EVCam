@@ -1417,7 +1417,7 @@ public class SettingsFragment extends Fragment {
             sb.append(line).append("\n");
         }
         
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext())
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext(), R.style.Theme_Cam_MaterialAlertDialog)
                 .setTitle("存储设备检测信息")
                 .setMessage(sb.toString())
                 .setPositiveButton("确定", null)
@@ -1443,6 +1443,10 @@ public class SettingsFragment extends Fragment {
         android.widget.EditText input = new android.widget.EditText(getContext());
         input.setHint("例如: /storage/ABCD-1234");
         input.setSingleLine(true);
+        // 适配夜间模式
+        input.setTextColor(ContextCompat.getColor(getContext(), R.color.text_primary));
+        input.setHintTextColor(ContextCompat.getColor(getContext(), R.color.text_secondary));
+        input.setBackgroundResource(R.drawable.edit_text_background);
         
         // 显示当前设置的路径
         String currentPath = appConfig.getCustomSdCardPath();
@@ -1460,7 +1464,7 @@ public class SettingsFragment extends Fragment {
         input.setLayoutParams(params);
         container.addView(input);
         
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext())
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext(), R.style.Theme_Cam_MaterialAlertDialog)
                 .setTitle("手动设置U盘路径")
                 .setMessage("如果自动检测失败，你可以手动输入U盘的挂载路径。\n\n" +
                         "常见格式：/storage/XXXX-XXXX（十六进制ID）\n\n" +
@@ -1704,8 +1708,9 @@ public class SettingsFragment extends Fragment {
         // 适配夜间模式
         inputEditText.setTextColor(ContextCompat.getColor(getContext(), R.color.text_primary));
         inputEditText.setHintTextColor(ContextCompat.getColor(getContext(), R.color.text_secondary));
+        inputEditText.setBackgroundResource(R.drawable.edit_text_background);
         
-        new AlertDialog.Builder(getContext())
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext(), R.style.Theme_Cam_MaterialAlertDialog)
                 .setTitle("设置设备识别名称")
                 .setMessage("请输入一个便于识别的名称，用于区分不同用户的日志：")
                 .setView(inputEditText)
@@ -1728,7 +1733,7 @@ public class SettingsFragment extends Fragment {
     private void showNicknameConfirmDialog(String nickname) {
         if (getContext() == null) return;
         
-        new AlertDialog.Builder(getContext())
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext(), R.style.Theme_Cam_MaterialAlertDialog)
                 .setTitle("确认设备名称")
                 .setMessage("您输入的设备名称是：\n\n「" + nickname + "」\n\n确认使用此名称吗？")
                 .setPositiveButton("确认", (dialog, which) -> {
@@ -1780,10 +1785,10 @@ public class SettingsFragment extends Fragment {
         inputEditText.setHint("请描述遇到的问题...");
         inputEditText.setTextColor(ContextCompat.getColor(getContext(), R.color.text_primary));
         inputEditText.setHintTextColor(ContextCompat.getColor(getContext(), R.color.text_secondary));
-        inputEditText.setBackgroundResource(android.R.drawable.edit_text);
+        inputEditText.setBackgroundResource(R.drawable.edit_text_background);
         layout.addView(inputEditText);
         
-        new AlertDialog.Builder(getContext())
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext(), R.style.Theme_Cam_MaterialAlertDialog)
                 .setTitle("上传日志")
                 .setView(layout)
                 .setPositiveButton("上传", (dialog, which) -> {

@@ -41,4 +41,7 @@
     <color name="nav_logo_accent">#FF424242</color>
     <color name="nav_section_title">#FF888888</color>
     <color name="nav_version_text">#FF999999</color>
+
+    <!-- 多选模式选中背景 - 日间模式 -->
+    <color name="item_selected_background">#40000000</color>
 </resources>

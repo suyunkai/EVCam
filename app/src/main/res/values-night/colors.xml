@@ -32,4 +32,7 @@
     <color name="nav_logo_accent">#FF616161</color>
     <color name="nav_section_title">#FF888888</color>
     <color name="nav_version_text">#FF666666</color>
+
+    <!-- 多选模式选中背景 - 夜间模式 -->
+    <color name="item_selected_background">#40FFFFFF</color>
 </resources>
