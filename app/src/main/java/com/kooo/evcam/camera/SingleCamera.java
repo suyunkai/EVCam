@@ -351,6 +351,13 @@ public class SingleCamera {
         }
         
         synchronized (reconnectLock) {
+            // 安全措施：清理可能残留的录制 Surface 引用（防止 Surface abandoned 错误）
+            // 放在同步块内，避免与 setRecordSurface() 的竞态条件
+            if (recordSurface != null) {
+                AppLog.w(TAG, "Camera " + cameraId + " found stale recordSurface on open, clearing it");
+                recordSurface = null;
+            }
+            
             // 如果已经在重连中，忽略新的打开请求
             if (isReconnecting) {
                 AppLog.d(TAG, "Camera " + cameraId + " already reconnecting, ignoring openCamera call");
@@ -882,6 +889,29 @@ public class SingleCamera {
             AppLog.e(TAG, "Failed to create preview session for camera " + cameraId, e);
             AppLog.e(TAG, "Exception details: " + e.getMessage());
             e.printStackTrace();
+        } catch (IllegalArgumentException e) {
+            // 特殊处理 "Surface was abandoned" 错误
+            String message = e.getMessage();
+            if (message != null && message.contains("abandoned")) {
+                AppLog.e(TAG, "Camera " + cameraId + " detected abandoned Surface, attempting recovery...");
+                // 清理废弃的录制 Surface
+                if (recordSurface != null) {
+                    AppLog.w(TAG, "Camera " + cameraId + " clearing abandoned recordSurface and retrying");
+                    recordSurface = null;
+                    // 延迟重试创建会话（只使用预览 Surface）
+                    if (backgroundHandler != null) {
+                        backgroundHandler.postDelayed(() -> {
+                            if (cameraDevice != null) {
+                                AppLog.d(TAG, "Camera " + cameraId + " retrying session creation without record surface");
+                                createCameraPreviewSession();
+                            }
+                        }, 100);
+                    }
+                    return;
+                }
+            }
+            AppLog.e(TAG, "Unexpected IllegalArgumentException creating session for camera " + cameraId, e);
+            e.printStackTrace();
         } catch (Exception e) {
             AppLog.e(TAG, "Unexpected exception creating session for camera " + cameraId, e);
             AppLog.e(TAG, "Exception details: " + e.getMessage());
@@ -1166,6 +1196,13 @@ public class SingleCamera {
                     AppLog.d(TAG, "Camera " + cameraId + " ignored exception while releasing preview surface: " + e.getMessage());
                 }
                 previewSurface = null;
+            }
+
+            // 清理录制 Surface 引用（重要：防止 Surface abandoned 错误）
+            // 注意：这里只是清除引用，不 release()，因为 Surface 由 VideoRecorder 管理
+            if (recordSurface != null) {
+                AppLog.d(TAG, "Camera " + cameraId + " clearing record surface reference");
+                recordSurface = null;
             }
 
             // 释放ImageReader
