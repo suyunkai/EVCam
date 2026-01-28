@@ -17,7 +17,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
             android:text="使用提示"
-            android:textSize="22sp"
+            android:textSize="38sp"
             android:textColor="#1A1A1A"
             android:textStyle="bold"
             android:layout_marginTop="8dp"
@@ -43,7 +43,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="①"
-                android:textSize="16sp"
+                android:textSize="25sp"
                 android:textColor="#1976D2"
                 android:textStyle="bold"
                 android:layout_marginEnd="8dp" />
@@ -52,7 +52,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="使用前，请务必授予软件所有可能需要的权限，并配置车型。"
-                android:textSize="15sp"
+                android:textSize="25sp"
                 android:textColor="#333333"
                 android:lineSpacingExtra="4dp" />
         </LinearLayout>
@@ -69,7 +69,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="②"
-                android:textSize="16sp"
+                android:textSize="25sp"
                 android:textColor="#1976D2"
                 android:textStyle="bold"
                 android:layout_marginEnd="8dp" />
@@ -77,8 +77,8 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="若您的车型未适配，请选择自定义车型并自行调试。"
-                android:textSize="15sp"
+                android:text="若您的车型未适配，请选择自定义车型并自行调试，出现Bug为正常现象。"
+                android:textSize="25sp"
                 android:textColor="#333333"
                 android:lineSpacingExtra="4dp" />
         </LinearLayout>
@@ -89,13 +89,13 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
             android:orientation="horizontal"
-            android:layout_marginBottom="20dp">
+            android:layout_marginBottom="12dp">
             
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="③"
-                android:textSize="16sp"
+                android:textSize="25sp"
                 android:textColor="#1976D2"
                 android:textStyle="bold"
                 android:layout_marginEnd="8dp" />
@@ -104,7 +104,33 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="若录制视频无法储存，请尝试修改「录制模式」。"
-                android:textSize="15sp"
+                android:textSize="25sp"
+                android:textColor="#333333"
+                android:lineSpacingExtra="4dp" />
+        </LinearLayout>
+
+        <!-- 提示内容4 -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:orientation="horizontal"
+            android:layout_marginBottom="20dp">
+            
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="④"
+                android:textSize="25sp"
+                android:textColor="#1976D2"
+                android:textStyle="bold"
+                android:layout_marginEnd="8dp" />
+            
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="软件首次安装完成配置后，或更新版本后，如遇Bug，建议先重启一次车机！"
+                android:textSize="25sp"
                 android:textColor="#333333"
                 android:lineSpacingExtra="4dp" />
         </LinearLayout>
@@ -121,7 +147,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="本软件作者 @greenteacher46，当前版本免费开源，如遇收费售卖等商业行为，请告知作者。"
-            android:textSize="13sp"
+            android:textSize="20sp"
             android:textColor="#666666"
             android:lineSpacingExtra="3dp"
             android:gravity="center"
@@ -132,7 +158,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="开发不易，如果这个项目对你有帮助，欢迎打赏支持！"
-            android:textSize="13sp"
+            android:textSize="20sp"
             android:textColor="#1976D2"
             android:textStyle="bold"
             android:gravity="center"
