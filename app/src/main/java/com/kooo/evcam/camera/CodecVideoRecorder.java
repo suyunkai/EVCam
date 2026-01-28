@@ -100,6 +100,14 @@ public class CodecVideoRecorder {
     private int recoveryAttempts = 0;  // 当前重试次数
     private Runnable recoveryRunnable;  // 恢复重试任务
 
+    // 编码器健康检查
+    private static final long ENCODER_HEALTH_CHECK_INTERVAL_MS = 3000;  // 健康检查间隔：3秒
+    private static final int MAX_FRAMES_WITHOUT_OUTPUT = 30;  // 无输出的最大帧数阈值
+    private long lastEncoderOutputTime = 0;  // 最后一次编码器输出时间
+    private int framesWithoutEncoderOutput = 0;  // 无编码器输出的连续帧数
+    private volatile boolean encoderHealthy = true;  // 编码器是否健康
+    private Runnable healthCheckRunnable;  // 健康检查任务
+
     // 回调
     private RecordCallback callback;
 
@@ -207,6 +215,11 @@ public class CodecVideoRecorder {
         this.firstFrameTimestampNs = -1;  // 重置时间戳基准
         this.encodedOutputFrameCount = 0;  // 重置编码输出帧计数
 
+        // 重置健康检查状态
+        this.encoderHealthy = true;
+        this.framesWithoutEncoderOutput = 0;
+        this.lastEncoderOutputTime = System.currentTimeMillis();
+
         // 清空并初始化本次录制的文件列表
         recordedFilePaths.clear();
         recordedFilePaths.add(filePath);
@@ -270,6 +283,14 @@ public class CodecVideoRecorder {
                                 return;
                             }
 
+                            // 检查编码器健康状态，不健康时只消费帧不编码
+                            if (!encoderHealthy) {
+                                if (eglEncoder != null && eglEncoder.isInitialized()) {
+                                    eglEncoder.consumeFrame();  // 只消费帧，等待重建
+                                }
+                                return;
+                            }
+
                             // 获取绝对时间戳（系统启动以来的纳秒）
                             long absoluteTimestampNs = surfaceTexture.getTimestamp();
                             
@@ -299,6 +320,8 @@ public class CodecVideoRecorder {
 
                         } catch (Exception e) {
                             AppLog.e(TAG, "Camera " + cameraId + " Error processing frame", e);
+                            // 发生异常时标记编码器不健康
+                            encoderHealthy = false;
                         }
                     }, encoderHandler);
 
@@ -376,6 +399,9 @@ public class CodecVideoRecorder {
         // 启动文件大小检查
         scheduleFileSizeCheck();
 
+        // 启动编码器健康检查
+        scheduleEncoderHealthCheck();
+
         if (callback != null && segmentIndex == 0) {
             callback.onRecordStart(cameraId);
         }
@@ -410,6 +436,12 @@ public class CodecVideoRecorder {
             recoveryRunnable = null;
         }
         recoveryAttempts = 0;
+
+        // 取消健康检查任务
+        if (healthCheckRunnable != null) {
+            segmentHandler.removeCallbacks(healthCheckRunnable);
+            healthCheckRunnable = null;
+        }
 
         isRecording = false;
 
@@ -595,6 +627,10 @@ public class CodecVideoRecorder {
 
     /**
      * 排空编码器输出
+     * 
+     * 增强错误处理：
+     * - 捕获 IllegalStateException 并标记编码器不健康
+     * - 跟踪无输出的帧数，用于健康检查
      */
     private void drainEncoder(boolean endOfStream) {
         if (encoder == null) {
@@ -602,69 +638,101 @@ public class CodecVideoRecorder {
         }
 
         final int TIMEOUT_USEC = 10000;
+        boolean gotOutput = false;
 
-        while (true) {
-            int outputBufferIndex = encoder.dequeueOutputBuffer(bufferInfo, TIMEOUT_USEC);
-
-            if (outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                if (!endOfStream) {
-                    break;  // 没有数据了
-                }
-            } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                // 输出格式变化，添加视频轨道
-                if (muxerStarted) {
-                    AppLog.w(TAG, "Camera " + cameraId + " Format changed twice");
-                } else {
-                    MediaFormat newFormat = encoder.getOutputFormat();
-                    videoTrackIndex = muxer.addTrack(newFormat);
-                    muxer.start();
-                    muxerStarted = true;
-                    AppLog.d(TAG, "Camera " + cameraId + " Muxer started, track=" + videoTrackIndex);
-                }
-            } else if (outputBufferIndex >= 0) {
-                ByteBuffer encodedData = encoder.getOutputBuffer(outputBufferIndex);
-
-                if (encodedData == null) {
-                    AppLog.e(TAG, "Camera " + cameraId + " Encoder output buffer " + outputBufferIndex + " was null");
-                } else if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-                    // 配置数据，忽略（已在 FORMAT_CHANGED 中处理）
-                    bufferInfo.size = 0;
+        try {
+            while (true) {
+                int outputBufferIndex;
+                try {
+                    outputBufferIndex = encoder.dequeueOutputBuffer(bufferInfo, TIMEOUT_USEC);
+                } catch (IllegalStateException e) {
+                    // 编码器处于无效状态，标记为不健康
+                    AppLog.e(TAG, "Camera " + cameraId + " Encoder in invalid state during dequeueOutputBuffer", e);
+                    encoderHealthy = false;
+                    return;
                 }
 
-                if (bufferInfo.size != 0) {
-                    if (!muxerStarted) {
-                        AppLog.e(TAG, "Camera " + cameraId + " Muxer not started but got data");
+                if (outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
+                    if (!endOfStream) {
+                        break;  // 没有数据了
+                    }
+                } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    // 输出格式变化，添加视频轨道
+                    if (muxerStarted) {
+                        AppLog.w(TAG, "Camera " + cameraId + " Format changed twice");
                     } else {
-                        // 使用系统时间计算 PTS，而不是基于帧数和假设帧率
-                        // 优点：
-                        //   1. 视频时长精确反映实际录制时长
-                        //   2. 不受帧率波动影响（实际帧率可能是 25-30fps 不等）
-                        //   3. 掉帧时时间轴仍然正确（只是画面会卡顿）
-                        long currentTimeNs = System.nanoTime();
-                        long calculatedPtsUs = (currentTimeNs - segmentStartTimeNs) / 1000;
-                        
-                        // 调试日志（仅第一帧）
-                        if (encodedOutputFrameCount == 0) {
-                            AppLog.d(TAG, "Camera " + cameraId + " First frame PTS: " + calculatedPtsUs + " us");
+                        MediaFormat newFormat = encoder.getOutputFormat();
+                        videoTrackIndex = muxer.addTrack(newFormat);
+                        muxer.start();
+                        muxerStarted = true;
+                        encoderHealthy = true;  // 收到格式变化说明编码器正常
+                        lastEncoderOutputTime = System.currentTimeMillis();
+                        AppLog.d(TAG, "Camera " + cameraId + " Muxer started, track=" + videoTrackIndex);
+                    }
+                    gotOutput = true;
+                } else if (outputBufferIndex >= 0) {
+                    ByteBuffer encodedData = encoder.getOutputBuffer(outputBufferIndex);
+
+                    if (encodedData == null) {
+                        AppLog.e(TAG, "Camera " + cameraId + " Encoder output buffer " + outputBufferIndex + " was null");
+                    } else if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                        // 配置数据，忽略（已在 FORMAT_CHANGED 中处理）
+                        bufferInfo.size = 0;
+                    }
+
+                    if (bufferInfo.size != 0) {
+                        if (!muxerStarted) {
+                            AppLog.e(TAG, "Camera " + cameraId + " Muxer not started but got data");
+                        } else {
+                            // 使用系统时间计算 PTS，而不是基于帧数和假设帧率
+                            // 优点：
+                            //   1. 视频时长精确反映实际录制时长
+                            //   2. 不受帧率波动影响（实际帧率可能是 25-30fps 不等）
+                            //   3. 掉帧时时间轴仍然正确（只是画面会卡顿）
+                            long currentTimeNs = System.nanoTime();
+                            long calculatedPtsUs = (currentTimeNs - segmentStartTimeNs) / 1000;
+                            
+                            // 调试日志（仅第一帧）
+                            if (encodedOutputFrameCount == 0) {
+                                AppLog.d(TAG, "Camera " + cameraId + " First frame PTS: " + calculatedPtsUs + " us");
+                            }
+                            
+                            // 使用计算的时间戳
+                            bufferInfo.presentationTimeUs = calculatedPtsUs;
+                            
+                            encodedData.position(bufferInfo.offset);
+                            encodedData.limit(bufferInfo.offset + bufferInfo.size);
+                            muxer.writeSampleData(videoTrackIndex, encodedData, bufferInfo);
+                            
+                            encodedOutputFrameCount++;
+                            lastEncoderOutputTime = System.currentTimeMillis();
+                            gotOutput = true;
                         }
-                        
-                        // 使用计算的时间戳
-                        bufferInfo.presentationTimeUs = calculatedPtsUs;
-                        
-                        encodedData.position(bufferInfo.offset);
-                        encodedData.limit(bufferInfo.offset + bufferInfo.size);
-                        muxer.writeSampleData(videoTrackIndex, encodedData, bufferInfo);
-                        
-                        encodedOutputFrameCount++;
+                    }
+
+                    try {
+                        encoder.releaseOutputBuffer(outputBufferIndex, false);
+                    } catch (IllegalStateException e) {
+                        AppLog.e(TAG, "Camera " + cameraId + " Encoder in invalid state during releaseOutputBuffer", e);
+                        encoderHealthy = false;
+                        return;
+                    }
+
+                    if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                        break;  // 流结束
                     }
                 }
-
-                encoder.releaseOutputBuffer(outputBufferIndex, false);
-
-                if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
-                    break;  // 流结束
-                }
             }
+        } catch (Exception e) {
+            AppLog.e(TAG, "Camera " + cameraId + " Unexpected error in drainEncoder", e);
+            encoderHealthy = false;
+        }
+
+        // 更新无输出帧计数器
+        if (gotOutput) {
+            framesWithoutEncoderOutput = 0;
+        } else {
+            framesWithoutEncoderOutput++;
         }
     }
 
@@ -946,6 +1014,158 @@ public class CodecVideoRecorder {
         String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
         String fileName = timestamp + "_" + cameraPosition + ".mp4";
         return new File(saveDirectory, fileName).getAbsolutePath();
+    }
+
+    /**
+     * 调度编码器健康检查
+     * 检测编码器是否正常工作，如果长时间无输出则尝试重建
+     */
+    private void scheduleEncoderHealthCheck() {
+        if (healthCheckRunnable != null) {
+            segmentHandler.removeCallbacks(healthCheckRunnable);
+        }
+
+        healthCheckRunnable = () -> {
+            if (!isRecording || isReleased) {
+                return;
+            }
+
+            // 检查编码器健康状态
+            boolean needsRecovery = false;
+            String reason = "";
+
+            if (!encoderHealthy) {
+                needsRecovery = true;
+                reason = "encoder marked unhealthy";
+            } else if (!muxerStarted && recordedFrameCount > MAX_FRAMES_WITHOUT_OUTPUT) {
+                // Muxer 从未启动，但已经处理了很多帧
+                needsRecovery = true;
+                reason = "muxer never started after " + recordedFrameCount + " frames";
+            } else if (framesWithoutEncoderOutput > MAX_FRAMES_WITHOUT_OUTPUT) {
+                needsRecovery = true;
+                reason = "no encoder output for " + framesWithoutEncoderOutput + " frames";
+            }
+
+            if (needsRecovery) {
+                AppLog.w(TAG, "Camera " + cameraId + " Encoder health check FAILED: " + reason);
+                AppLog.w(TAG, "Camera " + cameraId + " Attempting to rebuild encoder...");
+
+                // 在编码线程上执行重建
+                if (encoderHandler != null) {
+                    encoderHandler.post(() -> rebuildEncoder());
+                }
+            } else {
+                // 编码器健康，继续调度下一次检查
+                scheduleEncoderHealthCheck();
+            }
+        };
+
+        segmentHandler.postDelayed(healthCheckRunnable, ENCODER_HEALTH_CHECK_INTERVAL_MS);
+    }
+
+    /**
+     * 重建编码器（在编码线程上执行）
+     * 当检测到编码器不健康时调用
+     */
+    private void rebuildEncoder() {
+        AppLog.d(TAG, "Camera " + cameraId + " Rebuilding encoder due to health check failure");
+
+        // 暂停录制
+        isRecording = false;
+
+        try {
+            // 1. 清理旧的 Muxer（可能已损坏）
+            if (muxer != null) {
+                try {
+                    if (muxerStarted) {
+                        muxer.stop();
+                    }
+                    muxer.release();
+                } catch (Exception e) {
+                    AppLog.w(TAG, "Camera " + cameraId + " Error releasing old muxer: " + e.getMessage());
+                }
+                muxer = null;
+                muxerStarted = false;
+                videoTrackIndex = -1;
+            }
+
+            // 2. 清理旧的编码器
+            if (encoder != null) {
+                try {
+                    encoder.stop();
+                } catch (Exception e) {
+                    // Ignore
+                }
+                try {
+                    encoder.release();
+                } catch (Exception e) {
+                    // Ignore
+                }
+                encoder = null;
+            }
+
+            if (encoderInputSurface != null) {
+                try {
+                    encoderInputSurface.release();
+                } catch (Exception e) {
+                    // Ignore
+                }
+                encoderInputSurface = null;
+            }
+
+            // 3. 小延迟让系统释放资源
+            Thread.sleep(100);
+
+            // 4. 重新创建编码器
+            createEncoder();
+
+            // 5. 更新 EGL 输出 Surface
+            if (eglEncoder != null && encoderInputSurface != null) {
+                eglEncoder.updateOutputSurface(encoderInputSurface);
+            }
+
+            // 6. 创建新的 Muxer（生成新的文件名）
+            segmentIndex++;
+            String newFilePath = generateSegmentPath();
+            currentFilePath = newFilePath;
+            recordedFilePaths.add(newFilePath);
+            createMuxer(newFilePath);
+
+            // 7. 重置状态
+            segmentStartTimeNs = System.nanoTime();
+            encodedOutputFrameCount = 0;
+            framesWithoutEncoderOutput = 0;
+            encoderHealthy = true;
+            lastEncoderOutputTime = System.currentTimeMillis();
+
+            // 8. 恢复录制
+            isRecording = true;
+
+            AppLog.d(TAG, "Camera " + cameraId + " Encoder rebuilt successfully, new file: " + newFilePath);
+
+            // 9. 继续健康检查
+            segmentHandler.post(() -> scheduleEncoderHealthCheck());
+
+            // 10. 重新调度分段定时器
+            segmentHandler.post(() -> scheduleNextSegment());
+
+        } catch (Exception e) {
+            AppLog.e(TAG, "Camera " + cameraId + " Failed to rebuild encoder", e);
+
+            // 重建失败，启动恢复重试机制
+            recoveryAttempts++;
+            if (recoveryAttempts <= MAX_RECOVERY_ATTEMPTS) {
+                AppLog.w(TAG, "Camera " + cameraId + " Will retry encoder rebuild in " 
+                    + (RECOVERY_RETRY_INTERVAL_MS / 1000) + "s (attempt " + recoveryAttempts + "/" + MAX_RECOVERY_ATTEMPTS + ")");
+                scheduleRecoveryRetry();
+            } else {
+                AppLog.e(TAG, "Camera " + cameraId + " Max recovery attempts reached, giving up");
+                if (callback != null) {
+                    final String errorMsg = e.getMessage();
+                    segmentHandler.post(() -> callback.onRecordError(cameraId, "Encoder rebuild failed: " + errorMsg));
+                }
+            }
+        }
     }
 
     /**
