@@ -17,18 +17,13 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <!-- App logo with modern circular design -->
-        <FrameLayout
+        <!-- App logo -->
+        <ImageView
             android:layout_width="64dp"
-            android:layout_height="64dp">
-
-            <ImageView
-                android:layout_width="64dp"
-                android:layout_height="64dp"
-                android:src="@drawable/ic_nav_app_logo"
-                android:contentDescription="@string/app_name" />
-
-        </FrameLayout>
+            android:layout_height="64dp"
+            android:src="@drawable/nav_logo"
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/app_name" />
 
         <!-- App info -->
         <LinearLayout
