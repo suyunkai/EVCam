@@ -133,7 +133,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean isRemoteRecording = false;  // 是否正在进行远程录制
     private boolean wasManualRecordingBeforeRemote = false;  // 远程录制前是否有手动录制在进行
 
-    // 钉钉服务相关（移到 Activity 级别）
+    // 远程查看服务相关（移到 Activity 级别）
     private DingTalkConfig dingTalkConfig;
     private DingTalkApiClient dingTalkApiClient;
     private DingTalkStreamManager dingTalkStreamManager;
@@ -182,7 +182,7 @@ public class MainActivity extends AppCompatActivity {
             requestPermissions();
         }
 
-        // 如果启用了自动启动，启动钉钉服务
+        // 如果启用了自动启动，启动远程查看服务
         if (dingTalkConfig.isConfigured() && dingTalkConfig.isAutoStart()) {
             startDingTalkService();
         }
@@ -2024,7 +2024,7 @@ public class MainActivity extends AppCompatActivity {
         // 停止前台服务（确保清理）
         CameraForegroundService.stop(this);
 
-        // 停止钉钉服务
+        // 停止远程查看服务
         if (dingTalkStreamManager != null) {
             dingTalkStreamManager.stop();
         }
@@ -2385,14 +2385,14 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         } else {
-            AppLog.e(TAG, "钉钉服务未启动");
+            AppLog.e(TAG, "远程查看服务未启动");
             
-            // 即使钉钉服务未启动，也要传输文件到最终存储位置（保留视频）
+            // 即使远程查看服务未启动，也要传输文件到最终存储位置（保留视频）
             if (uploadFromTempDir) {
                 transferTempFilesToFinalDir(uploadedFiles);
             }
             
-            sendErrorToRemote("钉钉服务未启动");
+            sendErrorToRemote("远程查看服务未启动");
             returnToBackgroundIfRemoteWakeUp();
         }
     }
@@ -2508,8 +2508,8 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         } else {
-            AppLog.e(TAG, "钉钉服务未启动");
-            sendErrorToRemote("钉钉服务未启动");
+            AppLog.e(TAG, "远程查看服务未启动");
+            sendErrorToRemote("远程查看服务未启动");
             returnToBackgroundIfRemoteWakeUp();
         }
     }
@@ -2570,7 +2570,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * 启动钉钉服务
+     * 启动远程查看服务
      */
     public void startDingTalkService() {
         if (!dingTalkConfig.isConfigured()) {
@@ -2579,11 +2579,11 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (dingTalkStreamManager != null && dingTalkStreamManager.isRunning()) {
-            AppLog.d(TAG, "钉钉服务已在运行");
+            AppLog.d(TAG, "远程查看服务已在运行");
             return;
         }
 
-        AppLog.d(TAG, "正在启动钉钉服务...");
+        AppLog.d(TAG, "正在启动远程查看服务...");
 
         // 创建 API 客户端
         dingTalkApiClient = new DingTalkApiClient(dingTalkConfig);
@@ -2593,8 +2593,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onConnected() {
                 runOnUiThread(() -> {
-                    AppLog.d(TAG, "钉钉服务已连接");
-                    Toast.makeText(MainActivity.this, "钉钉服务已启动", Toast.LENGTH_SHORT).show();
+                    AppLog.d(TAG, "远程查看服务已连接");
+                    Toast.makeText(MainActivity.this, "远程查看已启动", Toast.LENGTH_SHORT).show();
                     // 通知 RemoteViewFragment 更新 UI
                     updateRemoteViewFragmentUI();
                 });
@@ -2603,7 +2603,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onDisconnected() {
                 runOnUiThread(() -> {
-                    AppLog.d(TAG, "钉钉服务已断开");
+                    AppLog.d(TAG, "远程查看服务已断开");
                     // 通知 RemoteViewFragment 更新 UI
                     updateRemoteViewFragmentUI();
                 });
@@ -2612,7 +2612,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
-                    AppLog.e(TAG, "钉钉服务连接失败: " + error);
+                    AppLog.e(TAG, "远程查看服务连接失败: " + error);
                     Toast.makeText(MainActivity.this, "连接失败: " + error, Toast.LENGTH_LONG).show();
                     // 通知 RemoteViewFragment 更新 UI
                     updateRemoteViewFragmentUI();
@@ -2639,22 +2639,22 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * 停止钉钉服务
+     * 停止远程查看服务
      */
     public void stopDingTalkService() {
         if (dingTalkStreamManager != null) {
-            AppLog.d(TAG, "正在停止钉钉服务...");
+            AppLog.d(TAG, "正在停止远程查看服务...");
             dingTalkStreamManager.stop();
             dingTalkStreamManager = null;
             dingTalkApiClient = null;
-            Toast.makeText(this, "钉钉服务已停止", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "远程查看服务已停止", Toast.LENGTH_SHORT).show();
             // 通知 RemoteViewFragment 更新 UI
             updateRemoteViewFragmentUI();
         }
     }
 
     /**
-     * 获取钉钉服务运行状态
+     * 获取远程查看服务运行状态
      */
     public boolean isDingTalkServiceRunning() {
         return dingTalkStreamManager != null && dingTalkStreamManager.isRunning();
@@ -2817,7 +2817,7 @@ public class MainActivity extends AppCompatActivity {
         // 停止前台服务（确保清理）
         CameraForegroundService.stop(this);
 
-        // 停止钉钉服务
+        // 停止远程查看服务
         if (dingTalkStreamManager != null) {
             dingTalkStreamManager.stop();
         }

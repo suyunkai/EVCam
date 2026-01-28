@@ -22,7 +22,7 @@ public class KeepAliveWorker extends Worker {
         AppLog.d(TAG, "定时保活任务执行 - 确保应用进程活跃");
 
         try {
-            // 检查钉钉服务状态
+            // 检查远程查看服务状态
             Context context = getApplicationContext();
             
             // 记录当前运行状态

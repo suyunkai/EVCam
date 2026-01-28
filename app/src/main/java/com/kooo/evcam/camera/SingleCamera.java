@@ -117,7 +117,9 @@ public class SingleCamera {
         this.isPrimaryInstance = isPrimary;
         if (!isPrimary) {
             // 从属实例不需要重连
-            shouldReconnect = false;
+            synchronized (reconnectLock) {
+                shouldReconnect = false;
+            }
         }
         AppLog.d(TAG, "Camera " + cameraId + " (" + cameraPosition + ") set as " + (isPrimary ? "PRIMARY" : "SECONDARY") + " instance");
     }
@@ -391,8 +393,21 @@ public class SingleCamera {
                 return;
             }
 
-            // 获取摄像头特性
-            CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraId);
+            // 获取摄像头特性（验证摄像头是否真正可用）
+            CameraCharacteristics characteristics;
+            try {
+                characteristics = cameraManager.getCameraCharacteristics(cameraId);
+            } catch (Exception e) {
+                AppLog.e(TAG, "Camera " + cameraId + " failed to get characteristics - camera may be virtual/invalid", e);
+                if (callback != null) {
+                    callback.onCameraError(cameraId, CameraDevice.StateCallback.ERROR_CAMERA_DEVICE);
+                }
+                synchronized (reconnectLock) {
+                    shouldReconnect = false;  // 无效摄像头不应重连
+                }
+                return;
+            }
+            
             StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
             if (map != null) {
                 // 优先使用 SurfaceTexture 的输出尺寸
@@ -404,7 +419,13 @@ public class SingleCamera {
                     }
                 }
                 if (sizes == null || sizes.length == 0) {
-                    AppLog.e(TAG, "Camera " + cameraId + " has no output sizes for PRIVATE/SurfaceTexture");
+                    AppLog.e(TAG, "Camera " + cameraId + " has no output sizes for PRIVATE/SurfaceTexture - camera may be virtual/invalid");
+                    if (callback != null) {
+                        callback.onCameraError(cameraId, CameraDevice.StateCallback.ERROR_CAMERA_DEVICE);
+                    }
+                    synchronized (reconnectLock) {
+                        shouldReconnect = false;  // 无效摄像头不应重连
+                    }
                     return;
                 }
 
@@ -427,7 +448,14 @@ public class SingleCamera {
                     callback.onPreviewSizeChosen(cameraId, previewSize);
                 }
             } else {
-                AppLog.e(TAG, "Camera " + cameraId + " StreamConfigurationMap is null!");
+                AppLog.e(TAG, "Camera " + cameraId + " StreamConfigurationMap is null - camera may be virtual/invalid!");
+                if (callback != null) {
+                    callback.onCameraError(cameraId, CameraDevice.StateCallback.ERROR_CAMERA_DEVICE);
+                }
+                synchronized (reconnectLock) {
+                    shouldReconnect = false;  // 无效摄像头不应重连
+                }
+                return;
             }
 
             // 检查 TextureView 状态
@@ -457,6 +485,24 @@ public class SingleCamera {
             AppLog.e(TAG, "No camera permission", e);
             if (callback != null) {
                 callback.onCameraError(cameraId, -2);
+            }
+        } catch (IllegalArgumentException e) {
+            // 某些设备在打开无效摄像头时会抛出 IllegalArgumentException
+            AppLog.e(TAG, "Camera " + cameraId + " invalid argument - camera may be virtual/invalid", e);
+            if (callback != null) {
+                callback.onCameraError(cameraId, CameraDevice.StateCallback.ERROR_CAMERA_DEVICE);
+            }
+            synchronized (reconnectLock) {
+                shouldReconnect = false;  // 无效摄像头不应重连
+            }
+        } catch (RuntimeException e) {
+            // 捕获所有其他运行时异常，防止应用崩溃
+            AppLog.e(TAG, "Camera " + cameraId + " runtime exception - camera may be virtual/invalid", e);
+            if (callback != null) {
+                callback.onCameraError(cameraId, CameraDevice.StateCallback.ERROR_CAMERA_DEVICE);
+            }
+            synchronized (reconnectLock) {
+                shouldReconnect = false;  // 异常情况下不应重连
             }
         }
     }

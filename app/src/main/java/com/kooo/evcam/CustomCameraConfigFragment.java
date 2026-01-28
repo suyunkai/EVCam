@@ -129,6 +129,7 @@ public class CustomCameraConfigFragment extends Fragment {
     
     /**
      * 检测可用的摄像头
+     * 会验证每个摄像头是否真正可用（有有效的输出格式）
      */
     private void detectAvailableCameras() {
         if (getContext() == null) {
@@ -140,11 +141,26 @@ public class CustomCameraConfigFragment extends Fragment {
             String[] cameraIds = cameraManager.getCameraIdList();
             
             availableCameraIds.clear();
+            int invalidCount = 0;
+            
             for (String id : cameraIds) {
-                availableCameraIds.add(id);
+                // 验证摄像头是否真正可用
+                if (isCameraValid(cameraManager, id)) {
+                    availableCameraIds.add(id);
+                } else {
+                    invalidCount++;
+                    if (invalidCount <= 3) {  // 只记录前几个无效的，避免日志过多
+                        AppLog.d(TAG, "摄像头 " + id + " 无效（虚拟摄像头？），已跳过");
+                    }
+                }
             }
             
-            AppLog.d(TAG, "检测到 " + availableCameraIds.size() + " 个摄像头: " + availableCameraIds);
+            if (invalidCount > 3) {
+                AppLog.d(TAG, "还有 " + (invalidCount - 3) + " 个无效摄像头已跳过");
+            }
+            
+            AppLog.d(TAG, "检测到 " + cameraIds.length + " 个摄像头ID，其中 " + 
+                    availableCameraIds.size() + " 个有效: " + availableCameraIds);
             
         } catch (CameraAccessException e) {
             AppLog.e(TAG, "检测摄像头失败", e);
@@ -153,6 +169,47 @@ public class CustomCameraConfigFragment extends Fragment {
             for (int i = 0; i < 4; i++) {
                 availableCameraIds.add(String.valueOf(i));
             }
+        }
+    }
+    
+    /**
+     * 验证摄像头是否真正可用
+     * 检查摄像头是否有有效的输出格式和分辨率
+     * @param cameraManager CameraManager实例
+     * @param cameraId 要验证的摄像头ID
+     * @return true如果摄像头可用，false如果是虚拟/无效摄像头
+     */
+    private boolean isCameraValid(CameraManager cameraManager, String cameraId) {
+        try {
+            android.hardware.camera2.CameraCharacteristics characteristics = 
+                    cameraManager.getCameraCharacteristics(cameraId);
+            
+            // 检查是否有有效的输出配置
+            android.hardware.camera2.params.StreamConfigurationMap map = 
+                    characteristics.get(android.hardware.camera2.CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+            
+            if (map == null) {
+                return false;
+            }
+            
+            // 检查是否有 PRIVATE 或 SurfaceTexture 的输出尺寸
+            android.util.Size[] privateSizes = map.getOutputSizes(android.graphics.ImageFormat.PRIVATE);
+            android.util.Size[] textureSizes = map.getOutputSizes(android.graphics.SurfaceTexture.class);
+            
+            boolean hasValidOutput = (privateSizes != null && privateSizes.length > 0) ||
+                                    (textureSizes != null && textureSizes.length > 0);
+            
+            return hasValidOutput;
+            
+        } catch (CameraAccessException e) {
+            AppLog.d(TAG, "摄像头 " + cameraId + " 访问失败: " + e.getMessage());
+            return false;
+        } catch (IllegalArgumentException e) {
+            AppLog.d(TAG, "摄像头 " + cameraId + " 参数无效: " + e.getMessage());
+            return false;
+        } catch (Exception e) {
+            AppLog.d(TAG, "摄像头 " + cameraId + " 验证异常: " + e.getMessage());
+            return false;
         }
     }
     

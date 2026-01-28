@@ -35,7 +35,7 @@ public class BootReceiver extends BroadcastReceiver {
             
             // 启动透明 Activity 来初始化服务
             // 透明 Activity 完全不可见，用户无感知
-            // 它会启动前台服务、WorkManager 保活任务和钉钉服务
+            // 它会启动前台服务、WorkManager 保活任务和远程查看服务
             try {
                 Intent transparentIntent = new Intent(context, TransparentBootActivity.class);
                 transparentIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
