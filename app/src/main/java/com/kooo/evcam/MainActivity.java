@@ -432,8 +432,15 @@ public class MainActivity extends AppCompatActivity {
 
         String carModel = appConfig.getCarModel();
         
+        // 银河E5-多按钮：横屏布局，左侧按钮列表
+        if (AppConfig.CAR_MODEL_E5_MULTI.equals(carModel)) {
+            layoutId = R.layout.activity_main_e5_multi;
+            configuredCameraCount = 4;
+            requiredTextureCount = 4;
+            AppLog.d(TAG, "使用银河E5-多按钮配置：横屏左侧按钮列表布局");
+        }
         // 银河L6/L7：竖屏四宫格布局
-        if (AppConfig.CAR_MODEL_L7.equals(carModel)) {
+        else if (AppConfig.CAR_MODEL_L7.equals(carModel)) {
             layoutId = R.layout.activity_main_l7;
             configuredCameraCount = 4;
             requiredTextureCount = 4;
@@ -556,14 +563,17 @@ public class MainActivity extends AppCompatActivity {
         // 更新摄像头标签（如果是自定义车型）
         updateCameraLabels();
 
-        // 菜单按钮点击事件
-        findViewById(R.id.btn_menu).setOnClickListener(v -> {
-            if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-                drawerLayout.closeDrawer(GravityCompat.START);
-            } else {
-                drawerLayout.openDrawer(GravityCompat.START);
-            }
-        });
+        // 菜单按钮点击事件（部分布局可能没有此按钮）
+        View btnMenu = findViewById(R.id.btn_menu);
+        if (btnMenu != null) {
+            btnMenu.setOnClickListener(v -> {
+                if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                    drawerLayout.closeDrawer(GravityCompat.START);
+                } else {
+                    drawerLayout.openDrawer(GravityCompat.START);
+                }
+            });
+        }
         
         // 多按钮布局的快捷导航按钮（仅在 L7-多按钮 布局中存在）
         View btnVideoPlayback = findViewById(R.id.btn_video_playback);
@@ -584,6 +594,17 @@ public class MainActivity extends AppCompatActivity {
         View btnSettings = findViewById(R.id.btn_settings);
         if (btnSettings != null) {
             btnSettings.setOnClickListener(v -> showSettingsInterface());
+        }
+        
+        // E5-多按钮布局的快捷导航按钮
+        View btnPlayback = findViewById(R.id.btn_playback);
+        if (btnPlayback != null) {
+            btnPlayback.setOnClickListener(v -> showPlaybackInterface());
+        }
+        
+        View btnPhotos = findViewById(R.id.btn_photos);
+        if (btnPhotos != null) {
+            btnPhotos.setOnClickListener(v -> showPhotoPlaybackInterface());
         }
 
         // 录制按钮：点击切换录制状态
