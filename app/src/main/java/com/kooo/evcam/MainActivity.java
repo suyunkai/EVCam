@@ -1174,6 +1174,15 @@ public class MainActivity extends AppCompatActivity {
             showCorruptedFilesDeletedDialog(deletedFiles);
         });
 
+        // 设置 Codec 回退通知回调
+        cameraManager.setCodecFallbackCallback(() -> {
+            runOnUiThread(() -> {
+                Toast.makeText(this, 
+                    "录制故障，已回退到MediaCodec模式，如果频繁故障请手动更改录制模式", 
+                    Toast.LENGTH_LONG).show();
+            });
+        });
+
         // 设置预览尺寸回调
         cameraManager.setPreviewSizeCallback((cameraKey, cameraId, previewSize) -> {
             AppLog.d(TAG, "摄像头 " + cameraId + " 预览尺寸: " + previewSize.getWidth() + "x" + previewSize.getHeight());

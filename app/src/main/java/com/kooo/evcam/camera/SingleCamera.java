@@ -248,6 +248,29 @@ public class SingleCamera {
         AppLog.d(TAG, "Record surface cleared for camera " + cameraId);
     }
 
+    /**
+     * 暂停向录制 Surface 发送帧
+     * 用于分段切换时，在停止 MediaRecorder 之前调用，避免向即将释放的 Surface 发送帧导致 CAPTURE FAILED
+     * 
+     * 注意：此方法会停止当前的 CaptureSession 重复请求，需要后续调用 recreateSession() 恢复
+     */
+    public void pauseRecordSurface() {
+        if (captureSession != null) {
+            try {
+                // 停止向所有 Surface（包括 recordSurface）发送帧
+                captureSession.stopRepeating();
+                AppLog.d(TAG, "Camera " + cameraId + " paused recording surface (stopped repeating request)");
+            } catch (CameraAccessException e) {
+                AppLog.e(TAG, "Camera " + cameraId + " failed to pause recording surface", e);
+            } catch (IllegalStateException e) {
+                // Session 可能已经关闭
+                AppLog.w(TAG, "Camera " + cameraId + " session already closed when trying to pause");
+            }
+        } else {
+            AppLog.w(TAG, "Camera " + cameraId + " captureSession is null, cannot pause recording surface");
+        }
+    }
+
     public Surface getSurface() {
         if (textureView != null && textureView.isAvailable()) {
             SurfaceTexture surfaceTexture = textureView.getSurfaceTexture();
