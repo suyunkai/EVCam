@@ -33,6 +33,9 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- 请求电池优化白名单（阻止休眠的关键） -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- 蓝牙权限（用于监听蓝牙状态变化，车机启动会自动连蓝牙） -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
     <!-- 声明使用摄像头功能 -->
     <uses-feature android:name="android.hardware.camera" android:required="true" />
@@ -137,20 +140,111 @@
         </receiver>
 
         <!-- 保活广播接收器：监听多种系统事件确保服务运行 -->
+        <!-- 策略：广撒网，只要系统有任何动静就唤醒（参考 Macrodroid） -->
         <!-- 注意：TIME_TICK 只能动态注册，这里注册其他可静态注册的广播 -->
         <receiver
             android:name=".KeepAliveReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter android:priority="1000">
+                <!-- ========== 屏幕相关（车机点火必亮屏） ========== -->
+                <!-- 屏幕亮起：点火必亮屏，这是车机上最稳的触发信号 -->
+                <action android:name="android.intent.action.SCREEN_ON" />
+                <!-- 屏幕关闭：熄火/息屏时触发 -->
+                <action android:name="android.intent.action.SCREEN_OFF" />
                 <!-- 用户解锁屏幕 -->
                 <action android:name="android.intent.action.USER_PRESENT" />
-                <!-- 屏幕亮起 -->
-                <action android:name="android.intent.action.SCREEN_ON" />
+                
+                <!-- ========== 电源相关（车机点火必通电） ========== -->
+                <!-- 电源接通：点火必通电，非常可靠的触发信号 -->
+                <action android:name="android.intent.action.ACTION_POWER_CONNECTED" />
+                <!-- 电源断开：熄火时触发 -->
+                <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED" />
+                <!-- 电池状态变化 -->
+                <action android:name="android.intent.action.BATTERY_CHANGED" />
+                <!-- 电量低 -->
+                <action android:name="android.intent.action.BATTERY_LOW" />
+                <!-- 电量恢复正常 -->
+                <action android:name="android.intent.action.BATTERY_OKAY" />
+                
+                <!-- ========== 蓝牙相关（车机启动会自动连手机蓝牙） ========== -->
+                <!-- 蓝牙状态改变：开/关蓝牙 -->
+                <action android:name="android.bluetooth.adapter.action.STATE_CHANGED" />
+                <!-- 蓝牙连接状态变化 -->
+                <action android:name="android.bluetooth.adapter.action.CONNECTION_STATE_CHANGED" />
+                <!-- 蓝牙设备连接 -->
+                <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
+                <!-- 蓝牙设备断开 -->
+                <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
+                
+                <!-- ========== USB/存储相关（插U盘触发） ========== -->
+                <!-- 存储挂载（插入U盘/SD卡） -->
+                <action android:name="android.intent.action.MEDIA_MOUNTED" />
+                <!-- 存储卸载 -->
+                <action android:name="android.intent.action.MEDIA_UNMOUNTED" />
+                <!-- 存储移除 -->
+                <action android:name="android.intent.action.MEDIA_REMOVED" />
+                <!-- 存储弹出 -->
+                <action android:name="android.intent.action.MEDIA_EJECT" />
+                <!-- USB设备连接 -->
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+                <!-- USB设备断开 -->
+                <action android:name="android.hardware.usb.action.USB_DEVICE_DETACHED" />
+                
+                <!-- ========== 网络相关 ========== -->
                 <!-- 网络状态变化 -->
                 <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
-                <!-- 自定义保活广播 -->
+                <!-- WiFi状态变化 -->
+                <action android:name="android.net.wifi.STATE_CHANGE" />
+                <!-- WiFi扫描结果 -->
+                <action android:name="android.net.wifi.SCAN_RESULTS" />
+                
+                <!-- ========== 音频相关 ========== -->
+                <!-- 耳机插拔 -->
+                <action android:name="android.intent.action.HEADSET_PLUG" />
+                <!-- 音频输出设备变化 -->
+                <action android:name="android.media.AUDIO_BECOMING_NOISY" />
+                
+                <!-- ========== 时间/时区相关 ========== -->
+                <!-- 时区变化 -->
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <!-- 时间设置变化 -->
+                <action android:name="android.intent.action.TIME_SET" />
+                <!-- 日期变化（跨天） -->
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                
+                <!-- ========== 系统配置相关 ========== -->
+                <!-- 语言/区域变化 -->
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+                <!-- 飞行模式切换 -->
+                <action android:name="android.intent.action.AIRPLANE_MODE" />
+                
+                <!-- ========== 应用相关 ========== -->
+                <!-- 应用安装 -->
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <!-- 应用更新 -->
+                <action android:name="android.intent.action.PACKAGE_REPLACED" />
+                <!-- 我的应用被替换（更新后重新激活） -->
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                
+                <!-- ========== 自定义保活广播 ========== -->
                 <action android:name="com.kooo.evcam.ACTION_KEEP_ALIVE" />
+            </intent-filter>
+            
+            <!-- 存储相关广播需要 data scheme -->
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.MEDIA_MOUNTED" />
+                <action android:name="android.intent.action.MEDIA_UNMOUNTED" />
+                <action android:name="android.intent.action.MEDIA_REMOVED" />
+                <action android:name="android.intent.action.MEDIA_EJECT" />
+                <data android:scheme="file" />
+            </intent-filter>
+            
+            <!-- 应用包相关广播需要 data scheme -->
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <action android:name="android.intent.action.PACKAGE_REPLACED" />
+                <data android:scheme="package" />
             </intent-filter>
         </receiver>
     </application>
