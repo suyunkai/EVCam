@@ -56,6 +56,16 @@ public class DingTalkConfig {
         return System.currentTimeMillis() < expireTime;
     }
 
+    /**
+     * 清除缓存的 AccessToken（用于测试连接时强制重新获取）
+     */
+    public void clearAccessToken() {
+        prefs.edit()
+                .remove(KEY_ACCESS_TOKEN)
+                .remove(KEY_TOKEN_EXPIRE_TIME)
+                .apply();
+    }
+
     public void clearConfig() {
         prefs.edit().clear().apply();
     }

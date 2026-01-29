@@ -59,6 +59,54 @@ public class AppConfig {
     private static final String KEY_RECORDING_CAMERA_LEFT_ENABLED = "recording_camera_left_enabled";    // 左摄像头参与录制
     private static final String KEY_RECORDING_CAMERA_RIGHT_ENABLED = "recording_camera_right_enabled";  // 右摄像头参与录制
     
+    // 亮度/降噪调节配置
+    private static final String KEY_IMAGE_ADJUST_ENABLED = "image_adjust_enabled";  // 是否启用亮度/降噪调节
+    private static final String KEY_EXPOSURE_COMPENSATION = "exposure_compensation";  // 曝光补偿值
+    private static final String KEY_AWB_MODE = "awb_mode";  // 白平衡模式
+    private static final String KEY_TONEMAP_MODE = "tonemap_mode";  // 色调映射模式
+    private static final String KEY_EDGE_MODE = "edge_mode";  // 边缘增强模式
+    private static final String KEY_NOISE_REDUCTION_MODE = "noise_reduction_mode";  // 降噪模式
+    private static final String KEY_EFFECT_MODE = "effect_mode";  // 特效模式
+    private static final String KEY_SCENE_MODE = "scene_mode";  // 场景模式
+    
+    // 白平衡模式常量（对应 CameraMetadata.CONTROL_AWB_MODE_*）
+    public static final int AWB_MODE_DEFAULT = -1;  // 默认（不设置）
+    public static final int AWB_MODE_AUTO = 1;  // 自动
+    public static final int AWB_MODE_INCANDESCENT = 2;  // 白炽灯
+    public static final int AWB_MODE_FLUORESCENT = 3;  // 荧光灯
+    public static final int AWB_MODE_WARM_FLUORESCENT = 4;  // 暖荧光灯
+    public static final int AWB_MODE_DAYLIGHT = 5;  // 日光
+    public static final int AWB_MODE_CLOUDY_DAYLIGHT = 6;  // 阴天
+    public static final int AWB_MODE_TWILIGHT = 7;  // 黄昏
+    public static final int AWB_MODE_SHADE = 8;  // 阴影
+    
+    // 色调映射模式常量（对应 CameraMetadata.TONEMAP_MODE_*）
+    public static final int TONEMAP_MODE_DEFAULT = -1;  // 默认（不设置）
+    public static final int TONEMAP_MODE_CONTRAST_CURVE = 0;  // 对比度曲线
+    public static final int TONEMAP_MODE_FAST = 1;  // 快速
+    public static final int TONEMAP_MODE_HIGH_QUALITY = 2;  // 高质量
+    
+    // 边缘增强模式常量（对应 CameraMetadata.EDGE_MODE_*）
+    public static final int EDGE_MODE_DEFAULT = -1;  // 默认（不设置）
+    public static final int EDGE_MODE_OFF = 0;  // 关闭
+    public static final int EDGE_MODE_FAST = 1;  // 快速
+    public static final int EDGE_MODE_HIGH_QUALITY = 2;  // 高质量
+    
+    // 降噪模式常量（对应 CameraMetadata.NOISE_REDUCTION_MODE_*）
+    public static final int NOISE_REDUCTION_DEFAULT = -1;  // 默认（不设置）
+    public static final int NOISE_REDUCTION_OFF = 0;  // 关闭
+    public static final int NOISE_REDUCTION_FAST = 1;  // 快速
+    public static final int NOISE_REDUCTION_HIGH_QUALITY = 2;  // 高质量
+    
+    // 特效模式常量（对应 CameraMetadata.CONTROL_EFFECT_MODE_*）
+    public static final int EFFECT_MODE_DEFAULT = -1;  // 默认（不设置）
+    public static final int EFFECT_MODE_OFF = 0;  // 关闭
+    public static final int EFFECT_MODE_MONO = 1;  // 黑白
+    public static final int EFFECT_MODE_NEGATIVE = 2;  // 负片
+    public static final int EFFECT_MODE_SOLARIZE = 3;  // 曝光过度
+    public static final int EFFECT_MODE_SEPIA = 4;  // 怀旧
+    public static final int EFFECT_MODE_AQUA = 6;  // 水蓝
+    
     // 分段时长常量（分钟）
     public static final int SEGMENT_DURATION_1_MIN = 1;
     public static final int SEGMENT_DURATION_3_MIN = 3;
@@ -121,6 +169,7 @@ public class AppConfig {
     
     // 车型常量
     public static final String CAR_MODEL_GALAXY_E5 = "galaxy_e5";  // 银河E5
+    public static final String CAR_MODEL_E5_MULTI = "galaxy_e5_multi";  // 银河E5-多按钮
     public static final String CAR_MODEL_L7 = "galaxy_l7";  // 银河L6/L7
     public static final String CAR_MODEL_L7_MULTI = "galaxy_l7_multi";  // 银河L7-多按钮
     public static final String CAR_MODEL_PHONE = "phone";  // 手机
@@ -266,8 +315,11 @@ public class AppConfig {
      * @return true 表示启用防止休眠
      */
     public boolean isPreventSleepEnabled() {
-        // 默认禁用防止休眠（因为会增加功耗）
-        return prefs.getBoolean(KEY_PREVENT_SLEEP_ENABLED, false);
+        // 车机应用默认启用防止休眠
+        // 原因：1. 车机使用车辆供电，不影响电池
+        //       2. 摄像头应用需要在息屏时继续录制
+        //       3. 远程控制需要后台运行
+        return prefs.getBoolean(KEY_PREVENT_SLEEP_ENABLED, true);
     }
     
     /**
@@ -584,6 +636,7 @@ public class AppConfig {
             case CAR_MODEL_PHONE:
                 return 2;  // 手机：2摄
             case CAR_MODEL_GALAXY_E5:
+            case CAR_MODEL_E5_MULTI:
             case CAR_MODEL_L7:
             case CAR_MODEL_L7_MULTI:
                 return 4;  // 银河E5/L7：4摄
@@ -1292,5 +1345,232 @@ public class AppConfig {
             return "位置" + index;
         }
         return name;
+    }
+    
+    // ==================== 亮度/降噪调节配置相关方法 ====================
+    
+    /**
+     * 设置是否启用亮度/降噪调节
+     * @param enabled true 表示启用
+     */
+    public void setImageAdjustEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_IMAGE_ADJUST_ENABLED, enabled).apply();
+        AppLog.d(TAG, "亮度/降噪调节设置: " + (enabled ? "启用" : "禁用"));
+    }
+    
+    /**
+     * 获取是否启用亮度/降噪调节
+     * @return true 表示启用
+     */
+    public boolean isImageAdjustEnabled() {
+        return prefs.getBoolean(KEY_IMAGE_ADJUST_ENABLED, false);
+    }
+    
+    /**
+     * 设置曝光补偿值
+     * @param value 曝光补偿值（范围取决于设备，通常 -12 到 +12）
+     */
+    public void setExposureCompensation(int value) {
+        prefs.edit().putInt(KEY_EXPOSURE_COMPENSATION, value).apply();
+        AppLog.d(TAG, "曝光补偿设置: " + value);
+    }
+    
+    /**
+     * 获取曝光补偿值
+     * @return 曝光补偿值，默认为 0
+     */
+    public int getExposureCompensation() {
+        return prefs.getInt(KEY_EXPOSURE_COMPENSATION, 0);
+    }
+    
+    /**
+     * 设置白平衡模式
+     * @param mode 白平衡模式（AWB_MODE_* 常量）
+     */
+    public void setAwbMode(int mode) {
+        prefs.edit().putInt(KEY_AWB_MODE, mode).apply();
+        AppLog.d(TAG, "白平衡模式设置: " + mode);
+    }
+    
+    /**
+     * 获取白平衡模式
+     * @return 白平衡模式，默认为 AWB_MODE_DEFAULT（不设置）
+     */
+    public int getAwbMode() {
+        return prefs.getInt(KEY_AWB_MODE, AWB_MODE_DEFAULT);
+    }
+    
+    /**
+     * 设置色调映射模式
+     * @param mode 色调映射模式（TONEMAP_MODE_* 常量）
+     */
+    public void setTonemapMode(int mode) {
+        prefs.edit().putInt(KEY_TONEMAP_MODE, mode).apply();
+        AppLog.d(TAG, "色调映射模式设置: " + mode);
+    }
+    
+    /**
+     * 获取色调映射模式
+     * @return 色调映射模式，默认为 TONEMAP_MODE_DEFAULT（不设置）
+     */
+    public int getTonemapMode() {
+        return prefs.getInt(KEY_TONEMAP_MODE, TONEMAP_MODE_DEFAULT);
+    }
+    
+    /**
+     * 设置边缘增强模式
+     * @param mode 边缘增强模式（EDGE_MODE_* 常量）
+     */
+    public void setEdgeMode(int mode) {
+        prefs.edit().putInt(KEY_EDGE_MODE, mode).apply();
+        AppLog.d(TAG, "边缘增强模式设置: " + mode);
+    }
+    
+    /**
+     * 获取边缘增强模式
+     * @return 边缘增强模式，默认为 EDGE_MODE_DEFAULT（不设置）
+     */
+    public int getEdgeMode() {
+        return prefs.getInt(KEY_EDGE_MODE, EDGE_MODE_DEFAULT);
+    }
+    
+    /**
+     * 设置降噪模式
+     * @param mode 降噪模式（NOISE_REDUCTION_* 常量）
+     */
+    public void setNoiseReductionMode(int mode) {
+        prefs.edit().putInt(KEY_NOISE_REDUCTION_MODE, mode).apply();
+        AppLog.d(TAG, "降噪模式设置: " + mode);
+    }
+    
+    /**
+     * 获取降噪模式
+     * @return 降噪模式，默认为 NOISE_REDUCTION_DEFAULT（不设置）
+     */
+    public int getNoiseReductionMode() {
+        return prefs.getInt(KEY_NOISE_REDUCTION_MODE, NOISE_REDUCTION_DEFAULT);
+    }
+    
+    /**
+     * 设置特效模式
+     * @param mode 特效模式（EFFECT_MODE_* 常量）
+     */
+    public void setEffectMode(int mode) {
+        prefs.edit().putInt(KEY_EFFECT_MODE, mode).apply();
+        AppLog.d(TAG, "特效模式设置: " + mode);
+    }
+    
+    /**
+     * 获取特效模式
+     * @return 特效模式，默认为 EFFECT_MODE_DEFAULT（不设置）
+     */
+    public int getEffectMode() {
+        return prefs.getInt(KEY_EFFECT_MODE, EFFECT_MODE_DEFAULT);
+    }
+    
+    /**
+     * 设置场景模式
+     * @param mode 场景模式
+     */
+    public void setSceneMode(int mode) {
+        prefs.edit().putInt(KEY_SCENE_MODE, mode).apply();
+        AppLog.d(TAG, "场景模式设置: " + mode);
+    }
+    
+    /**
+     * 获取场景模式
+     * @return 场景模式，默认为 -1（不设置）
+     */
+    public int getSceneMode() {
+        return prefs.getInt(KEY_SCENE_MODE, -1);
+    }
+    
+    /**
+     * 重置所有亮度/降噪调节参数为默认值
+     */
+    public void resetImageAdjustParams() {
+        prefs.edit()
+            .putInt(KEY_EXPOSURE_COMPENSATION, 0)
+            .putInt(KEY_AWB_MODE, AWB_MODE_DEFAULT)
+            .putInt(KEY_TONEMAP_MODE, TONEMAP_MODE_DEFAULT)
+            .putInt(KEY_EDGE_MODE, EDGE_MODE_DEFAULT)
+            .putInt(KEY_NOISE_REDUCTION_MODE, NOISE_REDUCTION_DEFAULT)
+            .putInt(KEY_EFFECT_MODE, EFFECT_MODE_DEFAULT)
+            .putInt(KEY_SCENE_MODE, -1)
+            .apply();
+        AppLog.d(TAG, "亮度/降噪调节参数已重置为默认值");
+    }
+    
+    /**
+     * 获取白平衡模式的显示名称
+     */
+    public static String getAwbModeDisplayName(int mode) {
+        switch (mode) {
+            case AWB_MODE_DEFAULT: return "默认";
+            case AWB_MODE_AUTO: return "自动";
+            case AWB_MODE_INCANDESCENT: return "白炽灯";
+            case AWB_MODE_FLUORESCENT: return "荧光灯";
+            case AWB_MODE_WARM_FLUORESCENT: return "暖荧光灯";
+            case AWB_MODE_DAYLIGHT: return "日光";
+            case AWB_MODE_CLOUDY_DAYLIGHT: return "阴天";
+            case AWB_MODE_TWILIGHT: return "黄昏";
+            case AWB_MODE_SHADE: return "阴影";
+            default: return "未知";
+        }
+    }
+    
+    /**
+     * 获取色调映射模式的显示名称
+     */
+    public static String getTonemapModeDisplayName(int mode) {
+        switch (mode) {
+            case TONEMAP_MODE_DEFAULT: return "默认";
+            case TONEMAP_MODE_CONTRAST_CURVE: return "对比度曲线";
+            case TONEMAP_MODE_FAST: return "快速";
+            case TONEMAP_MODE_HIGH_QUALITY: return "高质量";
+            default: return "未知";
+        }
+    }
+    
+    /**
+     * 获取边缘增强模式的显示名称
+     */
+    public static String getEdgeModeDisplayName(int mode) {
+        switch (mode) {
+            case EDGE_MODE_DEFAULT: return "默认";
+            case EDGE_MODE_OFF: return "关闭";
+            case EDGE_MODE_FAST: return "快速";
+            case EDGE_MODE_HIGH_QUALITY: return "高质量";
+            default: return "未知";
+        }
+    }
+    
+    /**
+     * 获取降噪模式的显示名称
+     */
+    public static String getNoiseReductionModeDisplayName(int mode) {
+        switch (mode) {
+            case NOISE_REDUCTION_DEFAULT: return "默认";
+            case NOISE_REDUCTION_OFF: return "关闭";
+            case NOISE_REDUCTION_FAST: return "快速";
+            case NOISE_REDUCTION_HIGH_QUALITY: return "高质量";
+            default: return "未知";
+        }
+    }
+    
+    /**
+     * 获取特效模式的显示名称
+     */
+    public static String getEffectModeDisplayName(int mode) {
+        switch (mode) {
+            case EFFECT_MODE_DEFAULT: return "默认";
+            case EFFECT_MODE_OFF: return "关闭";
+            case EFFECT_MODE_MONO: return "黑白";
+            case EFFECT_MODE_NEGATIVE: return "负片";
+            case EFFECT_MODE_SOLARIZE: return "曝光过度";
+            case EFFECT_MODE_SEPIA: return "怀旧";
+            case EFFECT_MODE_AQUA: return "水蓝";
+            default: return "未知";
+        }
     }
 }

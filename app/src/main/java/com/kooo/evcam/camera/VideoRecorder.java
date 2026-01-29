@@ -109,6 +109,14 @@ public class VideoRecorder {
         return isRecording;
     }
 
+    /**
+     * 检查录制器是否已准备好（但未开始录制）
+     * 用于判断是否可以启动初始录制
+     */
+    public boolean isPrepared() {
+        return mediaRecorder != null && cachedSurface != null && !isRecording && !waitingForSessionReconfiguration;
+    }
+
     public Surface getSurface() {
         // 优先返回缓存的 Surface，确保传给 CameraCaptureSession 的是同一个对象
         if (cachedSurface != null) {

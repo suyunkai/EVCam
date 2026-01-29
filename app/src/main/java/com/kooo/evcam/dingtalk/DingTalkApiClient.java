@@ -20,7 +20,7 @@ import okhttp3.Response;
 
 /**
  * 钉钉 API 客户端
- * 负责与钉钉服务器进行 HTTP 通信
+ * 负责与远程查看服务器进行 HTTP 通信
  */
 public class DingTalkApiClient {
     private static final String TAG = "DingTalkApiClient";

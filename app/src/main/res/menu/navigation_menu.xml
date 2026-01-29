@@ -1,23 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:id="@+id/nav_recording"
-        android:icon="@android:drawable/ic_menu_camera"
-        android:title="录制界面" />
-    <item
-        android:id="@+id/nav_playback"
-        android:icon="@android:drawable/ic_menu_gallery"
-        android:title="视频回看" />
-    <item
-        android:id="@+id/nav_photo_playback"
-        android:icon="@android:drawable/ic_menu_gallery"
-        android:title="图片回看" />
-    <item
-        android:id="@+id/nav_remote_view"
-        android:icon="@android:drawable/ic_menu_upload"
-        android:title="远程查看" />
-    <item
-        android:id="@+id/nav_settings"
-        android:icon="@android:drawable/ic_menu_preferences"
-        android:title="软件设置" />
+
+    <!-- 主要功能区 -->
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_recording"
+            android:icon="@drawable/ic_nav_recording"
+            android:title="录制界面" />
+        <item
+            android:id="@+id/nav_playback"
+            android:icon="@drawable/ic_nav_playback"
+            android:title="视频回看" />
+        <item
+            android:id="@+id/nav_photo_playback"
+            android:icon="@drawable/ic_nav_photo"
+            android:title="图片回看" />
+    </group>
+
+    <!-- 分隔线 -->
+    <item android:title="高级功能">
+        <menu>
+            <item
+                android:id="@+id/nav_remote_view"
+                android:icon="@drawable/ic_nav_remote"
+                android:title="远程查看" />
+        </menu>
+    </item>
+
+    <!-- 设置区 -->
+    <item android:title="系统">
+        <menu>
+            <item
+                android:id="@+id/nav_settings"
+                android:icon="@drawable/ic_nav_settings"
+                android:title="软件设置" />
+        </menu>
+    </item>
+
 </menu>

@@ -23,8 +23,10 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * 视频列表适配器
@@ -33,9 +35,16 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
     private final Context context;
     private final List<File> videoFiles;
     private OnVideoDeleteListener deleteListener;
+    private boolean isMultiSelectMode = false;
+    private Set<Integer> selectedPositions = new HashSet<>();
+    private OnItemSelectedListener itemSelectedListener;
 
     public interface OnVideoDeleteListener {
         void onVideoDeleted();
+    }
+
+    public interface OnItemSelectedListener {
+        void onItemSelected(int position);
     }
 
     public VideoAdapter(Context context, List<File> videoFiles) {
@@ -45,6 +54,18 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
 
     public void setOnVideoDeleteListener(OnVideoDeleteListener listener) {
         this.deleteListener = listener;
+    }
+
+    public void setMultiSelectMode(boolean multiSelectMode) {
+        this.isMultiSelectMode = multiSelectMode;
+    }
+
+    public void setSelectedPositions(Set<Integer> positions) {
+        this.selectedPositions = positions;
+    }
+
+    public void setOnItemSelectedListener(OnItemSelectedListener listener) {
+        this.itemSelectedListener = listener;
     }
 
     @NonNull
@@ -58,10 +79,8 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
     public void onBindViewHolder(@NonNull VideoViewHolder holder, int position) {
         File videoFile = videoFiles.get(position);
 
-        // 设置文件名
         holder.videoName.setText(videoFile.getName());
 
-        // 设置文件大小
         long sizeInBytes = videoFile.length();
         String sizeStr;
         if (sizeInBytes < 1024) {
@@ -75,44 +94,69 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
         }
         holder.videoSize.setText(sizeStr);
 
-        // 设置修改日期
         long lastModified = videoFile.lastModified();
         String dateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
                 .format(new Date(lastModified));
         holder.videoDate.setText(dateStr);
 
-        // 加载视频缩略图（异步）
         loadThumbnail(videoFile, holder.videoThumbnail);
 
-        // 播放按钮 - 使用内置视频播放器
-        holder.btnPlay.setOnClickListener(v -> {
-            Intent intent = new Intent(context, VideoPlayerActivity.class);
-            intent.putExtra("video_path", videoFile.getAbsolutePath());
-            context.startActivity(intent);
-        });
+        boolean isSelected = selectedPositions.contains(position);
+        updateSelectionStyle(holder, isSelected);
 
-        // 删除按钮
-        holder.btnDelete.setOnClickListener(v -> {
-            new MaterialAlertDialogBuilder(context, R.style.Theme_Cam_MaterialAlertDialog)
-                    .setTitle("确认删除")
-                    .setMessage("确定要删除 " + videoFile.getName() + " 吗？")
-                    .setPositiveButton("删除", (dialog, which) -> {
-                        if (videoFile.delete()) {
-                            videoFiles.remove(position);
-                            notifyItemRemoved(position);
-                            notifyItemRangeChanged(position, videoFiles.size());
-                            Toast.makeText(context, "已删除", Toast.LENGTH_SHORT).show();
+        if (isMultiSelectMode) {
+            holder.itemView.setOnClickListener(v -> {
+                if (itemSelectedListener != null) {
+                    itemSelectedListener.onItemSelected(position);
+                }
+            });
+            holder.btnPlay.setEnabled(false);
+            holder.btnDelete.setEnabled(false);
+        } else {
+            holder.itemView.setOnClickListener(null);
+            holder.btnPlay.setEnabled(true);
+            holder.btnDelete.setEnabled(true);
 
-                            if (deleteListener != null) {
-                                deleteListener.onVideoDeleted();
+            holder.btnPlay.setOnClickListener(v -> {
+                Intent intent = new Intent(context, VideoPlayerActivity.class);
+                intent.putExtra("video_path", videoFile.getAbsolutePath());
+                context.startActivity(intent);
+            });
+
+            holder.btnDelete.setOnClickListener(v -> {
+                new MaterialAlertDialogBuilder(context, R.style.Theme_Cam_MaterialAlertDialog)
+                        .setTitle("确认删除")
+                        .setMessage("确定要删除 " + videoFile.getName() + " 吗？")
+                        .setPositiveButton("删除", (dialog, which) -> {
+                            if (videoFile.delete()) {
+                                videoFiles.remove(position);
+                                notifyItemRemoved(position);
+                                notifyItemRangeChanged(position, videoFiles.size());
+                                Toast.makeText(context, "已删除", Toast.LENGTH_SHORT).show();
+
+                                if (deleteListener != null) {
+                                    deleteListener.onVideoDeleted();
+                                }
+                            } else {
+                                Toast.makeText(context, "删除失败", Toast.LENGTH_SHORT).show();
                             }
-                        } else {
-                            Toast.makeText(context, "删除失败", Toast.LENGTH_SHORT).show();
-                        }
-                    })
-                    .setNegativeButton("取消", null)
-                    .show();
-        });
+                        })
+                        .setNegativeButton("取消", null)
+                        .show();
+            });
+        }
+    }
+
+    private void updateSelectionStyle(VideoViewHolder holder, boolean isSelected) {
+        if (isMultiSelectMode) {
+            if (isSelected) {
+                holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.item_selected_background));
+            } else {
+                holder.itemView.setBackgroundColor(context.getResources().getColor(android.R.color.transparent));
+            }
+        } else {
+            holder.itemView.setBackgroundColor(context.getResources().getColor(android.R.color.transparent));
+        }
     }
 
     @Override

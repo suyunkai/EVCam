@@ -328,16 +328,28 @@
 
     </FrameLayout>
 
-    <!-- Navigation drawer -->
+    <!-- Navigation drawer - Modern styled -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/nav_view"
-        android:layout_width="wrap_content"
+        android:layout_width="300dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
         android:fitsSystemWindows="false"
+        android:background="@color/nav_background"
+        android:elevation="8dp"
         app:headerLayout="@layout/nav_header"
         app:menu="@menu/navigation_menu"
         app:itemTextAppearance="@style/NavigationMenuTextAppearance"
-        app:itemIconSize="28dp" />
+        app:subheaderTextAppearance="@style/NavigationSubheaderTextAppearance"
+        app:itemBackground="@drawable/nav_item_background"
+        app:itemIconTint="@color/nav_icon_color_selector"
+        app:itemTextColor="@color/nav_text_color_selector"
+        app:itemIconSize="24dp"
+        app:itemIconPadding="16dp"
+        app:itemHorizontalPadding="16dp"
+        app:itemVerticalPadding="16dp"
+        app:dividerInsetStart="16dp"
+        app:dividerInsetEnd="16dp"
+        app:subheaderInsetStart="16dp" />
 
 </androidx.drawerlayout.widget.DrawerLayout>

@@ -3,10 +3,36 @@
     <!-- 夜间模式配色 -->
     <color name="menu_background">#FF20272E</color>
     <color name="button_background">#FF060809</color>
+    <color name="button_accent">#FF5B9BD5</color>
     <color name="button_text">#FFFFFFFF</color>
     <color name="page_background">#FF20272E</color>
     <color name="card_background">#FF060809</color>
     <color name="text_primary">#FFFFFFFF</color>
     <color name="text_secondary">#FF888888</color>
     <color name="nav_header_background">#FF20272E</color>
+
+    <!-- 导航菜单配色 - 夜间模式（与主界面一致） -->
+    <color name="nav_background">#FF060809</color>
+    <color name="nav_header_gradient_start">#FF151A1E</color>
+    <color name="nav_header_gradient_center">#FF1A2026</color>
+    <color name="nav_header_gradient_end">#FF20272E</color>
+    <color name="nav_header_text">#FFFFFFFF</color>
+    <color name="nav_header_text_secondary">#FFCCCCCC</color>
+    <color name="nav_item_selected_background">#20FFFFFF</color>
+    <color name="nav_item_pressed_background">#10FFFFFF</color>
+    <color name="nav_ripple_color">#30FFFFFF</color>
+    <color name="nav_divider_color">#1AFFFFFF</color>
+    <color name="nav_icon_background">#15FFFFFF</color>
+    <color name="nav_icon_tint">#FFAAAAAA</color>
+    <color name="nav_icon_tint_selected">#FFFFFFFF</color>
+    <color name="nav_text_primary">#FFFFFFFF</color>
+    <color name="nav_text_secondary">#FFAAAAAA</color>
+    <color name="nav_logo_background">#FF616161</color>
+    <color name="nav_logo_foreground">#FFFFFFFF</color>
+    <color name="nav_logo_accent">#FF616161</color>
+    <color name="nav_section_title">#FF888888</color>
+    <color name="nav_version_text">#FF666666</color>
+
+    <!-- 多选模式选中背景 - 夜间模式 -->
+    <color name="item_selected_background">#40FFFFFF</color>
 </resources>

@@ -91,31 +91,70 @@
                 android:textSize="18sp"
                 android:layout_marginBottom="8dp" />
 
-            <EditText
-                android:id="@+id/et_client_secret"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="请输入钉钉应用的 ClientSecret"
-                android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_secondary"
-                android:textSize="16sp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
                 android:background="@color/card_background"
-                android:padding="16dp"
-                android:minHeight="56dp"
-                android:inputType="textPassword"
-                android:layout_marginBottom="24dp" />
+                android:layout_marginBottom="24dp">
 
-            <!-- 保存按钮 -->
-            <Button
-                android:id="@+id/btn_save_config"
+                <EditText
+                    android:id="@+id/et_client_secret"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="请输入钉钉应用的 ClientSecret"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_secondary"
+                    android:textSize="16sp"
+                    android:background="@android:color/transparent"
+                    android:padding="16dp"
+                    android:minHeight="56dp"
+                    android:inputType="textPassword" />
+
+                <Button
+                    android:id="@+id/btn_toggle_secret_visibility"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:text="👁"
+                    android:textSize="18sp"
+                    android:textColor="@color/text_primary"
+                    android:background="@android:color/transparent"
+                    android:layout_marginEnd="8dp" />
+            </LinearLayout>
+
+            <!-- 保存和测试按钮 -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="保存配置"
-                android:textSize="20sp"
-                android:minHeight="56dp"
-                android:layout_marginBottom="16dp"
-                android:backgroundTint="@color/button_background"
-                android:textColor="@color/button_text" />
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp">
+
+                <Button
+                    android:id="@+id/btn_save_config"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="保存配置"
+                    android:textSize="20sp"
+                    android:minHeight="56dp"
+                    android:layout_marginEnd="8dp"
+                    android:backgroundTint="@color/button_background"
+                    android:textColor="@color/button_text" />
+
+                <Button
+                    android:id="@+id/btn_test_connection"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="测试连接"
+                    android:textSize="20sp"
+                    android:minHeight="56dp"
+                    android:layout_marginStart="8dp"
+                    android:backgroundTint="@color/button_background"
+                    android:textColor="@color/button_text" />
+            </LinearLayout>
 
             <!-- 自动启动开关 -->
             <LinearLayout
@@ -144,7 +183,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="应用启动时自动连接钉钉服务，并在断线时自动重连"
+                        android:text="应用启动时自动连接远程查看服务，并在断线时自动重连"
                         android:textColor="@color/text_secondary"
                         android:textSize="16sp"
                         android:layout_marginTop="4dp" />

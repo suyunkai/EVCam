@@ -23,8 +23,10 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * 照片列表适配器
@@ -33,9 +35,16 @@ public class PhotoAdapter extends RecyclerView.Adapter<PhotoAdapter.PhotoViewHol
     private final Context context;
     private final List<File> photoFiles;
     private OnPhotoDeleteListener deleteListener;
+    private boolean isMultiSelectMode = false;
+    private Set<Integer> selectedPositions = new HashSet<>();
+    private OnItemSelectedListener itemSelectedListener;
 
     public interface OnPhotoDeleteListener {
         void onPhotoDeleted();
+    }
+
+    public interface OnItemSelectedListener {
+        void onItemSelected(int position);
     }
 
     public PhotoAdapter(Context context, List<File> photoFiles) {
@@ -45,6 +54,18 @@ public class PhotoAdapter extends RecyclerView.Adapter<PhotoAdapter.PhotoViewHol
 
     public void setOnPhotoDeleteListener(OnPhotoDeleteListener listener) {
         this.deleteListener = listener;
+    }
+
+    public void setMultiSelectMode(boolean multiSelectMode) {
+        this.isMultiSelectMode = multiSelectMode;
+    }
+
+    public void setSelectedPositions(Set<Integer> positions) {
+        this.selectedPositions = positions;
+    }
+
+    public void setOnItemSelectedListener(OnItemSelectedListener listener) {
+        this.itemSelectedListener = listener;
     }
 
     @NonNull
@@ -58,10 +79,8 @@ public class PhotoAdapter extends RecyclerView.Adapter<PhotoAdapter.PhotoViewHol
     public void onBindViewHolder(@NonNull PhotoViewHolder holder, int position) {
         File photoFile = photoFiles.get(position);
 
-        // 设置文件名
         holder.photoName.setText(photoFile.getName());
 
-        // 设置文件大小
         long sizeInBytes = photoFile.length();
         String sizeStr;
         if (sizeInBytes < 1024) {
@@ -73,44 +92,69 @@ public class PhotoAdapter extends RecyclerView.Adapter<PhotoAdapter.PhotoViewHol
         }
         holder.photoSize.setText(sizeStr);
 
-        // 设置修改日期
         long lastModified = photoFile.lastModified();
         String dateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
                 .format(new Date(lastModified));
         holder.photoDate.setText(dateStr);
 
-        // 加载照片缩略图（异步）
         loadThumbnail(photoFile, holder.photoThumbnail);
 
-        // 查看按钮 - 使用内置图片查看器
-        holder.btnView.setOnClickListener(v -> {
-            Intent intent = new Intent(context, PhotoViewerActivity.class);
-            intent.putExtra("photo_path", photoFile.getAbsolutePath());
-            context.startActivity(intent);
-        });
+        boolean isSelected = selectedPositions.contains(position);
+        updateSelectionStyle(holder, isSelected);
 
-        // 删除按钮
-        holder.btnDelete.setOnClickListener(v -> {
-            new MaterialAlertDialogBuilder(context, R.style.Theme_Cam_MaterialAlertDialog)
-                    .setTitle("确认删除")
-                    .setMessage("确定要删除 " + photoFile.getName() + " 吗？")
-                    .setPositiveButton("删除", (dialog, which) -> {
-                        if (photoFile.delete()) {
-                            photoFiles.remove(position);
-                            notifyItemRemoved(position);
-                            notifyItemRangeChanged(position, photoFiles.size());
-                            Toast.makeText(context, "已删除", Toast.LENGTH_SHORT).show();
+        if (isMultiSelectMode) {
+            holder.itemView.setOnClickListener(v -> {
+                if (itemSelectedListener != null) {
+                    itemSelectedListener.onItemSelected(position);
+                }
+            });
+            holder.btnView.setEnabled(false);
+            holder.btnDelete.setEnabled(false);
+        } else {
+            holder.itemView.setOnClickListener(null);
+            holder.btnView.setEnabled(true);
+            holder.btnDelete.setEnabled(true);
 
-                            if (deleteListener != null) {
-                                deleteListener.onPhotoDeleted();
+            holder.btnView.setOnClickListener(v -> {
+                Intent intent = new Intent(context, PhotoViewerActivity.class);
+                intent.putExtra("photo_path", photoFile.getAbsolutePath());
+                context.startActivity(intent);
+            });
+
+            holder.btnDelete.setOnClickListener(v -> {
+                new MaterialAlertDialogBuilder(context, R.style.Theme_Cam_MaterialAlertDialog)
+                        .setTitle("确认删除")
+                        .setMessage("确定要删除 " + photoFile.getName() + " 吗？")
+                        .setPositiveButton("删除", (dialog, which) -> {
+                            if (photoFile.delete()) {
+                                photoFiles.remove(position);
+                                notifyItemRemoved(position);
+                                notifyItemRangeChanged(position, photoFiles.size());
+                                Toast.makeText(context, "已删除", Toast.LENGTH_SHORT).show();
+
+                                if (deleteListener != null) {
+                                    deleteListener.onPhotoDeleted();
+                                }
+                            } else {
+                                Toast.makeText(context, "删除失败", Toast.LENGTH_SHORT).show();
                             }
-                        } else {
-                            Toast.makeText(context, "删除失败", Toast.LENGTH_SHORT).show();
-                        }
-                    })
-                    .setNegativeButton("取消", null)
-                    .show();
-        });
+                        })
+                        .setNegativeButton("取消", null)
+                        .show();
+            });
+        }
+    }
+
+    private void updateSelectionStyle(PhotoViewHolder holder, boolean isSelected) {
+        if (isMultiSelectMode) {
+            if (isSelected) {
+                holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.item_selected_background));
+            } else {
+                holder.itemView.setBackgroundColor(context.getResources().getColor(android.R.color.transparent));
+            }
+        } else {
+            holder.itemView.setBackgroundColor(context.getResources().getColor(android.R.color.transparent));
+        }
     }
 
     @Override

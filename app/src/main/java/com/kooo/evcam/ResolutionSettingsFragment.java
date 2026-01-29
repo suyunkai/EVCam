@@ -22,6 +22,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import com.kooo.evcam.camera.ImageAdjustManager;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -66,6 +68,13 @@ public class ResolutionSettingsFragment extends Fragment {
     
     // 是否正在初始化
     private boolean isInitializing = false;
+    
+    // 亮度/降噪调节相关
+    private Button openAdjustWindowButton;
+    private Button resetAdjustButton;
+    private TextView imageAdjustCurrentText;
+    private TextView imageAdjustSupportedText;
+    private ImageAdjustManager imageAdjustManager;
 
     /**
      * 摄像头信息类
@@ -102,6 +111,9 @@ public class ResolutionSettingsFragment extends Fragment {
         
         // 初始化码率选择器
         initBitrateSpinner();
+        
+        // 初始化亮度/降噪调节
+        initImageAdjust();
 
         // 显示调试信息
         displayDebugInfo();
@@ -138,6 +150,12 @@ public class ResolutionSettingsFragment extends Fragment {
         framerateDescText = view.findViewById(R.id.tv_framerate_desc);
         currentParamsText = view.findViewById(R.id.tv_current_params);
         hardwareInfoText = view.findViewById(R.id.tv_hardware_info);
+        
+        // 亮度/降噪调节控件
+        openAdjustWindowButton = view.findViewById(R.id.btn_open_adjust_window);
+        resetAdjustButton = view.findViewById(R.id.btn_reset_adjust);
+        imageAdjustCurrentText = view.findViewById(R.id.tv_image_adjust_current);
+        imageAdjustSupportedText = view.findViewById(R.id.tv_image_adjust_supported);
     }
 
     /**
@@ -683,5 +701,256 @@ public class ResolutionSettingsFragment extends Fragment {
         
         // 更新当前参数显示
         displayCurrentParams();
+    }
+    
+    // ==================== 亮度/降噪调节 ====================
+    
+    /**
+     * 初始化亮度/降噪调节功能
+     */
+    private void initImageAdjust() {
+        if (getContext() == null) {
+            return;
+        }
+        
+        // 初始化 ImageAdjustManager
+        imageAdjustManager = getImageAdjustManager();
+        
+        // 确保亮度/降噪调节始终启用
+        if (!appConfig.isImageAdjustEnabled()) {
+            appConfig.setImageAdjustEnabled(true);
+            // 通知 MainActivity 启用亮度/降噪调节
+            if (getActivity() instanceof MainActivity) {
+                MainActivity mainActivity = (MainActivity) getActivity();
+                mainActivity.setImageAdjustEnabled(true);
+            }
+        }
+        
+        // 打开调节悬浮窗按钮
+        if (openAdjustWindowButton != null) {
+            openAdjustWindowButton.setOnClickListener(v -> openAdjustFloatingWindow());
+        }
+        
+        // 恢复默认按钮
+        if (resetAdjustButton != null) {
+            resetAdjustButton.setOnClickListener(v -> {
+                if (imageAdjustManager != null) {
+                    imageAdjustManager.resetToDefault();
+                    updateImageAdjustParamsDisplay();
+                    Toast.makeText(getContext(), "亮度/降噪参数已恢复默认", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+        
+        // 更新参数显示
+        updateImageAdjustParamsDisplay();
+    }
+    
+    /**
+     * 获取 ImageAdjustManager 实例（从 MainActivity 获取）
+     */
+    private ImageAdjustManager getImageAdjustManager() {
+        if (getActivity() instanceof MainActivity) {
+            MainActivity mainActivity = (MainActivity) getActivity();
+            return mainActivity.getImageAdjustManager();
+        }
+        return null;
+    }
+    
+    /**
+     * 更新亮度/降噪参数显示
+     */
+    private void updateImageAdjustParamsDisplay() {
+        // 更新当前设置显示
+        if (imageAdjustCurrentText != null) {
+            imageAdjustCurrentText.setText(buildCurrentParamsText());
+        }
+        
+        // 更新设备支持显示
+        if (imageAdjustSupportedText != null) {
+            imageAdjustSupportedText.setText(buildSupportedParamsText());
+        }
+    }
+    
+    /**
+     * 构建当前参数文本
+     */
+    private String buildCurrentParamsText() {
+        StringBuilder sb = new StringBuilder();
+        
+        if (imageAdjustManager != null) {
+            boolean hasActual = imageAdjustManager.hasActualParams();
+            
+            // 曝光补偿
+            int exposure = imageAdjustManager.getExposureCompensation();
+            sb.append("曝光补偿：").append(exposure > 0 ? "+" : "").append(exposure);
+            
+            // 白平衡
+            int awbMode = imageAdjustManager.getAwbMode();
+            sb.append("\n白平衡：").append(AppConfig.getAwbModeDisplayName(awbMode));
+            if (awbMode == AppConfig.AWB_MODE_DEFAULT && hasActual) {
+                sb.append("（实际: ").append(AppConfig.getAwbModeDisplayName(imageAdjustManager.getActualAwbMode())).append("）");
+            }
+            
+            // 色调映射
+            int tonemapMode = imageAdjustManager.getTonemapMode();
+            sb.append("\n色调映射：").append(AppConfig.getTonemapModeDisplayName(tonemapMode));
+            if (tonemapMode == AppConfig.TONEMAP_MODE_DEFAULT && hasActual) {
+                sb.append("（实际: ").append(AppConfig.getTonemapModeDisplayName(imageAdjustManager.getActualTonemapMode())).append("）");
+            }
+            
+            // 边缘增强（锐度）
+            int edgeMode = imageAdjustManager.getEdgeMode();
+            sb.append("\n边缘增强：").append(AppConfig.getEdgeModeDisplayName(edgeMode));
+            if (edgeMode == AppConfig.EDGE_MODE_DEFAULT && hasActual) {
+                sb.append("（实际: ").append(AppConfig.getEdgeModeDisplayName(imageAdjustManager.getActualEdgeMode())).append("）");
+            }
+            
+            // 降噪
+            int noiseMode = imageAdjustManager.getNoiseReductionMode();
+            sb.append("\n降噪模式：").append(AppConfig.getNoiseReductionModeDisplayName(noiseMode));
+            if (noiseMode == AppConfig.NOISE_REDUCTION_DEFAULT && hasActual) {
+                sb.append("（实际: ").append(AppConfig.getNoiseReductionModeDisplayName(imageAdjustManager.getActualNoiseReductionMode())).append("）");
+            }
+            
+            // 特效
+            int effectMode = imageAdjustManager.getEffectMode();
+            sb.append("\n特效模式：").append(AppConfig.getEffectModeDisplayName(effectMode));
+            if (effectMode == AppConfig.EFFECT_MODE_DEFAULT && hasActual) {
+                sb.append("（实际: ").append(AppConfig.getEffectModeDisplayName(imageAdjustManager.getActualEffectMode())).append("）");
+            }
+        } else {
+            sb.append("曝光补偿：0");
+            sb.append("\n白平衡：默认");
+            sb.append("\n色调映射：默认");
+            sb.append("\n边缘增强：默认");
+            sb.append("\n降噪模式：默认");
+            sb.append("\n特效模式：默认");
+        }
+        
+        return sb.toString();
+    }
+    
+    /**
+     * 构建设备支持的参数文本
+     */
+    private String buildSupportedParamsText() {
+        StringBuilder sb = new StringBuilder();
+        
+        if (imageAdjustManager != null) {
+            // 曝光补偿范围
+            if (imageAdjustManager.isExposureCompensationSupported()) {
+                android.util.Range<Integer> range = imageAdjustManager.getExposureRange();
+                if (range != null) {
+                    int lower = range.getLower();
+                    int upper = range.getUpper();
+                    sb.append("曝光补偿范围：").append(lower).append(" ~ ");
+                    if (upper > 0) sb.append("+");
+                    sb.append(upper);
+                } else {
+                    sb.append("曝光补偿范围：不支持");
+                }
+            } else {
+                sb.append("曝光补偿范围：不支持");
+            }
+            
+            // 支持的白平衡模式
+            sb.append("\n支持的白平衡：");
+            int[] awbModes = imageAdjustManager.getSupportedAwbModes();
+            if (awbModes != null && awbModes.length > 0) {
+                sb.append(formatSupportedModes(awbModes, "awb"));
+            } else {
+                sb.append("不支持");
+            }
+            
+            // 支持的色调映射模式
+            sb.append("\n支持的色调映射：");
+            int[] tonemapModes = imageAdjustManager.getSupportedTonemapModes();
+            if (tonemapModes != null && tonemapModes.length > 0) {
+                sb.append(formatSupportedModes(tonemapModes, "tonemap"));
+            } else {
+                sb.append("不支持");
+            }
+            
+            // 支持的边缘增强模式
+            sb.append("\n支持的边缘增强：");
+            int[] edgeModes = imageAdjustManager.getSupportedEdgeModes();
+            if (edgeModes != null && edgeModes.length > 0) {
+                sb.append(formatSupportedModes(edgeModes, "edge"));
+            } else {
+                sb.append("不支持");
+            }
+            
+            // 支持的降噪模式
+            sb.append("\n支持的降噪模式：");
+            int[] noiseModes = imageAdjustManager.getSupportedNoiseReductionModes();
+            if (noiseModes != null && noiseModes.length > 0) {
+                sb.append(formatSupportedModes(noiseModes, "noise"));
+            } else {
+                sb.append("不支持");
+            }
+            
+            // 支持的特效模式
+            sb.append("\n支持的特效模式：");
+            int[] effectModes = imageAdjustManager.getSupportedEffectModes();
+            if (effectModes != null && effectModes.length > 0) {
+                sb.append(formatSupportedModes(effectModes, "effect"));
+            } else {
+                sb.append("不支持");
+            }
+        } else {
+            sb.append("摄像头未就绪，无法获取支持的参数");
+        }
+        
+        return sb.toString();
+    }
+    
+    /**
+     * 格式化支持的模式列表
+     */
+    private String formatSupportedModes(int[] modes, String type) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < modes.length; i++) {
+            if (i > 0) sb.append("、");
+            switch (type) {
+                case "awb":
+                    sb.append(AppConfig.getAwbModeDisplayName(modes[i]));
+                    break;
+                case "tonemap":
+                    sb.append(AppConfig.getTonemapModeDisplayName(modes[i]));
+                    break;
+                case "edge":
+                    sb.append(AppConfig.getEdgeModeDisplayName(modes[i]));
+                    break;
+                case "noise":
+                    sb.append(AppConfig.getNoiseReductionModeDisplayName(modes[i]));
+                    break;
+                case "effect":
+                    sb.append(AppConfig.getEffectModeDisplayName(modes[i]));
+                    break;
+            }
+        }
+        return sb.toString();
+    }
+    
+    /**
+     * 打开调节悬浮窗
+     * 悬浮窗由 MainActivity 管理，这样即使退出设置页面也能保持显示
+     */
+    private void openAdjustFloatingWindow() {
+        if (getActivity() instanceof MainActivity) {
+            MainActivity mainActivity = (MainActivity) getActivity();
+            mainActivity.showImageAdjustFloatingWindow();
+            
+            // 返回主界面以便查看预览效果
+            Toast.makeText(getContext(), "悬浮窗已打开，返回预览界面可实时查看效果", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    @Override
+    public void onResume() {
+        super.onResume();
+        // 每次返回此页面时更新参数显示
+        updateImageAdjustParamsDisplay();
     }
 }

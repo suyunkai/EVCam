@@ -183,6 +183,114 @@
                     android:layout_marginTop="8dp" />
             </LinearLayout>
 
+            <!-- 亮度/降噪调节 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:background="@color/card_background"
+                android:layout_marginBottom="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="亮度/降噪调节"
+                    android:textColor="@color/text_primary"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="调整相机的曝光、白平衡等参数（实时生效）"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="12dp" />
+
+                <!-- 按钮区域 -->
+                <LinearLayout
+                    android:id="@+id/layout_image_adjust_buttons"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btn_open_adjust_window"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="打开调节悬浮窗"
+                        android:textSize="14sp"
+                        android:backgroundTint="@color/button_accent"
+                        android:textColor="@color/button_text" />
+
+                    <View
+                        android:layout_width="8dp"
+                        android:layout_height="0dp" />
+
+                    <Button
+                        android:id="@+id/btn_reset_adjust"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="恢复默认"
+                        android:textSize="14sp"
+                        android:backgroundTint="@color/button_background"
+                        android:textColor="@color/button_text" />
+                </LinearLayout>
+
+                <!-- 当前参数显示区域 -->
+                <LinearLayout
+                    android:id="@+id/layout_image_adjust_params"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="12dp">
+
+                    <!-- 当前设置 -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="【当前设置】"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_marginTop="4dp" />
+
+                    <TextView
+                        android:id="@+id/tv_image_adjust_current"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="曝光补偿：0\n白平衡：自动"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp"
+                        android:lineSpacingExtra="2dp"
+                        android:layout_marginTop="4dp" />
+
+                    <!-- 设备支持的参数 -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="【设备支持】"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_marginTop="12dp" />
+
+                    <TextView
+                        android:id="@+id/tv_image_adjust_supported"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="曝光补偿范围：-12 ~ +12\n支持的白平衡模式：自动、日光、阴天..."
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp"
+                        android:lineSpacingExtra="2dp"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+            </LinearLayout>
+
             <!-- 当前参数信息 -->
             <LinearLayout
                 android:layout_width="match_parent"

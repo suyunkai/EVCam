@@ -50,6 +50,39 @@ public class DingTalkStreamManager {
     public interface CommandCallback {
         void onRecordCommand(String conversationId, String conversationType, String userId, int durationSeconds);
         void onPhotoCommand(String conversationId, String conversationType, String userId);
+        
+        /**
+         * 获取应用状态信息
+         * @return 状态信息字符串
+         */
+        default String getStatusInfo() {
+            return "状态信息不可用";
+        }
+        
+        /**
+         * 启动持续录制（模拟点击录制按钮）
+         * @return 执行结果消息
+         */
+        default String onStartRecordingCommand() {
+            return "功能不可用";
+        }
+        
+        /**
+         * 停止录制并退到后台
+         * @return 执行结果消息
+         */
+        default String onStopRecordingCommand() {
+            return "功能不可用";
+        }
+        
+        /**
+         * 退出应用（需二次确认）
+         * @param confirmed 是否已确认
+         * @return 执行结果消息
+         */
+        default String onExitCommand(boolean confirmed) {
+            return "功能不可用";
+        }
     }
 
     public DingTalkStreamManager(Context context, DingTalkConfig config,
@@ -308,13 +341,64 @@ public class DingTalkStreamManager {
                             finalConversationId, finalConversationType, finalSenderId);
                     });
 
+                } else if ("状态".equals(command) || "status".equalsIgnoreCase(command)) {
+                    // 状态指令：显示应用状态
+                    AppLog.d(TAG, "收到状态指令");
+                    String statusInfo = commandCallback != null ? 
+                            commandCallback.getStatusInfo() : "状态信息不可用";
+                    sendResponse(sessionWebhook, statusInfo);
+
+                } else if ("启动录制".equals(command) || "开始录制".equals(command) || 
+                           "start".equalsIgnoreCase(command)) {
+                    // 启动录制指令：唤醒到前台并开始持续录制
+                    AppLog.d(TAG, "收到启动录制指令");
+                    if (commandCallback != null) {
+                        String result = commandCallback.onStartRecordingCommand();
+                        sendResponse(sessionWebhook, result);
+                    } else {
+                        sendResponse(sessionWebhook, "❌ 功能不可用");
+                    }
+
+                } else if ("结束录制".equals(command) || "停止录制".equals(command) || 
+                           "stop".equalsIgnoreCase(command)) {
+                    // 结束录制指令：停止录制并退到后台
+                    AppLog.d(TAG, "收到结束录制指令");
+                    if (commandCallback != null) {
+                        String result = commandCallback.onStopRecordingCommand();
+                        sendResponse(sessionWebhook, result);
+                    } else {
+                        sendResponse(sessionWebhook, "❌ 功能不可用");
+                    }
+
+                } else if ("退出".equals(command) || "exit".equalsIgnoreCase(command)) {
+                    // 退出指令：需要二次确认
+                    AppLog.d(TAG, "收到退出指令（需二次确认）");
+                    sendResponse(sessionWebhook, 
+                        "⚠️ 确认要退出 EVCam 吗？\n\n" +
+                        "退出后将停止所有录制和远程服务。\n" +
+                        "发送「确认退出」执行退出操作。");
+
+                } else if ("确认退出".equals(command)) {
+                    // 确认退出指令：执行退出
+                    AppLog.d(TAG, "收到确认退出指令");
+                    if (commandCallback != null) {
+                        String result = commandCallback.onExitCommand(true);
+                        sendResponse(sessionWebhook, result);
+                    } else {
+                        sendResponse(sessionWebhook, "❌ 功能不可用");
+                    }
+
                 } else if ("帮助".equals(command) || "help".equalsIgnoreCase(command)) {
                     sendResponse(sessionWebhook,
                         "可用指令：\n" +
-                        "• 录制 - 开始录制 60 秒视频（默认）\n" +
-                        "• 录制+数字 - 录制指定秒数视频（如：录制30）\n" +
+                        "• 状态 - 查看应用状态\n" +
+                        "• 启动录制 - 开始持续录制\n" +
+                        "• 结束录制 - 停止录制并退到后台\n" +
+                        "• 录制 - 录制 60 秒视频（默认）\n" +
+                        "• 录制+数字 - 录制指定秒数（如：录制30）\n" +
                         "• 拍照 - 拍摄照片\n" +
-                        "• 帮助 - 显示此帮助信息");
+                        "• 退出 - 退出应用（需确认）\n" +
+                        "• 帮助 - 显示此帮助");
 
                 } else {
                     AppLog.d(TAG, "未识别的指令: " + command);

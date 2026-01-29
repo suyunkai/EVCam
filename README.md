@@ -4,7 +4,7 @@
   # EVCam - 电车记录仪
   
   <p>
-    <strong>针对吉利银河E5定制开发的车内环视摄像头行车记录仪应用，兼顾随时远程监看的千里眼功能</strong>
+    <strong>针对吉利银河系列车型定制开发的车内环视摄像头行车记录仪应用，兼顾随时远程监看的千里眼功能</strong>
   </p>
   
   <p>
@@ -20,16 +20,21 @@
 
 ## 📱 项目简介
 
-该应用基于银河E5定制开发，理论上其它龙鹰一号无高阶智驾车型，也可通用，其它车型不兼容。支持同时从最多 **4 个摄像头**进行视频录制与拍照，支持远程发送录制、拍照指令进行远程监看。
+该应用支持吉利银河系列车型（银河E5、银河L6/L7等），理论上其它龙鹰一号无高阶智驾车型也可通用，同时支持手机端预览。支持同时从最多 **4 个摄像头**进行视频录制与拍照，支持远程发送录制、拍照指令进行远程监看。
 
 ### ✨ 核心特性
 
-- 🎨 **仿FlymeAuto官方UI** - 仿照FlymeAuto官方界面设计，美观且符合车机使用习惯
-- 🎥 **视频录制与照片抓拍** - 支持多摄像头同步录制和实时拍照功能
+- 🎨 **仿FlymeAuto官方UI** - 仿照FlymeAuto官方界面设计，沉浸式状态栏，美观且符合车机使用习惯
+- 🎥 **视频录制与照片抓拍** - 支持多摄像头同步录制和实时拍照，可选择参与录制的摄像头
 - 👁️ **千里眼远程监看** - 通过钉钉机器人实现远程查看摄像头画面和远程控制
 - 🚗 **不受车速限制** - 随时可开启录制功能，突破官方30km/h车速限制
 - 🔄 **自启动与后台保活** - 开机自启动 + 前台服务 + WorkManager + 无障碍服务多重保活机制
-- 💾 **视频本地存储** - 录制内容自动保存至本地DCIM目录，方便管理和导出
+- 💾 **多存储位置支持** - 支持内部存储和U盘存储，自动清理超出限制的旧文件
+- 🎬 **分段录制** - 支持1/3/5分钟自动分段，方便管理和回放
+- ⏱️ **时间戳水印** - 可选在视频和照片上添加时间角标
+- 🖼️ **悬浮窗快捷入口** - 可配置大小和透明度的悬浮按钮，实时显示录制状态
+- 🌙 **息屏录制（锁车录制）** - 支持熄屏后继续录制，实现锁车监控
+- 🔧 **多车型适配** - 支持银河E5、E5-多按钮、银河L6/L7、L7-多按钮、手机及自定义车型
 
 ---
 
@@ -39,12 +44,24 @@
 - **最低版本**: Android 9.0 (API 28)
 - **目标版本**: Android 14+ (API 36)
 - **摄像头API**: Camera2 API
+- **视频编码**: MediaRecorder（硬编码）/ OpenGL + MediaCodec（软编码）
 - **构建工具**: Gradle 8.x (Kotlin DSL)
 - **UI组件**: Material Design Components
 - **图片加载**: Glide 4.16.0
 - **网络库**: OkHttp 4.12.0
 - **钉钉集成**: DingTalk Stream SDK 1.3.12
 - **后台任务**: WorkManager 2.9.0
+
+### 🚗 支持车型
+
+| 车型 | 摄像头数量 | 录制模式 | 备注 |
+|------|-----------|---------|------|
+| 银河E5 | 4 | MediaRecorder | 默认车型 |
+| 银河E5-多按钮 | 4 | MediaRecorder | 简化操作界面 |
+| 银河L6/L7 | 4 | OpenGL+MediaCodec | 自动适配编码模式 |
+| 银河L7-多按钮 | 4 | OpenGL+MediaCodec | 简化操作界面 |
+| 手机 | 2 | MediaRecorder | 前后摄像头 |
+| 自定义车型 | 1/2/4 | 可选 | 完全自定义配置 |
 
 ---
 
@@ -151,28 +168,32 @@ adb install app\build\outputs\apk\debug\app-debug.apk
 
 ### 首次启动
 
-1. **授予权限** - 请务必使用“应用管家”或其它权限管理软件，授予EVCam所有需要的权限
+1. **选择车型** - 首次启动会弹出引导界面，选择您的车型（银河E5/L6/L7/手机/自定义）
 
-2. **摄像头预览** - 权限授予后，应用会自动初始化摄像头并显示预览
+2. **授予权限** - 请务必使用"应用管家"或其它权限管理软件，授予EVCam所有需要的权限
 
-3. **检查日志** - 点击底部"显示日志"按钮，查看摄像头初始化状态
+3. **摄像头预览** - 权限授予后，应用会自动初始化摄像头并显示预览
+
+4. **检查日志** - 点击底部"显示日志"按钮，查看摄像头初始化状态
 
 ### 录制视频
 
-1. 点击 **"开始录制"** 按钮
-2. 所有摄像头同步开始录制
-3. 录制过程中可以拍照（点击"拍照"按钮）
-4. 点击 **"停止录制"** 结束录制
+1. 点击 **"开始录制"** 按钮（或点击悬浮窗）
+2. 所有选中的摄像头同步开始录制
+3. 录制自动按设定时长分段（默认1分钟）
+4. 录制过程中可以拍照（点击"拍照"按钮）
+5. 点击 **"停止录制"** 结束录制
 
-**视频存储位置**: `/sdcard/DCIM/EVCam_Video/`  
+**视频存储位置**: `/sdcard/DCIM/EVCam_Video/`（或 U盘）  
 **文件命名格式**: `yyyyMMdd_HHmmss_{position}.mp4`（例如：`20260125_153045_front.mp4`）
 
 ### 拍摄照片
 
 - 在预览或录制状态下，点击 **"拍照"** 按钮
 - 照片同时从所有活动摄像头抓拍
+- 可选择是否添加时间戳水印
 
-**照片存储位置**: `/sdcard/DCIM/EVCam_Photo/`  
+**照片存储位置**: `/sdcard/DCIM/EVCam_Photo/`（或 U盘）  
 **文件命名格式**: `yyyyMMdd_HHmmss_{position}.jpg`
 
 ### 查看录制内容
@@ -182,6 +203,25 @@ adb install app\build\outputs\apk\debug\app-debug.apk
 1. 点击左上角菜单图标（☰）
 2. 选择 **"视频回放"** 或 **"照片回放"**
 3. 点击缩略图可全屏查看/播放
+4. 支持多选删除功能
+
+### 悬浮窗功能
+
+启用悬浮窗后，应用切到后台也能方便地控制录制：
+
+- **红色圆点** - 未录制状态
+- **绿色闪烁** - 录制中
+- **点击** - 打开应用主界面
+- **拖动** - 移动悬浮窗位置
+
+在设置中可调整悬浮窗大小（10档可选）和透明度。
+
+### 息屏录制（锁车录制）
+
+开启息屏录制功能后：
+- 熄灭屏幕时自动开始录制
+- 点亮屏幕时自动停止录制
+- 适合锁车后的安全监控场景
 
 ### 钉钉远程控制
 
@@ -192,6 +232,45 @@ adb install app\build\outputs\apk\debug\app-debug.apk
 - `状态` - 查询应用运行状态
 - `预览` - 获取当前摄像头预览截图
 
+### 软件设置
+
+点击菜单 → "软件设置"，可配置：
+
+| 设置项 | 说明 |
+|--------|------|
+| 车型选择 | 选择车型或自定义摄像头配置 |
+| 录制模式 | 自动/MediaRecorder/OpenGL+MediaCodec |
+| 分段时长 | 1分钟/3分钟/5分钟 |
+| 存储位置 | 内部存储/U盘 |
+| 存储限制 | 视频和照片的最大存储空间（GB） |
+| 录制摄像头 | 选择哪些摄像头参与录制 |
+| 悬浮窗 | 开关、大小、透明度 |
+| 时间角标 | 是否在视频/照片上添加时间戳 |
+| 开机自启 | 开机后自动启动应用 |
+| 启动自动录制 | 启动应用后自动开始录制 |
+| 息屏录制 | 熄屏时自动录制 |
+| 保活服务 | 防止应用被系统杀死 |
+| 防止休眠 | 保持设备唤醒状态 |
+
+### 分辨率/码率设置
+
+点击菜单 → "分辨率设置"，可精细调整：
+
+- **分辨率** - 选择摄像头支持的分辨率
+- **码率** - 低/标准/高（影响视频质量和文件大小）
+- **帧率** - 标准/低（降低帧率可减少文件大小）
+
+### 色彩/降噪调节
+
+点击主界面的调节按钮，可实时调整：
+
+- 曝光补偿
+- 白平衡模式
+- 色调映射
+- 边缘增强
+- 降噪模式
+- 特效模式
+
 ---
 
 ## 🏗️ 架构说明
@@ -201,10 +280,14 @@ adb install app\build\outputs\apk\debug\app-debug.apk
 ```
 EVCam/
 ├── MainActivity.java              # 主界面，UI控制器
+├── AppConfig.java                 # 应用配置管理
 ├── camera/                        # 摄像头管理模块
 │   ├── MultiCameraManager.java   # 多摄像头编排器
 │   ├── SingleCamera.java          # 单摄像头封装（Camera2 API）
 │   ├── VideoRecorder.java         # 视频录制器（MediaRecorder）
+│   ├── CodecVideoRecorder.java    # 视频录制器（OpenGL+MediaCodec）
+│   ├── EglSurfaceEncoder.java     # EGL Surface 编码器
+│   ├── ImageAdjustManager.java    # 图像调节管理器
 │   ├── CameraCallback.java        # 摄像头事件回调接口
 │   └── RecordCallback.java        # 录制事件回调接口
 ├── dingtalk/                      # 钉钉集成模块
@@ -212,8 +295,14 @@ EVCam/
 │   ├── DingTalkCommandReceiver.java # 命令解析与执行
 │   ├── PhotoUploadService.java    # 照片上传服务
 │   └── VideoUploadService.java    # 视频上传服务
+├── FloatingWindowService.java     # 悬浮窗服务
+├── StorageHelper.java             # 存储路径管理（含U盘检测）
+├── StorageCleanupManager.java     # 存储自动清理
 ├── KeepAliveManager.java          # 保活管理器
 ├── CameraForegroundService.java   # 前台服务
+├── SettingsFragment.java          # 软件设置界面
+├── ResolutionSettingsFragment.java # 分辨率设置界面
+├── CustomCameraConfigFragment.java # 自定义摄像头配置
 ├── PlaybackFragment.java          # 视频回放界面
 └── PhotoPlaybackFragment.java     # 照片浏览界面
 ```
@@ -222,12 +311,13 @@ EVCam/
 
 ```
 1. 权限检查 → 请求相机、音频、存储权限
-2. TextureView 就绪 → 等待4个 TextureView 完成初始化
+2. TextureView 就绪 → 等待 TextureView 完成初始化
 3. 摄像头探测 → 查询 CameraManager 获取可用摄像头
-4. 自适应配置 → 根据摄像头数量分配：
-   - 4+ 摄像头: 独立使用4个摄像头
-   - 2-3 摄像头: 复用摄像头到多个 TextureView
-   - 1 摄像头: 所有 TextureView 显示同一摄像头
+4. 自适应配置 → 根据车型配置分配摄像头：
+   - 银河E5: 4摄像头，固定ID映射
+   - 银河L6/L7: 4摄像头，使用Codec模式
+   - 手机: 2摄像头（前后）
+   - 自定义: 用户配置的摄像头
 5. 顺序打开 → 遵循系统限制顺序打开摄像头
 6. 预览启动 → 建立 CaptureSession 开始预览
 ```
@@ -237,13 +327,13 @@ EVCam/
 ```
 用户点击"开始录制"
     ↓
-MultiCameraManager 为每个摄像头创建 VideoRecorder
+MultiCameraManager 为每个选中的摄像头创建 VideoRecorder/CodecVideoRecorder
     ↓
-VideoRecorder.prepare() 配置 MediaRecorder 并返回 Surface
+VideoRecorder.prepare() 配置录制器并返回 Surface
     ↓
 SingleCamera 将录制 Surface 添加到 CaptureSession
     ↓
-所有录制器同步启动
+所有录制器同步启动 → 定时分段 → 自动创建新分段
     ↓
 用户点击"停止录制"
     ↓
@@ -254,9 +344,11 @@ SingleCamera 将录制 Surface 添加到 CaptureSession
 
 - **主线程**: UI 更新、按钮响应、TextureView 回调
 - **Camera HandlerThread**: 每个 SingleCamera 独立的后台线程处理 Camera2 API 调用
+- **Codec 编码线程**: CodecVideoRecorder 的独立编码线程
 - **Logcat 读取线程**: 独立线程读取系统日志
 - **钉钉 Stream 线程**: WebSocket 连接和消息处理
 - **WorkManager 后台任务**: 定时保活任务
+- **存储清理线程**: 定时检查并清理超限文件
 
 ---
 
@@ -327,26 +419,30 @@ gradlew.bat connectedAndroidTest
 - 权限未授予（检查 logcat 中的 "Missing permission" 错误）
 - 设备无可用摄像头
 - 超出系统同时打开摄像头数量限制
+- 摄像头ID配置错误（自定义车型）
 
 **解决方案**:
 - 确保 TextureView 已触发 `onSurfaceTextureAvailable` 回调
 - 在设置中手动授予权限，或重新安装应用
 - 使用 `adb shell dumpsys media.camera` 查看设备摄像头信息
 - 降低 `maxOpenCameras` 配置（默认为4）
+- 检查自定义车型的摄像头ID设置
 
 ### 2. 录制失败
 
 **可能原因**:
 - DCIM/EVCam_Video 目录不可写
 - 摄像头未打开或预览未启动
-- MediaRecorder 配置与摄像头能力不匹配
+- MediaRecorder/MediaCodec 配置与摄像头能力不匹配
 - 存储空间不足
+- U盘写入速度过慢
 
 **解决方案**:
 - 检查存储权限是否授予
 - 确保摄像头预览正常后再开始录制
-- 查看 logcat 中的 MediaRecorder 错误信息
-- 清理设备存储空间
+- 查看 logcat 中的 MediaRecorder/MediaCodec 错误信息
+- 清理设备存储空间或调整存储限制
+- 对于L6/L7车型，尝试切换录制模式
 
 ### 3. 预览画面不显示
 
@@ -369,11 +465,12 @@ gradlew.bat connectedAndroidTest
 - 在系统设置中关闭电池优化
 - 允许应用自启动
 - 启用无障碍服务（设置 → 无障碍 → EVCam保活服务）
+- 启用"防止休眠"选项
 
 ### 5. 钉钉机器人无响应
 
 **可能原因**:
-- AppKey/AppSecret 配置错误
+- Client ID/Client Secret 配置错误
 - 网络连接问题
 - Stream 连接未建立
 
@@ -383,17 +480,30 @@ gradlew.bat connectedAndroidTest
 - 查看日志中的 WebSocket 连接状态
 - 重启应用重新建立连接
 
+### 6. U盘存储问题
+
+**可能原因**:
+- U盘未正确插入或未被识别
+- U盘文件系统不支持
+- U盘写入速度过慢导致录制卡顿
+
+**解决方案**:
+- 检查U盘是否正确插入
+- 使用 FAT32 或 exFAT 格式的U盘
+- 应用会自动使用中转写入机制缓解慢速U盘问题
+- 如U盘不可用，应用会自动回退到内部存储
+
 ---
 
 ## 📋 待办事项
 
-- [ ] 添加视频清晰度选择（高清/标清/流畅）
-- [ ] 实现时间戳水印功能
+- [x] ~~添加视频清晰度选择（高清/标清/流畅）~~ ✅ 已实现码率选择
+- [x] ~~实现时间戳水印功能~~ ✅ 已实现
 - [ ] 车外扬声器喊话功能
 - [ ] 更多远程车控功能（空调、车窗、车门等）
 - [ ] 根据指定车辆状态自动启动录制
 - [ ] 手动上传功能（选择性上传录制内容）
-- [ ] 更多个性化设置项（录制时长、存储路径等）
+- [x] ~~更多个性化设置项（录制时长、存储路径等）~~ ✅ 已实现
 
 ---
 

@@ -22,7 +22,30 @@
 
     <!-- 导航菜单项文字样式 -->
     <style name="NavigationMenuTextAppearance" parent="TextAppearance.AppCompat.Body1">
-        <item name="android:textSize">18sp</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">@color/nav_text_primary</item>
+        <item name="fontFamily">sans-serif-medium</item>
+    </style>
+
+    <!-- 导航视图样式 -->
+    <style name="NavigationViewStyle">
+        <item name="itemBackground">@drawable/nav_item_background</item>
+        <item name="itemIconTint">@color/nav_icon_tint</item>
+        <item name="itemTextColor">@color/nav_text_primary</item>
+        <item name="itemShapeFillColor">@android:color/transparent</item>
+        <item name="itemIconPadding">16dp</item>
+        <item name="itemHorizontalPadding">20dp</item>
+        <item name="android:paddingStart">8dp</item>
+        <item name="android:paddingEnd">8dp</item>
+    </style>
+
+    <!-- 导航分组标题样式 -->
+    <style name="NavigationSubheaderTextAppearance" parent="TextAppearance.AppCompat.Body2">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/nav_section_title</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.03</item>
     </style>
 
     <!-- 夜间模式对话框主题 -->

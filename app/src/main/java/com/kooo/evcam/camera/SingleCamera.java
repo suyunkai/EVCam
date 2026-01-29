@@ -12,9 +12,11 @@ import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.util.Range;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.Handler;
@@ -59,6 +61,20 @@ public class SingleCamera {
     private Surface previewSurface;  // 预览Surface（缓存以避免重复创建）
     private ImageReader imageReader;  // 用于拍照的ImageReader
     private boolean singleOutputMode = false;  // 单一输出模式（用于不支持多路输出的车机平台）
+    
+    // 亮度/降噪调节相关
+    private CaptureRequest.Builder currentRequestBuilder;  // 当前的请求构建器（用于实时更新参数）
+    private CameraCharacteristics cameraCharacteristics;  // 摄像头特性（缓存）
+    private boolean imageAdjustEnabled = false;  // 是否启用亮度/降噪调节
+    
+    // 当前相机实际使用的参数（从 CaptureResult 读取）
+    private int actualExposureCompensation = 0;
+    private int actualAwbMode = CameraMetadata.CONTROL_AWB_MODE_AUTO;
+    private int actualEdgeMode = CameraMetadata.EDGE_MODE_OFF;
+    private int actualNoiseReductionMode = CameraMetadata.NOISE_REDUCTION_MODE_OFF;
+    private int actualEffectMode = CameraMetadata.CONTROL_EFFECT_MODE_OFF;
+    private int actualTonemapMode = CameraMetadata.TONEMAP_MODE_FAST;
+    private boolean hasReadActualParams = false;  // 是否已读取过实际参数
 
     // 调试：帧捕获监控
     private long frameCount = 0;  // 总帧数
@@ -117,7 +133,9 @@ public class SingleCamera {
         this.isPrimaryInstance = isPrimary;
         if (!isPrimary) {
             // 从属实例不需要重连
-            shouldReconnect = false;
+            synchronized (reconnectLock) {
+                shouldReconnect = false;
+            }
         }
         AppLog.d(TAG, "Camera " + cameraId + " (" + cameraPosition + ") set as " + (isPrimary ? "PRIMARY" : "SECONDARY") + " instance");
     }
@@ -351,6 +369,13 @@ public class SingleCamera {
         }
         
         synchronized (reconnectLock) {
+            // 安全措施：清理可能残留的录制 Surface 引用（防止 Surface abandoned 错误）
+            // 放在同步块内，避免与 setRecordSurface() 的竞态条件
+            if (recordSurface != null) {
+                AppLog.w(TAG, "Camera " + cameraId + " found stale recordSurface on open, clearing it");
+                recordSurface = null;
+            }
+            
             // 如果已经在重连中，忽略新的打开请求
             if (isReconnecting) {
                 AppLog.d(TAG, "Camera " + cameraId + " already reconnecting, ignoring openCamera call");
@@ -384,8 +409,21 @@ public class SingleCamera {
                 return;
             }
 
-            // 获取摄像头特性
-            CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraId);
+            // 获取摄像头特性（验证摄像头是否真正可用）
+            CameraCharacteristics characteristics;
+            try {
+                characteristics = cameraManager.getCameraCharacteristics(cameraId);
+            } catch (Exception e) {
+                AppLog.e(TAG, "Camera " + cameraId + " failed to get characteristics - camera may be virtual/invalid", e);
+                if (callback != null) {
+                    callback.onCameraError(cameraId, CameraDevice.StateCallback.ERROR_CAMERA_DEVICE);
+                }
+                synchronized (reconnectLock) {
+                    shouldReconnect = false;  // 无效摄像头不应重连
+                }
+                return;
+            }
+            
             StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
             if (map != null) {
                 // 优先使用 SurfaceTexture 的输出尺寸
@@ -397,7 +435,13 @@ public class SingleCamera {
                     }
                 }
                 if (sizes == null || sizes.length == 0) {
-                    AppLog.e(TAG, "Camera " + cameraId + " has no output sizes for PRIVATE/SurfaceTexture");
+                    AppLog.e(TAG, "Camera " + cameraId + " has no output sizes for PRIVATE/SurfaceTexture - camera may be virtual/invalid");
+                    if (callback != null) {
+                        callback.onCameraError(cameraId, CameraDevice.StateCallback.ERROR_CAMERA_DEVICE);
+                    }
+                    synchronized (reconnectLock) {
+                        shouldReconnect = false;  // 无效摄像头不应重连
+                    }
                     return;
                 }
 
@@ -420,7 +464,14 @@ public class SingleCamera {
                     callback.onPreviewSizeChosen(cameraId, previewSize);
                 }
             } else {
-                AppLog.e(TAG, "Camera " + cameraId + " StreamConfigurationMap is null!");
+                AppLog.e(TAG, "Camera " + cameraId + " StreamConfigurationMap is null - camera may be virtual/invalid!");
+                if (callback != null) {
+                    callback.onCameraError(cameraId, CameraDevice.StateCallback.ERROR_CAMERA_DEVICE);
+                }
+                synchronized (reconnectLock) {
+                    shouldReconnect = false;  // 无效摄像头不应重连
+                }
+                return;
             }
 
             // 检查 TextureView 状态
@@ -450,6 +501,24 @@ public class SingleCamera {
             AppLog.e(TAG, "No camera permission", e);
             if (callback != null) {
                 callback.onCameraError(cameraId, -2);
+            }
+        } catch (IllegalArgumentException e) {
+            // 某些设备在打开无效摄像头时会抛出 IllegalArgumentException
+            AppLog.e(TAG, "Camera " + cameraId + " invalid argument - camera may be virtual/invalid", e);
+            if (callback != null) {
+                callback.onCameraError(cameraId, CameraDevice.StateCallback.ERROR_CAMERA_DEVICE);
+            }
+            synchronized (reconnectLock) {
+                shouldReconnect = false;  // 无效摄像头不应重连
+            }
+        } catch (RuntimeException e) {
+            // 捕获所有其他运行时异常，防止应用崩溃
+            AppLog.e(TAG, "Camera " + cameraId + " runtime exception - camera may be virtual/invalid", e);
+            if (callback != null) {
+                callback.onCameraError(cameraId, CameraDevice.StateCallback.ERROR_CAMERA_DEVICE);
+            }
+            synchronized (reconnectLock) {
+                shouldReconnect = false;  // 异常情况下不应重连
             }
         }
     }
@@ -743,6 +812,14 @@ public class SingleCamera {
             int template = (recordSurface != null) ? CameraDevice.TEMPLATE_RECORD : CameraDevice.TEMPLATE_PREVIEW;
             final CaptureRequest.Builder previewRequestBuilder = cameraDevice.createCaptureRequest(template);
             
+            // 保存请求构建器引用（用于实时更新亮度/降噪参数）
+            currentRequestBuilder = previewRequestBuilder;
+            
+            // 如果启用了亮度/降噪调节，应用配置中保存的参数
+            if (imageAdjustEnabled) {
+                applyImageAdjustParamsFromConfig(previewRequestBuilder);
+            }
+            
             // 准备所有输出Surface
             java.util.List<Surface> surfaces = new java.util.ArrayList<>();
 
@@ -814,6 +891,13 @@ public class SingleCamera {
                                                           @NonNull TotalCaptureResult result) {
                                 frameCount++;
                                 long now = System.currentTimeMillis();
+                                
+                                // 读取相机实际使用的参数（只读取一次或定期读取）
+                                if (!hasReadActualParams || frameCount == 1) {
+                                    readActualParamsFromResult(result);
+                                    hasReadActualParams = true;
+                                }
+                                
                                 if (now - lastFrameLogTime >= FRAME_LOG_INTERVAL_MS) {
                                     long elapsed = now - lastFrameLogTime;
                                     float fps = frameCount * 1000f / elapsed;
@@ -858,17 +942,18 @@ public class SingleCamera {
                     // 如果是因为录制 Surface 导致的失败，尝试只使用预览 Surface
                     if (recordSurface != null) {
                         AppLog.w(TAG, "Camera " + cameraId + " Retrying with preview-only session (without recording surface)");
-                        // 临时清除录制 Surface，重试创建预览会话
-                        Surface tempRecordSurface = recordSurface;
+                        // 清除录制 Surface，让重试时只使用预览 Surface
+                        // 注意：不恢复 recordSurface，让上层（MultiCameraManager）重新管理录制状态
                         recordSurface = null;
                         // 延迟重试，避免立即操作
                         if (backgroundHandler != null) {
                             backgroundHandler.postDelayed(() -> {
-                                createCameraPreviewSession();
+                                if (cameraDevice != null) {
+                                    AppLog.d(TAG, "Camera " + cameraId + " retrying session with preview-only");
+                                    createCameraPreviewSession();
+                                }
                             }, 500);
                         }
-                        // 恢复录制 Surface（但不在会话中使用）
-                        recordSurface = tempRecordSurface;
                     } else {
                         // 没有录制 Surface 也失败，这是严重问题
                         if (callback != null) {
@@ -881,6 +966,29 @@ public class SingleCamera {
         } catch (CameraAccessException e) {
             AppLog.e(TAG, "Failed to create preview session for camera " + cameraId, e);
             AppLog.e(TAG, "Exception details: " + e.getMessage());
+            e.printStackTrace();
+        } catch (IllegalArgumentException e) {
+            // 特殊处理 "Surface was abandoned" 错误
+            String message = e.getMessage();
+            if (message != null && message.contains("abandoned")) {
+                AppLog.e(TAG, "Camera " + cameraId + " detected abandoned Surface, attempting recovery...");
+                // 清理废弃的录制 Surface
+                if (recordSurface != null) {
+                    AppLog.w(TAG, "Camera " + cameraId + " clearing abandoned recordSurface and retrying");
+                    recordSurface = null;
+                    // 延迟重试创建会话（只使用预览 Surface）
+                    if (backgroundHandler != null) {
+                        backgroundHandler.postDelayed(() -> {
+                            if (cameraDevice != null) {
+                                AppLog.d(TAG, "Camera " + cameraId + " retrying session creation without record surface");
+                                createCameraPreviewSession();
+                            }
+                        }, 100);
+                    }
+                    return;
+                }
+            }
+            AppLog.e(TAG, "Unexpected IllegalArgumentException creating session for camera " + cameraId, e);
             e.printStackTrace();
         } catch (Exception e) {
             AppLog.e(TAG, "Unexpected exception creating session for camera " + cameraId, e);
@@ -1168,6 +1276,13 @@ public class SingleCamera {
                 previewSurface = null;
             }
 
+            // 清理录制 Surface 引用（重要：防止 Surface abandoned 错误）
+            // 注意：这里只是清除引用，不 release()，因为 Surface 由 VideoRecorder 管理
+            if (recordSurface != null) {
+                AppLog.d(TAG, "Camera " + cameraId + " clearing record surface reference");
+                recordSurface = null;
+            }
+
             // 释放ImageReader
             if (imageReader != null) {
                 try {
@@ -1351,5 +1466,459 @@ public class SingleCamera {
                 }, 300);
             }
         }
+    }
+    
+    // ==================== 亮度/降噪调节相关方法 ====================
+    
+    /**
+     * 设置是否启用亮度/降噪调节
+     * @param enabled true 表示启用
+     */
+    public void setImageAdjustEnabled(boolean enabled) {
+        this.imageAdjustEnabled = enabled;
+        AppLog.d(TAG, "Camera " + cameraId + " image adjust: " + (enabled ? "ENABLED" : "DISABLED"));
+    }
+    
+    /**
+     * 从配置中读取并应用亮度/降噪调节参数
+     * @param requestBuilder 请求构建器
+     */
+    private void applyImageAdjustParamsFromConfig(CaptureRequest.Builder requestBuilder) {
+        try {
+            AppConfig appConfig = new AppConfig(context);
+            
+            // 应用曝光补偿
+            int exposureComp = appConfig.getExposureCompensation();
+            if (exposureComp != 0) {
+                Range<Integer> range = getExposureCompensationRange();
+                if (range != null) {
+                    int clampedValue = Math.max(range.getLower(), Math.min(exposureComp, range.getUpper()));
+                    requestBuilder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, clampedValue);
+                    AppLog.d(TAG, "Camera " + cameraId + " applied exposure compensation: " + clampedValue);
+                }
+            }
+            
+            // 应用白平衡模式
+            int awbMode = appConfig.getAwbMode();
+            if (awbMode >= 0) {
+                int[] supportedModes = getSupportedAwbModes();
+                if (supportedModes != null && isModeSupported(supportedModes, awbMode)) {
+                    requestBuilder.set(CaptureRequest.CONTROL_AWB_MODE, awbMode);
+                    AppLog.d(TAG, "Camera " + cameraId + " applied AWB mode: " + awbMode);
+                }
+            }
+            
+            // 应用色调映射模式
+            int tonemapMode = appConfig.getTonemapMode();
+            if (tonemapMode >= 0) {
+                int[] supportedModes = getSupportedTonemapModes();
+                if (supportedModes != null && isModeSupported(supportedModes, tonemapMode)) {
+                    requestBuilder.set(CaptureRequest.TONEMAP_MODE, tonemapMode);
+                    AppLog.d(TAG, "Camera " + cameraId + " applied tonemap mode: " + tonemapMode);
+                }
+            }
+            
+            // 应用边缘增强模式
+            int edgeMode = appConfig.getEdgeMode();
+            if (edgeMode >= 0) {
+                int[] supportedModes = getSupportedEdgeModes();
+                if (supportedModes != null && isModeSupported(supportedModes, edgeMode)) {
+                    requestBuilder.set(CaptureRequest.EDGE_MODE, edgeMode);
+                    AppLog.d(TAG, "Camera " + cameraId + " applied edge mode: " + edgeMode);
+                }
+            }
+            
+            // 应用降噪模式
+            int noiseReductionMode = appConfig.getNoiseReductionMode();
+            if (noiseReductionMode >= 0) {
+                int[] supportedModes = getSupportedNoiseReductionModes();
+                if (supportedModes != null && isModeSupported(supportedModes, noiseReductionMode)) {
+                    requestBuilder.set(CaptureRequest.NOISE_REDUCTION_MODE, noiseReductionMode);
+                    AppLog.d(TAG, "Camera " + cameraId + " applied noise reduction mode: " + noiseReductionMode);
+                }
+            }
+            
+            // 应用特效模式
+            int effectMode = appConfig.getEffectMode();
+            if (effectMode >= 0) {
+                int[] supportedModes = getSupportedEffectModes();
+                if (supportedModes != null && isModeSupported(supportedModes, effectMode)) {
+                    requestBuilder.set(CaptureRequest.CONTROL_EFFECT_MODE, effectMode);
+                    AppLog.d(TAG, "Camera " + cameraId + " applied effect mode: " + effectMode);
+                }
+            }
+            
+            AppLog.d(TAG, "Camera " + cameraId + " image adjust params applied from config");
+            
+        } catch (Exception e) {
+            AppLog.e(TAG, "Camera " + cameraId + " failed to apply image adjust params from config", e);
+        }
+    }
+    
+    /**
+     * 获取是否启用亮度/降噪调节
+     */
+    public boolean isImageAdjustEnabled() {
+        return imageAdjustEnabled;
+    }
+    
+    /**
+     * 获取曝光补偿范围
+     * @return 曝光补偿范围 [min, max]，如果不支持返回 null
+     */
+    public Range<Integer> getExposureCompensationRange() {
+        try {
+            CameraCharacteristics chars = getCameraCharacteristics();
+            if (chars != null) {
+                return chars.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_RANGE);
+            }
+        } catch (Exception e) {
+            AppLog.e(TAG, "Camera " + cameraId + " failed to get exposure compensation range", e);
+        }
+        return null;
+    }
+    
+    /**
+     * 获取曝光补偿步长
+     * @return 曝光补偿步长（EV 单位），如果不支持返回 null
+     */
+    public android.util.Rational getExposureCompensationStep() {
+        try {
+            CameraCharacteristics chars = getCameraCharacteristics();
+            if (chars != null) {
+                return chars.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_STEP);
+            }
+        } catch (Exception e) {
+            AppLog.e(TAG, "Camera " + cameraId + " failed to get exposure compensation step", e);
+        }
+        return null;
+    }
+    
+    /**
+     * 获取支持的白平衡模式
+     * @return 支持的白平衡模式数组，如果不支持返回 null
+     */
+    public int[] getSupportedAwbModes() {
+        try {
+            CameraCharacteristics chars = getCameraCharacteristics();
+            if (chars != null) {
+                return chars.get(CameraCharacteristics.CONTROL_AWB_AVAILABLE_MODES);
+            }
+        } catch (Exception e) {
+            AppLog.e(TAG, "Camera " + cameraId + " failed to get supported AWB modes", e);
+        }
+        return null;
+    }
+    
+    /**
+     * 获取支持的色调映射模式
+     * @return 支持的色调映射模式数组，如果不支持返回 null
+     */
+    public int[] getSupportedTonemapModes() {
+        try {
+            CameraCharacteristics chars = getCameraCharacteristics();
+            if (chars != null) {
+                return chars.get(CameraCharacteristics.TONEMAP_AVAILABLE_TONE_MAP_MODES);
+            }
+        } catch (Exception e) {
+            AppLog.e(TAG, "Camera " + cameraId + " failed to get supported tonemap modes", e);
+        }
+        return null;
+    }
+    
+    /**
+     * 获取支持的边缘增强模式
+     * @return 支持的边缘增强模式数组，如果不支持返回 null
+     */
+    public int[] getSupportedEdgeModes() {
+        try {
+            CameraCharacteristics chars = getCameraCharacteristics();
+            if (chars != null) {
+                return chars.get(CameraCharacteristics.EDGE_AVAILABLE_EDGE_MODES);
+            }
+        } catch (Exception e) {
+            AppLog.e(TAG, "Camera " + cameraId + " failed to get supported edge modes", e);
+        }
+        return null;
+    }
+    
+    /**
+     * 获取支持的降噪模式
+     * @return 支持的降噪模式数组，如果不支持返回 null
+     */
+    public int[] getSupportedNoiseReductionModes() {
+        try {
+            CameraCharacteristics chars = getCameraCharacteristics();
+            if (chars != null) {
+                return chars.get(CameraCharacteristics.NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES);
+            }
+        } catch (Exception e) {
+            AppLog.e(TAG, "Camera " + cameraId + " failed to get supported noise reduction modes", e);
+        }
+        return null;
+    }
+    
+    /**
+     * 获取支持的特效模式
+     * @return 支持的特效模式数组，如果不支持返回 null
+     */
+    public int[] getSupportedEffectModes() {
+        try {
+            CameraCharacteristics chars = getCameraCharacteristics();
+            if (chars != null) {
+                return chars.get(CameraCharacteristics.CONTROL_AVAILABLE_EFFECTS);
+            }
+        } catch (Exception e) {
+            AppLog.e(TAG, "Camera " + cameraId + " failed to get supported effect modes", e);
+        }
+        return null;
+    }
+    
+    /**
+     * 获取摄像头特性（带缓存）
+     */
+    private CameraCharacteristics getCameraCharacteristics() {
+        if (cameraCharacteristics != null) {
+            return cameraCharacteristics;
+        }
+        
+        try {
+            cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraId);
+            return cameraCharacteristics;
+        } catch (CameraAccessException e) {
+            AppLog.e(TAG, "Camera " + cameraId + " failed to get characteristics", e);
+            return null;
+        }
+    }
+    
+    /**
+     * 实时更新亮度/降噪调节参数
+     * 参数会立即应用到预览和录制
+     * 
+     * @param exposureCompensation 曝光补偿值（Integer.MIN_VALUE 表示不设置）
+     * @param awbMode 白平衡模式（-1 表示不设置）
+     * @param tonemapMode 色调映射模式（-1 表示不设置）
+     * @param edgeMode 边缘增强模式（-1 表示不设置）
+     * @param noiseReductionMode 降噪模式（-1 表示不设置）
+     * @param effectMode 特效模式（-1 表示不设置）
+     * @return true 表示成功，false 表示失败
+     */
+    public boolean updateImageAdjustParams(int exposureCompensation, int awbMode, int tonemapMode,
+                                           int edgeMode, int noiseReductionMode, int effectMode) {
+        if (!imageAdjustEnabled) {
+            AppLog.d(TAG, "Camera " + cameraId + " image adjust not enabled, skip update");
+            return false;
+        }
+        
+        if (cameraDevice == null || captureSession == null || currentRequestBuilder == null) {
+            AppLog.w(TAG, "Camera " + cameraId + " not ready for image adjust update");
+            return false;
+        }
+        
+        try {
+            // 应用曝光补偿
+            if (exposureCompensation != Integer.MIN_VALUE) {
+                Range<Integer> range = getExposureCompensationRange();
+                if (range != null) {
+                    // 确保值在有效范围内
+                    int clampedValue = Math.max(range.getLower(), Math.min(exposureCompensation, range.getUpper()));
+                    currentRequestBuilder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, clampedValue);
+                    AppLog.d(TAG, "Camera " + cameraId + " set exposure compensation: " + clampedValue + " (range: " + range + ")");
+                }
+            }
+            
+            // 应用白平衡模式
+            if (awbMode >= 0) {
+                int[] supportedModes = getSupportedAwbModes();
+                if (supportedModes != null && isModeSupported(supportedModes, awbMode)) {
+                    currentRequestBuilder.set(CaptureRequest.CONTROL_AWB_MODE, awbMode);
+                    AppLog.d(TAG, "Camera " + cameraId + " set AWB mode: " + awbMode);
+                } else {
+                    AppLog.w(TAG, "Camera " + cameraId + " AWB mode " + awbMode + " not supported");
+                }
+            }
+            
+            // 应用色调映射模式
+            if (tonemapMode >= 0) {
+                int[] supportedModes = getSupportedTonemapModes();
+                if (supportedModes != null && isModeSupported(supportedModes, tonemapMode)) {
+                    currentRequestBuilder.set(CaptureRequest.TONEMAP_MODE, tonemapMode);
+                    AppLog.d(TAG, "Camera " + cameraId + " set tonemap mode: " + tonemapMode);
+                } else {
+                    AppLog.w(TAG, "Camera " + cameraId + " tonemap mode " + tonemapMode + " not supported");
+                }
+            }
+            
+            // 应用边缘增强模式
+            if (edgeMode >= 0) {
+                int[] supportedModes = getSupportedEdgeModes();
+                if (supportedModes != null && isModeSupported(supportedModes, edgeMode)) {
+                    currentRequestBuilder.set(CaptureRequest.EDGE_MODE, edgeMode);
+                    AppLog.d(TAG, "Camera " + cameraId + " set edge mode: " + edgeMode);
+                } else {
+                    AppLog.w(TAG, "Camera " + cameraId + " edge mode " + edgeMode + " not supported");
+                }
+            }
+            
+            // 应用降噪模式
+            if (noiseReductionMode >= 0) {
+                int[] supportedModes = getSupportedNoiseReductionModes();
+                if (supportedModes != null && isModeSupported(supportedModes, noiseReductionMode)) {
+                    currentRequestBuilder.set(CaptureRequest.NOISE_REDUCTION_MODE, noiseReductionMode);
+                    AppLog.d(TAG, "Camera " + cameraId + " set noise reduction mode: " + noiseReductionMode);
+                } else {
+                    AppLog.w(TAG, "Camera " + cameraId + " noise reduction mode " + noiseReductionMode + " not supported");
+                }
+            }
+            
+            // 应用特效模式
+            if (effectMode >= 0) {
+                int[] supportedModes = getSupportedEffectModes();
+                if (supportedModes != null && isModeSupported(supportedModes, effectMode)) {
+                    currentRequestBuilder.set(CaptureRequest.CONTROL_EFFECT_MODE, effectMode);
+                    AppLog.d(TAG, "Camera " + cameraId + " set effect mode: " + effectMode);
+                } else {
+                    AppLog.w(TAG, "Camera " + cameraId + " effect mode " + effectMode + " not supported");
+                }
+            }
+            
+            // 重新提交请求（实时生效）
+            captureSession.setRepeatingRequest(currentRequestBuilder.build(), null, backgroundHandler);
+            AppLog.d(TAG, "Camera " + cameraId + " image adjust params updated successfully");
+            return true;
+            
+        } catch (CameraAccessException e) {
+            AppLog.e(TAG, "Camera " + cameraId + " failed to update image adjust params", e);
+            return false;
+        } catch (IllegalStateException e) {
+            AppLog.e(TAG, "Camera " + cameraId + " session invalid during image adjust update", e);
+            return false;
+        } catch (Exception e) {
+            AppLog.e(TAG, "Camera " + cameraId + " unexpected error during image adjust update", e);
+            return false;
+        }
+    }
+    
+    /**
+     * 检查模式是否在支持列表中
+     */
+    private boolean isModeSupported(int[] supportedModes, int mode) {
+        if (supportedModes == null) {
+            return false;
+        }
+        for (int supported : supportedModes) {
+            if (supported == mode) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * 获取当前请求构建器（用于外部调试）
+     */
+    public CaptureRequest.Builder getCurrentRequestBuilder() {
+        return currentRequestBuilder;
+    }
+    
+    /**
+     * 从 CaptureResult 读取相机实际使用的参数
+     */
+    private void readActualParamsFromResult(TotalCaptureResult result) {
+        try {
+            // 曝光补偿
+            Integer exposure = result.get(TotalCaptureResult.CONTROL_AE_EXPOSURE_COMPENSATION);
+            if (exposure != null) {
+                actualExposureCompensation = exposure;
+            }
+            
+            // 白平衡模式
+            Integer awb = result.get(TotalCaptureResult.CONTROL_AWB_MODE);
+            if (awb != null) {
+                actualAwbMode = awb;
+            }
+            
+            // 边缘增强模式
+            Integer edge = result.get(TotalCaptureResult.EDGE_MODE);
+            if (edge != null) {
+                actualEdgeMode = edge;
+            }
+            
+            // 降噪模式
+            Integer noise = result.get(TotalCaptureResult.NOISE_REDUCTION_MODE);
+            if (noise != null) {
+                actualNoiseReductionMode = noise;
+            }
+            
+            // 特效模式
+            Integer effect = result.get(TotalCaptureResult.CONTROL_EFFECT_MODE);
+            if (effect != null) {
+                actualEffectMode = effect;
+            }
+            
+            // 色调映射模式
+            Integer tonemap = result.get(TotalCaptureResult.TONEMAP_MODE);
+            if (tonemap != null) {
+                actualTonemapMode = tonemap;
+            }
+            
+            AppLog.d(TAG, "Camera " + cameraId + " actual params: exposure=" + actualExposureCompensation +
+                    ", awb=" + actualAwbMode + ", edge=" + actualEdgeMode + 
+                    ", noise=" + actualNoiseReductionMode + ", effect=" + actualEffectMode +
+                    ", tonemap=" + actualTonemapMode);
+        } catch (Exception e) {
+            AppLog.e(TAG, "Camera " + cameraId + " failed to read actual params", e);
+        }
+    }
+    
+    // ==================== 获取实际参数的方法 ====================
+    
+    /**
+     * 获取相机实际使用的曝光补偿值
+     */
+    public int getActualExposureCompensation() {
+        return actualExposureCompensation;
+    }
+    
+    /**
+     * 获取相机实际使用的白平衡模式
+     */
+    public int getActualAwbMode() {
+        return actualAwbMode;
+    }
+    
+    /**
+     * 获取相机实际使用的边缘增强模式
+     */
+    public int getActualEdgeMode() {
+        return actualEdgeMode;
+    }
+    
+    /**
+     * 获取相机实际使用的降噪模式
+     */
+    public int getActualNoiseReductionMode() {
+        return actualNoiseReductionMode;
+    }
+    
+    /**
+     * 获取相机实际使用的特效模式
+     */
+    public int getActualEffectMode() {
+        return actualEffectMode;
+    }
+    
+    /**
+     * 获取相机实际使用的色调映射模式
+     */
+    public int getActualTonemapMode() {
+        return actualTonemapMode;
+    }
+    
+    /**
+     * 是否已读取过实际参数
+     */
+    public boolean hasActualParams() {
+        return hasReadActualParams;
     }
 }

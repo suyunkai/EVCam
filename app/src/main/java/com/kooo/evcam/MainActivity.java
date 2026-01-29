@@ -29,9 +29,11 @@ import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
 import com.google.android.material.navigation.NavigationView;
+import com.kooo.evcam.camera.ImageAdjustManager;
 import com.kooo.evcam.camera.MultiCameraManager;
 import com.kooo.evcam.camera.SingleCamera;
 import com.kooo.evcam.FileTransferManager;
+import com.kooo.evcam.StorageHelper;
 import com.kooo.evcam.dingtalk.DingTalkApiClient;
 import com.kooo.evcam.dingtalk.DingTalkConfig;
 import com.kooo.evcam.dingtalk.DingTalkStreamManager;
@@ -72,6 +74,8 @@ public class MainActivity extends AppCompatActivity {
     private AutoFitTextureView textureFront, textureBack, textureLeft, textureRight;
     private Button btnStartRecord, btnExit, btnTakePhoto;
     private MultiCameraManager cameraManager;
+    private ImageAdjustManager imageAdjustManager;  // 亮度/降噪调节管理器
+    private ImageAdjustFloatingWindow imageAdjustFloatingWindow;  // 亮度/降噪调节悬浮窗
     private int textureReadyCount = 0;  // 记录准备好的TextureView数量
     private int requiredTextureCount = 4;  // 需要准备好的TextureView数量（根据摄像头数量）
     private boolean isRecording = false;  // 录制状态标志
@@ -133,7 +137,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean isRemoteRecording = false;  // 是否正在进行远程录制
     private boolean wasManualRecordingBeforeRemote = false;  // 远程录制前是否有手动录制在进行
 
-    // 钉钉服务相关（移到 Activity 级别）
+    // 远程查看服务相关（移到 Activity 级别）
     private DingTalkConfig dingTalkConfig;
     private DingTalkApiClient dingTalkApiClient;
     private DingTalkStreamManager dingTalkStreamManager;
@@ -182,25 +186,23 @@ public class MainActivity extends AppCompatActivity {
             requestPermissions();
         }
 
-        // 如果启用了自动启动，启动钉钉服务
+        // 如果启用了自动启动，启动远程查看服务
         if (dingTalkConfig.isConfigured() && dingTalkConfig.isAutoStart()) {
             startDingTalkService();
         }
 
-        // 启动定时保活任务（如果用户启用了）
-        if (appConfig.isKeepAliveEnabled()) {
-            KeepAliveManager.startKeepAliveWork(this);
-            AppLog.d(TAG, "定时保活任务已启动");
-        } else {
-            AppLog.d(TAG, "定时保活任务已禁用，跳过启动");
-        }
+        // 启动定时保活任务（车机必需，始终开启）
+        KeepAliveManager.startKeepAliveWork(this);
+        AppLog.d(TAG, "定时保活任务已启动");
         
-        // 启动防止休眠（如果用户启用了）
-        if (appConfig.isPreventSleepEnabled()) {
+        // 防止休眠（仅当开启"开机自启动"时）
+        // WakeLock 主要在 CameraForegroundService 中维护
+        // 这里作为备份，确保 Activity 存在时也有 WakeLock
+        if (appConfig.isAutoStartOnBoot()) {
             WakeUpHelper.acquirePersistentWakeLock(this);
-            AppLog.d(TAG, "防止休眠已启用，系统将不会进入深度休眠");
+            AppLog.d(TAG, "WakeLock 已获取（开机自启动已开启）");
         } else {
-            AppLog.d(TAG, "防止休眠已禁用，系统可正常休眠");
+            AppLog.d(TAG, "WakeLock 未获取（开机自启动未开启）");
         }
         
         // 启动存储清理任务（如果用户设置了限制）
@@ -363,9 +365,51 @@ public class MainActivity extends AppCompatActivity {
         } else if ("photo".equals(action)) {
             AppLog.d(TAG, "Taking remote photo");
             startRemotePhoto(conversationId, conversationType, userId);
+        } else if ("start_recording".equals(action)) {
+            AppLog.d(TAG, "Starting persistent recording (like button click)");
+            executeStartPersistentRecording();
+        } else if ("stop_recording".equals(action)) {
+            AppLog.d(TAG, "Stopping recording and moving to background");
+            executeStopRecordingAndBackground();
         } else {
             AppLog.w(TAG, "Unknown remote action: " + action);
         }
+    }
+    
+    /**
+     * 执行启动持续录制（等同点击录制按钮）
+     */
+    private void executeStartPersistentRecording() {
+        if (isRecording) {
+            AppLog.d(TAG, "Already recording, skip");
+            return;
+        }
+        
+        startRecording();
+        AppLog.d(TAG, "Persistent recording started");
+        
+        // 启动录制后不退到后台，保持前台
+        isRemoteWakeUp = false;
+    }
+    
+    /**
+     * 执行停止录制并退到后台
+     */
+    private void executeStopRecordingAndBackground() {
+        if (!isRecording) {
+            AppLog.d(TAG, "Not recording, just move to background");
+            moveTaskToBack(true);
+            return;
+        }
+        
+        stopRecording();
+        AppLog.d(TAG, "Recording stopped");
+        
+        // 延迟退到后台
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            moveTaskToBack(true);
+            AppLog.d(TAG, "Moved to background");
+        }, 1000);
     }
 
     private void adjustFontScale(float scale) {
@@ -386,8 +430,15 @@ public class MainActivity extends AppCompatActivity {
 
         String carModel = appConfig.getCarModel();
         
+        // 银河E5-多按钮：横屏布局，左侧按钮列表
+        if (AppConfig.CAR_MODEL_E5_MULTI.equals(carModel)) {
+            layoutId = R.layout.activity_main_e5_multi;
+            configuredCameraCount = 4;
+            requiredTextureCount = 4;
+            AppLog.d(TAG, "使用银河E5-多按钮配置：横屏左侧按钮列表布局");
+        }
         // 银河L6/L7：竖屏四宫格布局
-        if (AppConfig.CAR_MODEL_L7.equals(carModel)) {
+        else if (AppConfig.CAR_MODEL_L7.equals(carModel)) {
             layoutId = R.layout.activity_main_l7;
             configuredCameraCount = 4;
             requiredTextureCount = 4;
@@ -510,14 +561,17 @@ public class MainActivity extends AppCompatActivity {
         // 更新摄像头标签（如果是自定义车型）
         updateCameraLabels();
 
-        // 菜单按钮点击事件
-        findViewById(R.id.btn_menu).setOnClickListener(v -> {
-            if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-                drawerLayout.closeDrawer(GravityCompat.START);
-            } else {
-                drawerLayout.openDrawer(GravityCompat.START);
-            }
-        });
+        // 菜单按钮点击事件（部分布局可能没有此按钮）
+        View btnMenu = findViewById(R.id.btn_menu);
+        if (btnMenu != null) {
+            btnMenu.setOnClickListener(v -> {
+                if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                    drawerLayout.closeDrawer(GravityCompat.START);
+                } else {
+                    drawerLayout.openDrawer(GravityCompat.START);
+                }
+            });
+        }
         
         // 多按钮布局的快捷导航按钮（仅在 L7-多按钮 布局中存在）
         View btnVideoPlayback = findViewById(R.id.btn_video_playback);
@@ -538,6 +592,17 @@ public class MainActivity extends AppCompatActivity {
         View btnSettings = findViewById(R.id.btn_settings);
         if (btnSettings != null) {
             btnSettings.setOnClickListener(v -> showSettingsInterface());
+        }
+        
+        // E5-多按钮布局的快捷导航按钮
+        View btnPlayback = findViewById(R.id.btn_playback);
+        if (btnPlayback != null) {
+            btnPlayback.setOnClickListener(v -> showPlaybackInterface());
+        }
+        
+        View btnPhotos = findViewById(R.id.btn_photos);
+        if (btnPhotos != null) {
+            btnPhotos.setOnClickListener(v -> showPhotoPlaybackInterface());
         }
 
         // 录制按钮：点击切换录制状态
@@ -1075,6 +1140,9 @@ public class MainActivity extends AppCompatActivity {
 
         cameraManager = new MultiCameraManager(this);
         cameraManager.setMaxOpenCameras(configuredCameraCount);
+        
+        // 初始化亮度/降噪调节管理器
+        imageAdjustManager = new ImageAdjustManager(this);
 
         // 设置摄像头状态回调
         cameraManager.setStatusCallback((cameraId, status) -> {
@@ -1307,6 +1375,9 @@ public class MainActivity extends AppCompatActivity {
 
                 // 打开所有摄像头
                 cameraManager.openAllCameras();
+                
+                // 注册摄像头到亮度/降噪调节管理器
+                registerCamerasToImageAdjustManager();
 
                 AppLog.d(TAG, "Camera initialized with " + configuredCameraCount + " cameras");
                 //Toast.makeText(this, "已打开 " + configuredCameraCount + " 个摄像头", Toast.LENGTH_SHORT).show();
@@ -1861,6 +1932,16 @@ public class MainActivity extends AppCompatActivity {
         
         AppLog.d(TAG, "亮屏后将在10秒后恢复录制...");
         
+        // 如果摄像头已关闭，先重新打开
+        if (cameraManager != null && !cameraManager.hasConnectedCameras()) {
+            AppLog.d(TAG, "摄像头已关闭，先重新打开摄像头");
+            try {
+                cameraManager.openAllCameras();
+            } catch (Exception e) {
+                AppLog.e(TAG, "重新打开摄像头失败: " + e.getMessage(), e);
+            }
+        }
+        
         screenOnStartRunnable = () -> {
             // 再次检查是否仍然亮屏
             if (isScreenOff) {
@@ -1891,7 +1972,23 @@ public class MainActivity extends AppCompatActivity {
             
             // 检查摄像头是否就绪
             if (cameraManager == null || !cameraManager.hasConnectedCameras()) {
-                AppLog.w(TAG, "摄像头未就绪，无法恢复录制");
+                AppLog.w(TAG, "摄像头未就绪，尝试重新打开...");
+                // 再次尝试打开摄像头
+                if (cameraManager != null) {
+                    try {
+                        cameraManager.openAllCameras();
+                        // 延迟2秒后再次尝试恢复录制
+                        screenStateHandler.postDelayed(() -> {
+                            if (!isScreenOff && !isRecording && cameraManager.hasConnectedCameras()) {
+                                AppLog.d(TAG, "摄像头已就绪，开始恢复录制");
+                                startRecording();
+                                Toast.makeText(MainActivity.this, "已自动恢复录制", Toast.LENGTH_SHORT).show();
+                            }
+                        }, 2000);
+                    } catch (Exception e) {
+                        AppLog.e(TAG, "打开摄像头失败: " + e.getMessage(), e);
+                    }
+                }
                 return;
             }
             
@@ -2024,7 +2121,7 @@ public class MainActivity extends AppCompatActivity {
         // 停止前台服务（确保清理）
         CameraForegroundService.stop(this);
 
-        // 停止钉钉服务
+        // 停止远程查看服务
         if (dingTalkStreamManager != null) {
             dingTalkStreamManager.stop();
         }
@@ -2385,14 +2482,14 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         } else {
-            AppLog.e(TAG, "钉钉服务未启动");
+            AppLog.e(TAG, "远程查看服务未启动");
             
-            // 即使钉钉服务未启动，也要传输文件到最终存储位置（保留视频）
+            // 即使远程查看服务未启动，也要传输文件到最终存储位置（保留视频）
             if (uploadFromTempDir) {
                 transferTempFilesToFinalDir(uploadedFiles);
             }
             
-            sendErrorToRemote("钉钉服务未启动");
+            sendErrorToRemote("远程查看服务未启动");
             returnToBackgroundIfRemoteWakeUp();
         }
     }
@@ -2508,8 +2605,8 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         } else {
-            AppLog.e(TAG, "钉钉服务未启动");
-            sendErrorToRemote("钉钉服务未启动");
+            AppLog.e(TAG, "远程查看服务未启动");
+            sendErrorToRemote("远程查看服务未启动");
             returnToBackgroundIfRemoteWakeUp();
         }
     }
@@ -2570,7 +2667,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * 启动钉钉服务
+     * 启动远程查看服务
      */
     public void startDingTalkService() {
         if (!dingTalkConfig.isConfigured()) {
@@ -2579,11 +2676,11 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (dingTalkStreamManager != null && dingTalkStreamManager.isRunning()) {
-            AppLog.d(TAG, "钉钉服务已在运行");
+            AppLog.d(TAG, "远程查看服务已在运行");
             return;
         }
 
-        AppLog.d(TAG, "正在启动钉钉服务...");
+        AppLog.d(TAG, "正在启动远程查看服务...");
 
         // 创建 API 客户端
         dingTalkApiClient = new DingTalkApiClient(dingTalkConfig);
@@ -2593,8 +2690,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onConnected() {
                 runOnUiThread(() -> {
-                    AppLog.d(TAG, "钉钉服务已连接");
-                    Toast.makeText(MainActivity.this, "钉钉服务已启动", Toast.LENGTH_SHORT).show();
+                    AppLog.d(TAG, "远程查看服务已连接");
+                    Toast.makeText(MainActivity.this, "远程查看已启动", Toast.LENGTH_SHORT).show();
                     // 通知 RemoteViewFragment 更新 UI
                     updateRemoteViewFragmentUI();
                 });
@@ -2603,7 +2700,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onDisconnected() {
                 runOnUiThread(() -> {
-                    AppLog.d(TAG, "钉钉服务已断开");
+                    AppLog.d(TAG, "远程查看服务已断开");
                     // 通知 RemoteViewFragment 更新 UI
                     updateRemoteViewFragmentUI();
                 });
@@ -2612,7 +2709,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
-                    AppLog.e(TAG, "钉钉服务连接失败: " + error);
+                    AppLog.e(TAG, "远程查看服务连接失败: " + error);
                     Toast.makeText(MainActivity.this, "连接失败: " + error, Toast.LENGTH_LONG).show();
                     // 通知 RemoteViewFragment 更新 UI
                     updateRemoteViewFragmentUI();
@@ -2631,6 +2728,26 @@ public class MainActivity extends AppCompatActivity {
             public void onPhotoCommand(String conversationId, String conversationType, String userId) {
                 startRemotePhoto(conversationId, conversationType, userId);
             }
+
+            @Override
+            public String getStatusInfo() {
+                return buildStatusInfo();
+            }
+
+            @Override
+            public String onStartRecordingCommand() {
+                return handleStartRecordingCommand();
+            }
+
+            @Override
+            public String onStopRecordingCommand() {
+                return handleStopRecordingCommand();
+            }
+
+            @Override
+            public String onExitCommand(boolean confirmed) {
+                return handleExitCommand(confirmed);
+            }
         };
 
         // 创建并启动 Stream 管理器（启用自动重连）
@@ -2639,25 +2756,178 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * 停止钉钉服务
+     * 停止远程查看服务
      */
     public void stopDingTalkService() {
         if (dingTalkStreamManager != null) {
-            AppLog.d(TAG, "正在停止钉钉服务...");
+            AppLog.d(TAG, "正在停止远程查看服务...");
             dingTalkStreamManager.stop();
             dingTalkStreamManager = null;
             dingTalkApiClient = null;
-            Toast.makeText(this, "钉钉服务已停止", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "远程查看服务已停止", Toast.LENGTH_SHORT).show();
             // 通知 RemoteViewFragment 更新 UI
             updateRemoteViewFragmentUI();
         }
     }
 
     /**
-     * 获取钉钉服务运行状态
+     * 获取远程查看服务运行状态
      */
     public boolean isDingTalkServiceRunning() {
         return dingTalkStreamManager != null && dingTalkStreamManager.isRunning();
+    }
+
+    /**
+     * 构建应用状态信息（用于远程状态查询）
+     */
+    private String buildStatusInfo() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("📊 EVCam 状态\n");
+        sb.append("━━━━━━━━━━━━━━━━\n");
+        
+        try {
+            // 录制状态
+            if (isRecording) {
+                sb.append("🎬 录制: 正在录制");
+                if (isRemoteRecording) {
+                    sb.append("（远程）");
+                }
+                sb.append("\n");
+                
+                // 录制时长
+                if (recordingStartTime > 0) {
+                    long elapsedMs = System.currentTimeMillis() - recordingStartTime;
+                    long totalSeconds = elapsedMs / 1000;
+                    long minutes = totalSeconds / 60;
+                    long seconds = totalSeconds % 60;
+                    sb.append("⏱️ 时长: ").append(String.format("%02d:%02d", minutes, seconds));
+                    sb.append(" / 第").append(currentSegmentCount).append("段\n");
+                }
+            } else {
+                sb.append("🎬 录制: 未录制\n");
+            }
+            
+            // 摄像头状态
+            if (cameraManager != null) {
+                int connectedCount = cameraManager.getConnectedCameraCount();
+                int totalCount = appConfig.getCameraCount();
+                sb.append("📷 摄像头: ").append(connectedCount).append("/").append(totalCount).append(" 已连接\n");
+            } else {
+                sb.append("📷 摄像头: 未初始化\n");
+            }
+            
+            // 存储信息（简短版）
+            try {
+                boolean useExternal = appConfig.isUsingExternalSdCard();
+                java.io.File storageDir = useExternal ? 
+                        StorageHelper.getExternalSdCardRoot(this) : 
+                        android.os.Environment.getExternalStorageDirectory();
+                if (storageDir != null && storageDir.exists()) {
+                    long available = StorageHelper.getAvailableSpace(storageDir);
+                    String availableStr = StorageHelper.formatSize(available);
+                    sb.append("💾 存储: ").append(useExternal ? "U盘" : "内部");
+                    sb.append("（剩余 ").append(availableStr).append("）\n");
+                }
+            } catch (Exception e) {
+                // 忽略存储获取错误
+            }
+            
+            // 应用状态
+            sb.append("📱 应用: ").append(isInBackground ? "后台" : "前台").append("\n");
+            
+            // 分隔线
+            sb.append("━━━━━━━━━━━━━━━━\n");
+            
+            // 设置摘要
+            sb.append("⚙️ 设置:\n");
+            
+            // 自动录制
+            sb.append("• 自动录制: ").append(appConfig.isAutoStartRecording() ? "开" : "关");
+            if (appConfig.isAutoStartRecording() && appConfig.isScreenOffRecordingEnabled()) {
+                sb.append("+息屏");
+            }
+            sb.append("\n");
+            
+            // 分段时长
+            int segmentMin = appConfig.getSegmentDurationMinutes();
+            sb.append("• 分段时长: ").append(segmentMin).append("分钟\n");
+            
+            // 车型
+            sb.append("• 车型: ").append(appConfig.getCarModel());
+            
+        } catch (Exception e) {
+            AppLog.e(TAG, "构建状态信息失败", e);
+            sb.append("获取状态信息失败: ").append(e.getMessage());
+        }
+        
+        return sb.toString();
+    }
+
+    /**
+     * 处理启动录制指令
+     * 唤醒到前台并开始持续录制（等同点击录制按钮）
+     */
+    private String handleStartRecordingCommand() {
+        AppLog.d(TAG, "处理启动录制指令");
+        
+        // 如果已经在录制，返回提示
+        if (isRecording) {
+            return "⚠️ 已在录制中，无需重复启动";
+        }
+        
+        // 使用 WakeUpHelper 唤醒应用并启动录制
+        // 这确保即使在后台也能正确打开摄像头并录制
+        WakeUpHelper.launchForStartRecording(this);
+        
+        return "▶️ 正在启动录制...\n\n发送「状态」查看录制状态\n发送「结束录制」停止录制";
+    }
+
+    /**
+     * 处理结束录制指令
+     * 停止录制并退到后台
+     */
+    private String handleStopRecordingCommand() {
+        AppLog.d(TAG, "处理结束录制指令");
+        
+        // 如果没有在录制，返回提示
+        if (!isRecording) {
+            return "⚠️ 当前未在录制";
+        }
+        
+        // 记录录制时长用于返回信息
+        String durationInfo = "";
+        if (recordingStartTime > 0) {
+            long elapsedMs = System.currentTimeMillis() - recordingStartTime;
+            long totalSeconds = elapsedMs / 1000;
+            long minutes = totalSeconds / 60;
+            long seconds = totalSeconds % 60;
+            durationInfo = String.format("，共录制 %02d:%02d", minutes, seconds);
+        }
+        
+        // 使用 WakeUpHelper 确保应用在前台后停止录制
+        // 然后会自动退到后台
+        WakeUpHelper.launchForStopRecording(this);
+        
+        return "⏹️ 录制已停止" + durationInfo + "\n应用将退到后台";
+    }
+
+    /**
+     * 处理退出指令
+     */
+    private String handleExitCommand(boolean confirmed) {
+        AppLog.d(TAG, "处理退出指令，confirmed=" + confirmed);
+        
+        if (!confirmed) {
+            return "⚠️ 确认要退出 EVCam 吗？\n发送「确认退出」执行退出操作。";
+        }
+        
+        // 在主线程中执行退出
+        runOnUiThread(() -> {
+            AppLog.d(TAG, "执行退出操作...");
+            exitApp();
+        });
+        
+        return "👋 EVCam 正在退出...";
     }
 
     /**
@@ -2817,7 +3087,7 @@ public class MainActivity extends AppCompatActivity {
         // 停止前台服务（确保清理）
         CameraForegroundService.stop(this);
 
-        // 停止钉钉服务
+        // 停止远程查看服务
         if (dingTalkStreamManager != null) {
             dingTalkStreamManager.stop();
         }
@@ -2867,5 +3137,139 @@ public class MainActivity extends AppCompatActivity {
             moveTaskToBack(true);
             AppLog.d(TAG, "Moved to background via back button");
         }
-     }
+    }
+    
+    // ==================== 亮度/降噪调节相关方法 ====================
+    
+    /**
+     * 获取亮度/降噪调节管理器
+     * @return ImageAdjustManager 实例
+     */
+    public ImageAdjustManager getImageAdjustManager() {
+        return imageAdjustManager;
+    }
+    
+    /**
+     * 注册摄像头到亮度/降噪调节管理器
+     */
+    private void registerCamerasToImageAdjustManager() {
+        if (imageAdjustManager == null || cameraManager == null) {
+            return;
+        }
+        
+        // 清空之前注册的摄像头
+        imageAdjustManager.clearCameras();
+        
+        // 注册各位置的摄像头
+        String[] positions = {"front", "back", "left", "right"};
+        for (String position : positions) {
+            SingleCamera camera = cameraManager.getCamera(position);
+            if (camera != null) {
+                imageAdjustManager.registerCamera(camera);
+            }
+        }
+        
+        // 如果启用了亮度/降噪调节，设置各摄像头的启用状态
+        boolean enabled = appConfig.isImageAdjustEnabled();
+        if (enabled) {
+            setImageAdjustEnabled(true);
+        }
+        
+        AppLog.d(TAG, "Registered cameras to ImageAdjustManager, adjust enabled: " + enabled);
+    }
+    
+    /**
+     * 设置亮度/降噪调节启用状态
+     * @param enabled true 表示启用
+     */
+    public void setImageAdjustEnabled(boolean enabled) {
+        if (cameraManager == null) {
+            return;
+        }
+        
+        // 设置各摄像头的启用状态
+        String[] positions = {"front", "back", "left", "right"};
+        for (String position : positions) {
+            SingleCamera camera = cameraManager.getCamera(position);
+            if (camera != null) {
+                camera.setImageAdjustEnabled(enabled);
+            }
+        }
+        
+        // 如果启用，立即应用当前配置的参数
+        if (enabled && imageAdjustManager != null) {
+            // 延迟执行，确保摄像头会话已经配置好
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                imageAdjustManager.updateAllCameras();
+            }, 500);
+        }
+        
+        AppLog.d(TAG, "Image adjust enabled: " + enabled);
+    }
+    
+    /**
+     * 显示亮度/降噪调节悬浮窗
+     * 悬浮窗由 MainActivity 管理，这样即使退出设置页面也能保持显示
+     */
+    public void showImageAdjustFloatingWindow() {
+        // 检查悬浮窗权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !android.provider.Settings.canDrawOverlays(this)) {
+            Toast.makeText(this, "需要悬浮窗权限才能打开调节窗口", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    android.net.Uri.parse("package:" + getPackageName()));
+            startActivityForResult(intent, REQUEST_OVERLAY_PERMISSION);
+            return;
+        }
+        
+        if (imageAdjustManager == null) {
+            Toast.makeText(this, "摄像头未就绪，无法打开调节窗口", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // 关闭之前的悬浮窗（如果有）
+        if (imageAdjustFloatingWindow != null && imageAdjustFloatingWindow.isShowing()) {
+            imageAdjustFloatingWindow.dismiss();
+        }
+        
+        // 创建并显示悬浮窗
+        imageAdjustFloatingWindow = new ImageAdjustFloatingWindow(this, imageAdjustManager);
+        imageAdjustFloatingWindow.setOnDismissListener(() -> {
+            AppLog.d(TAG, "Image adjust floating window dismissed");
+        });
+        imageAdjustFloatingWindow.show();
+        
+        AppLog.d(TAG, "Image adjust floating window shown");
+    }
+    
+    /**
+     * 关闭亮度/降噪调节悬浮窗
+     */
+    public void dismissImageAdjustFloatingWindow() {
+        if (imageAdjustFloatingWindow != null && imageAdjustFloatingWindow.isShowing()) {
+            imageAdjustFloatingWindow.dismiss();
+            imageAdjustFloatingWindow = null;
+        }
+    }
+    
+    /**
+     * 检查亮度/降噪调节悬浮窗是否正在显示
+     */
+    public boolean isImageAdjustFloatingWindowShowing() {
+        return imageAdjustFloatingWindow != null && imageAdjustFloatingWindow.isShowing();
+    }
+    
+    private static final int REQUEST_OVERLAY_PERMISSION = 1001;
+    
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_OVERLAY_PERMISSION) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && android.provider.Settings.canDrawOverlays(this)) {
+                // 权限已授予，打开悬浮窗
+                showImageAdjustFloatingWindow();
+            } else {
+                Toast.makeText(this, "悬浮窗权限未授予", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
 }

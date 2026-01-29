@@ -1,9 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    增强版辅助服务配置
+    目的：提高应用进程优先级，增强保活效果
+    
+    关键配置说明：
+    - packageNames="@null" : 监控全局窗口变化，获得更高系统优先级
+    - canRetrieveWindowContent="true" : 允许获取窗口内容，提升服务等级
+    - canPerformGestures="true" : 允许执行手势，进一步提升权限等级
+    - accessibilityFlags 组合 : 获取完整的窗口交互权限
+    
+    注意：服务代码中不会实际读取或操作用户界面，仅利用权限提升进程优先级
+-->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeAllMask"
-    android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagDefault"
-    android:canRetrieveWindowContent="false"
     android:description="@string/accessibility_service_description"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged|typeWindowContentChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagRetrieveInteractiveWindows|flagReportViewIds|flagDefault"
+    android:canRetrieveWindowContent="true"
+    android:canPerformGestures="true"
     android:notificationTimeout="100"
-    android:packageNames="com.kooo.evcam" />
+    android:packageNames="@null" />

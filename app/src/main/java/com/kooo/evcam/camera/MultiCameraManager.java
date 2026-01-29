@@ -254,8 +254,9 @@ public class MultiCameraManager {
                                     sessionTimeoutRunnable = null;
                                 }
                                 pendingRecordingStart = null;
-                                // 在主线程上执行录制启动，确保线程安全
-                                mainHandler.post(recordingTask);
+                                // 延迟 300ms 再启动录制，让 Camera Session 稳定
+                                // 某些车机设备需要这个延迟才能正确将帧发送到 MediaRecorder Surface
+                                mainHandler.postDelayed(recordingTask, 300);
                             }
                             sessionConfiguredCount = 0;
                             expectedSessionCount = 0;
@@ -297,8 +298,8 @@ public class MultiCameraManager {
                                     sessionTimeoutRunnable = null;
                                 }
                                 pendingRecordingStart = null;
-                                // 在主线程上执行录制启动
-                                mainHandler.post(recordingTask);
+                                // 延迟 300ms 再启动录制，让 Camera Session 稳定
+                                mainHandler.postDelayed(recordingTask, 300);
                             }
                             sessionConfiguredCount = 0;
                             expectedSessionCount = 0;

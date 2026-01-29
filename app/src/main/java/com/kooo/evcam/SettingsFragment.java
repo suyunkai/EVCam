@@ -21,6 +21,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
@@ -44,8 +45,9 @@ public class SettingsFragment extends Fragment {
     private SwitchMaterial autoStartRecordingSwitch;
     private SwitchMaterial screenOffRecordingSwitch;
     private LinearLayout screenOffRecordingLayout;
-    private SwitchMaterial keepAliveSwitch;
-    private SwitchMaterial preventSleepSwitch;
+    // 定时保活和防止休眠已改为始终开启，无需用户设置（车机必需）
+    // private SwitchMaterial keepAliveSwitch;
+    // private SwitchMaterial preventSleepSwitch;
     private SwitchMaterial recordingStatsSwitch;
     private SwitchMaterial timestampWatermarkSwitch;
     private AppConfig appConfig;
@@ -63,7 +65,7 @@ public class SettingsFragment extends Fragment {
     // 车型配置相关
     private Spinner carModelSpinner;
     private Button customCameraConfigButton;
-    private static final String[] CAR_MODEL_OPTIONS = {"银河E5", "银河L6/L7", "银河L7-多按钮", "手机", "自定义车型"};
+    private static final String[] CAR_MODEL_OPTIONS = {"银河E5", "银河E5-多按钮", "银河L6/L7", "银河L7-多按钮", "手机", "自定义车型"};
     private boolean isInitializingCarModel = false;
     private String lastAppliedCarModel = null;
     
@@ -302,51 +304,31 @@ public class SettingsFragment extends Fragment {
             }
         });
 
-        // 初始化保活服务开关
-        keepAliveSwitch = view.findViewById(R.id.switch_keep_alive);
-        if (getContext() != null && appConfig != null) {
-            keepAliveSwitch.setChecked(appConfig.isKeepAliveEnabled());
+        // 定时保活已改为始终开启（车机必需），无需设置开关
+        // 隐藏定时保活开关
+        View keepAliveSwitch = view.findViewById(R.id.switch_keep_alive);
+        if (keepAliveSwitch != null) {
+            View parent = (View) keepAliveSwitch.getParent();
+            if (parent != null) {
+                parent.setVisibility(View.GONE);
+            }
+        }
+        // 确保定时保活任务已启动
+        if (getContext() != null) {
+            KeepAliveManager.startKeepAliveWork(getContext());
         }
 
-        // 设置保活服务开关监听器
-        keepAliveSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (getContext() != null && appConfig != null) {
-                appConfig.setKeepAliveEnabled(isChecked);
-                
-                if (isChecked) {
-                    KeepAliveManager.startKeepAliveWork(getContext());
-                    Toast.makeText(getContext(), "定时保活任务已启动", Toast.LENGTH_SHORT).show();
-                    AppLog.d("SettingsFragment", "定时保活任务已启动");
-                } else {
-                    KeepAliveManager.stopKeepAliveWork(getContext());
-                    Toast.makeText(getContext(), "定时保活任务已停止", Toast.LENGTH_SHORT).show();
-                    AppLog.d("SettingsFragment", "定时保活任务已停止");
-                }
+        // 防止休眠已改为始终开启（车机必需），无需设置开关
+        // WakeLock 在 CameraForegroundService 中自动获取
+        // 隐藏防止休眠开关
+        View preventSleepLayout = view.findViewById(R.id.switch_prevent_sleep);
+        if (preventSleepLayout != null) {
+            // 隐藏整个布局（包括开关和说明文字）
+            View parent = (View) preventSleepLayout.getParent();
+            if (parent != null) {
+                parent.setVisibility(View.GONE);
             }
-        });
-
-        // 初始化防止休眠开关
-        preventSleepSwitch = view.findViewById(R.id.switch_prevent_sleep);
-        if (getContext() != null && appConfig != null) {
-            preventSleepSwitch.setChecked(appConfig.isPreventSleepEnabled());
         }
-
-        // 设置防止休眠开关监听器
-        preventSleepSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (getContext() != null && appConfig != null) {
-                appConfig.setPreventSleepEnabled(isChecked);
-                
-                if (isChecked) {
-                    WakeUpHelper.acquirePersistentWakeLock(getContext());
-                    Toast.makeText(getContext(), "防止休眠已启用，系统将不会进入深度休眠", Toast.LENGTH_SHORT).show();
-                    AppLog.d("SettingsFragment", "防止休眠已启用");
-                } else {
-                    WakeUpHelper.releasePersistentWakeLock();
-                    Toast.makeText(getContext(), "防止休眠已禁用，系统可正常休眠", Toast.LENGTH_SHORT).show();
-                    AppLog.d("SettingsFragment", "防止休眠已禁用");
-                }
-            }
-        });
 
         // 初始化悬浮窗设置
         initFloatingWindowSettings(view);
@@ -812,12 +794,15 @@ public class SettingsFragment extends Fragment {
                     newModel = AppConfig.CAR_MODEL_GALAXY_E5;
                     modelName = "银河E5";
                 } else if (position == 1) {
+                    newModel = AppConfig.CAR_MODEL_E5_MULTI;
+                    modelName = "银河E5-多按钮";
+                } else if (position == 2) {
                     newModel = AppConfig.CAR_MODEL_L7;
                     modelName = "银河L6/L7";
-                } else if (position == 2) {
+                } else if (position == 3) {
                     newModel = AppConfig.CAR_MODEL_L7_MULTI;
                     modelName = "银河L7-多按钮";
-                } else if (position == 3) {
+                } else if (position == 4) {
                     newModel = AppConfig.CAR_MODEL_PHONE;
                     modelName = "手机";
                 } else {
@@ -826,7 +811,7 @@ public class SettingsFragment extends Fragment {
                 }
 
                 // 仅自定义车型显示配置按钮
-                updateCustomConfigButtonVisibility(position == 4);
+                updateCustomConfigButtonVisibility(position == 5);
 
                 if (isInitializingCarModel) {
                     return;
@@ -857,14 +842,16 @@ public class SettingsFragment extends Fragment {
         
         String currentModel = appConfig.getCarModel();
         int selectedIndex = 0;
-        if (AppConfig.CAR_MODEL_L7.equals(currentModel)) {
+        if (AppConfig.CAR_MODEL_E5_MULTI.equals(currentModel)) {
             selectedIndex = 1;
-        } else if (AppConfig.CAR_MODEL_L7_MULTI.equals(currentModel)) {
+        } else if (AppConfig.CAR_MODEL_L7.equals(currentModel)) {
             selectedIndex = 2;
-        } else if (AppConfig.CAR_MODEL_PHONE.equals(currentModel)) {
+        } else if (AppConfig.CAR_MODEL_L7_MULTI.equals(currentModel)) {
             selectedIndex = 3;
-        } else if (AppConfig.CAR_MODEL_CUSTOM.equals(currentModel)) {
+        } else if (AppConfig.CAR_MODEL_PHONE.equals(currentModel)) {
             selectedIndex = 4;
+        } else if (AppConfig.CAR_MODEL_CUSTOM.equals(currentModel)) {
+            selectedIndex = 5;
         }
         carModelSpinner.setSelection(selectedIndex);
         
@@ -1411,7 +1398,7 @@ public class SettingsFragment extends Fragment {
             sb.append(line).append("\n");
         }
         
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext())
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext(), R.style.Theme_Cam_MaterialAlertDialog)
                 .setTitle("存储设备检测信息")
                 .setMessage(sb.toString())
                 .setPositiveButton("确定", null)
@@ -1437,6 +1424,10 @@ public class SettingsFragment extends Fragment {
         android.widget.EditText input = new android.widget.EditText(getContext());
         input.setHint("例如: /storage/ABCD-1234");
         input.setSingleLine(true);
+        // 适配夜间模式
+        input.setTextColor(ContextCompat.getColor(getContext(), R.color.text_primary));
+        input.setHintTextColor(ContextCompat.getColor(getContext(), R.color.text_secondary));
+        input.setBackgroundResource(R.drawable.edit_text_background);
         
         // 显示当前设置的路径
         String currentPath = appConfig.getCustomSdCardPath();
@@ -1454,7 +1445,7 @@ public class SettingsFragment extends Fragment {
         input.setLayoutParams(params);
         container.addView(input);
         
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext())
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext(), R.style.Theme_Cam_MaterialAlertDialog)
                 .setTitle("手动设置U盘路径")
                 .setMessage("如果自动检测失败，你可以手动输入U盘的挂载路径。\n\n" +
                         "常见格式：/storage/XXXX-XXXX（十六进制ID）\n\n" +
@@ -1695,8 +1686,12 @@ public class SettingsFragment extends Fragment {
         inputEditText.setInputType(InputType.TYPE_CLASS_TEXT);
         inputEditText.setHint("例如：张三的银河E5");
         inputEditText.setPadding(48, 32, 48, 32);
+        // 适配夜间模式
+        inputEditText.setTextColor(ContextCompat.getColor(getContext(), R.color.text_primary));
+        inputEditText.setHintTextColor(ContextCompat.getColor(getContext(), R.color.text_secondary));
+        inputEditText.setBackgroundResource(R.drawable.edit_text_background);
         
-        new AlertDialog.Builder(getContext())
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext(), R.style.Theme_Cam_MaterialAlertDialog)
                 .setTitle("设置设备识别名称")
                 .setMessage("请输入一个便于识别的名称，用于区分不同用户的日志：")
                 .setView(inputEditText)
@@ -1719,7 +1714,7 @@ public class SettingsFragment extends Fragment {
     private void showNicknameConfirmDialog(String nickname) {
         if (getContext() == null) return;
         
-        new AlertDialog.Builder(getContext())
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext(), R.style.Theme_Cam_MaterialAlertDialog)
                 .setTitle("确认设备名称")
                 .setMessage("您输入的设备名称是：\n\n「" + nickname + "」\n\n确认使用此名称吗？")
                 .setPositiveButton("确认", (dialog, which) -> {
@@ -1747,30 +1742,34 @@ public class SettingsFragment extends Fragment {
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(48, 24, 48, 8);
         
-        // 名称显示
+        // 名称显示 - 适配夜间模式
         TextView nicknameLabel = new TextView(getContext());
         nicknameLabel.setText("上传身份：「" + nickname + "」");
         nicknameLabel.setTextSize(16);
         nicknameLabel.setPadding(0, 0, 0, 24);
+        nicknameLabel.setTextColor(ContextCompat.getColor(getContext(), R.color.text_primary));
         layout.addView(nicknameLabel);
         
-        // 问题描述标签
+        // 问题描述标签 - 适配夜间模式
         TextView descLabel = new TextView(getContext());
         descLabel.setText("问题描述：");
         descLabel.setTextSize(14);
         descLabel.setPadding(0, 0, 0, 8);
+        descLabel.setTextColor(ContextCompat.getColor(getContext(), R.color.text_secondary));
         layout.addView(descLabel);
         
-        // 问题描述输入框
+        // 问题描述输入框 - 适配夜间模式
         EditText inputEditText = new EditText(getContext());
         inputEditText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         inputEditText.setMinLines(3);
         inputEditText.setMaxLines(6);
         inputEditText.setHint("请描述遇到的问题...");
-        inputEditText.setBackgroundResource(android.R.drawable.edit_text);
+        inputEditText.setTextColor(ContextCompat.getColor(getContext(), R.color.text_primary));
+        inputEditText.setHintTextColor(ContextCompat.getColor(getContext(), R.color.text_secondary));
+        inputEditText.setBackgroundResource(R.drawable.edit_text_background);
         layout.addView(inputEditText);
         
-        new AlertDialog.Builder(getContext())
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(getContext(), R.style.Theme_Cam_MaterialAlertDialog)
                 .setTitle("上传日志")
                 .setView(layout)
                 .setPositiveButton("上传", (dialog, which) -> {

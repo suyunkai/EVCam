@@ -31,6 +31,8 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- 开机自启动权限 -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- 请求电池优化白名单（阻止休眠的关键） -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- 声明使用摄像头功能 -->
     <uses-feature android:name="android.hardware.camera" android:required="true" />
@@ -46,6 +48,14 @@
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.Cam">
+
+        <!-- 高优先级保活 Provider：在应用启动的最早阶段初始化服务 -->
+        <!-- initOrder="2147483647" 确保最先执行（参考保活效果好的应用） -->
+        <provider
+            android:name=".KeepAliveProvider"
+            android:authorities="${applicationId}.keepalive"
+            android:exported="false"
+            android:initOrder="2147483647" />
 
         <!-- FileProvider for sharing video files -->
         <provider
@@ -123,6 +133,24 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
                 <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 保活广播接收器：监听多种系统事件确保服务运行 -->
+        <!-- 注意：TIME_TICK 只能动态注册，这里注册其他可静态注册的广播 -->
+        <receiver
+            android:name=".KeepAliveReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter android:priority="1000">
+                <!-- 用户解锁屏幕 -->
+                <action android:name="android.intent.action.USER_PRESENT" />
+                <!-- 屏幕亮起 -->
+                <action android:name="android.intent.action.SCREEN_ON" />
+                <!-- 网络状态变化 -->
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+                <!-- 自定义保活广播 -->
+                <action android:name="com.kooo.evcam.ACTION_KEEP_ALIVE" />
             </intent-filter>
         </receiver>
     </application>
