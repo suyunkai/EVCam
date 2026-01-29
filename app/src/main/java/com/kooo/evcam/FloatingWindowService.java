@@ -433,13 +433,38 @@ public class FloatingWindowService extends Service {
     
     /**
      * 打开应用
+     * 双保险策略：同时使用 moveTaskToFront 和 startActivity
+     * 因为 moveTaskToFront 可能静默失败（不抛异常但不生效）
      */
     private void openApp() {
         AppLog.d(TAG, "点击悬浮窗，打开应用");
         
+        boolean moveToFrontAttempted = false;
+        
+        // 尝试使用 moveTaskToFront 快速恢复
+        android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
+        if (am != null) {
+            java.util.List<android.app.ActivityManager.AppTask> tasks = am.getAppTasks();
+            if (tasks != null && !tasks.isEmpty()) {
+                try {
+                    tasks.get(0).moveToFront();
+                    moveToFrontAttempted = true;
+                    AppLog.d(TAG, "已尝试 moveTaskToFront");
+                } catch (Exception e) {
+                    AppLog.w(TAG, "moveTaskToFront 异常: " + e.getMessage());
+                }
+            }
+        }
+        
+        // 始终同时发送 startActivity 作为备份
+        // moveTaskToFront 可能静默失败，startActivity 确保 Intent 被系统处理
         Intent intent = new Intent(this, MainActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK 
+                | Intent.FLAG_ACTIVITY_SINGLE_TOP 
+                | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivity(intent);
+        
+        AppLog.d(TAG, "已发送 startActivity" + (moveToFrontAttempted ? "（双保险模式）" : ""));
     }
     
     /**

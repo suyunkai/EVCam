@@ -23,6 +23,7 @@
             <item
                 android:id="@+id/nav_remote_view"
                 android:icon="@drawable/ic_nav_remote"
+                android:checkable="true"
                 android:title="远程查看" />
         </menu>
     </item>
@@ -33,6 +34,7 @@
             <item
                 android:id="@+id/nav_settings"
                 android:icon="@drawable/ic_nav_settings"
+                android:checkable="true"
                 android:title="软件设置" />
         </menu>
     </item>

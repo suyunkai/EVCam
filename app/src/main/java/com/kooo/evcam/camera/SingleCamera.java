@@ -367,17 +367,40 @@ public class SingleCamera {
 
     /**
      * 停止后台线程
+     * 添加超时保护和完善的清理逻辑
      */
+    private static final long THREAD_JOIN_TIMEOUT_MS = 2000;  // 2秒超时
+    
     private void stopBackgroundThread() {
-        if (backgroundThread != null) {
-            backgroundThread.quitSafely();
-            try {
-                backgroundThread.join();
-                backgroundThread = null;
-                backgroundHandler = null;
-            } catch (InterruptedException e) {
-                AppLog.e(TAG, "Error stopping background thread", e);
+        if (backgroundThread == null) {
+            return;
+        }
+        
+        backgroundThread.quitSafely();
+        
+        try {
+            // 使用超时的 join，避免无限阻塞
+            backgroundThread.join(THREAD_JOIN_TIMEOUT_MS);
+            
+            // 检查线程是否仍在运行
+            if (backgroundThread.isAlive()) {
+                AppLog.w(TAG, "Camera " + cameraId + " background thread did not terminate in time, interrupting");
+                backgroundThread.interrupt();
+                // 再给一次机会（短超时）
+                backgroundThread.join(500);
+                
+                if (backgroundThread.isAlive()) {
+                    AppLog.e(TAG, "Camera " + cameraId + " background thread still alive after interrupt");
+                }
             }
+        } catch (InterruptedException e) {
+            AppLog.e(TAG, "Camera " + cameraId + " interrupted while stopping background thread", e);
+            // 恢复中断标志，让上层知道发生了中断
+            Thread.currentThread().interrupt();
+        } finally {
+            // 无论成功与否都清理引用，避免内存泄漏
+            backgroundThread = null;
+            backgroundHandler = null;
         }
     }
 

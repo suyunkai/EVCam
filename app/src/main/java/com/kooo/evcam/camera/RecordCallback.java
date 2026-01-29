@@ -54,4 +54,13 @@ public interface RecordCallback {
      * @param reason 重建原因（"no_write" 或 "first_write_timeout"）
      */
     void onRecordingRebuildRequested(String cameraId, String reason);
+
+    /**
+     * 首次数据写入成功
+     * 当检测到录制器首次成功写入数据时调用
+     * 用于通知外部录制已真正开始，可以开始计时（分段计时、钉钉录制计时等）
+     * 
+     * @param cameraId 相机ID
+     */
+    void onFirstDataWritten(String cameraId);
 }

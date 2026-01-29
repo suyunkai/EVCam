@@ -7,6 +7,7 @@ import android.media.MediaFormat;
 import android.media.MediaMuxer;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.view.Surface;
 
 import com.kooo.evcam.AppLog;
@@ -19,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 使用 MediaCodec + MediaMuxer 进行视频编码和录制
@@ -65,9 +67,12 @@ public class CodecVideoRecorder {
     private Handler encoderHandler;
 
     // 状态
-    private volatile boolean isRecording = false;
+    private final AtomicBoolean isRecording = new AtomicBoolean(false);  // 使用 AtomicBoolean 确保线程安全
     private volatile boolean isReleased = false;
     private String currentFilePath;
+    
+    // 缓存的录制 Surface，避免重复创建导致内存泄漏
+    private Surface cachedRecordSurface = null;
     
     // 时间戳基准（用于计算相对时间戳，供输入端使用）
     private long firstFrameTimestampNs = -1;
@@ -81,18 +86,28 @@ public class CodecVideoRecorder {
 
     // 分段录制相关
     private long segmentDurationMs = 60000;  // 分段时长，默认1分钟，可通过 setSegmentDuration 配置
-    private static final long SEGMENT_DURATION_COMPENSATION_MS = 1000;  // 分段时长补偿（补偿编码器初始化和停止延迟）
+    private static final long SEGMENT_DURATION_COMPENSATION_MS = 0;  // 分段时长补偿（H3修复后定时器更精确，不再需要补偿）
     private static final long MIN_VALID_FILE_SIZE = 10 * 1024;  // 最小有效文件大小 10KB
+    
+    // 使用独立的后台线程处理分段和文件 I/O 操作，避免阻塞主线程导致 ANR
+    private HandlerThread segmentThread;
     private Handler segmentHandler;
+    
     private Runnable segmentRunnable;
     private int segmentIndex = 0;
     private String saveDirectory;
     private String cameraPosition;
     private long lastFileSize = 0;
     private static final long FILE_SIZE_CHECK_INTERVAL_MS = 5000;
+    private static final long FIRST_CHECK_DELAY_MS = 500;  // 首次检查延迟（更快检测首次写入）
     private Runnable fileSizeCheckRunnable;
     private long recordedFrameCount = 0;
     private List<String> recordedFilePaths = new ArrayList<>();  // 本次录制的所有文件路径
+    
+    // 首次写入检测（与 VideoRecorder 保持一致）
+    private static final long FIRST_WRITE_TIMEOUT_MS = 10000;  // 首次写入超时（10秒）
+    private boolean hasFirstWrite = false;  // 是否已有首次写入
+    private Runnable firstWriteTimeoutRunnable;  // 首次写入超时检查任务
     
     // 快速恢复机制
     private static final long RECOVERY_RETRY_INTERVAL_MS = 5000;  // 恢复重试间隔：5秒
@@ -120,7 +135,10 @@ public class CodecVideoRecorder {
         this.cameraId = cameraId;
         this.width = width;
         this.height = height;
-        this.segmentHandler = new Handler(android.os.Looper.getMainLooper());
+        // 创建独立的后台线程用于分段处理和文件 I/O 操作
+        segmentThread = new HandlerThread("CodecRecorder-Segment-" + cameraId);
+        segmentThread.start();
+        this.segmentHandler = new Handler(segmentThread.getLooper());
     }
 
     /**
@@ -197,11 +215,21 @@ public class CodecVideoRecorder {
 
     /**
      * 准备录制
+     * 
+     * 警告：此方法包含阻塞操作（CountDownLatch.await），不建议在主线程调用
+     * 如果必须在主线程调用，可能导致 ANR。建议在后台线程调用或使用 prepareRecordingAsync()
+     * 
      * @param filePath 输出文件路径
      * @return 用于 Camera 输出的 SurfaceTexture
      */
     public SurfaceTexture prepareRecording(String filePath) {
-        if (isRecording) {
+        // 检查是否在主线程调用（可能导致 ANR）
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            AppLog.w(TAG, "Camera " + cameraId + " WARNING: prepareRecording() called on MAIN THREAD! " +
+                    "This may cause ANR due to blocking operations. Consider using prepareRecordingAsync().");
+        }
+        
+        if (isRecording.get()) {
             AppLog.w(TAG, "Camera " + cameraId + " is already recording");
             return inputSurfaceTexture;
         }
@@ -275,7 +303,7 @@ public class CodecVideoRecorder {
                             // 关键修复：即使不在录制状态，也必须调用 updateTexImage() 消费帧
                             // 否则 SurfaceTexture 会保持 pending 状态，不再触发后续回调
                             // updateTexImage 在 drawFrame 内部调用，这里单独处理非录制状态
-                            if (!isRecording) {
+                            if (!isRecording.get()) {
                                 // 不在录制状态时，仍需消费帧以保持 SurfaceTexture 正常工作
                                 if (eglEncoder != null && eglEncoder.isInitialized()) {
                                     eglEncoder.consumeFrame();  // 只消费帧，不编码
@@ -366,6 +394,52 @@ public class CodecVideoRecorder {
             return null;
         }
     }
+    
+    /**
+     * 准备录制回调接口
+     */
+    public interface PrepareCallback {
+        /**
+         * 准备完成回调
+         * @param success 是否成功
+         * @param surfaceTexture 成功时返回的 SurfaceTexture，失败时为 null
+         * @param errorMessage 失败时的错误信息，成功时为 null
+         */
+        void onPrepareComplete(boolean success, SurfaceTexture surfaceTexture, String errorMessage);
+    }
+    
+    /**
+     * 异步准备录制（推荐使用）
+     * 
+     * 此方法在后台线程执行准备操作，完成后在主线程回调
+     * 避免在主线程执行阻塞操作导致 ANR
+     * 
+     * @param filePath 输出文件路径
+     * @param callback 准备完成回调
+     */
+    public void prepareRecordingAsync(String filePath, PrepareCallback callback) {
+        new Thread(() -> {
+            try {
+                SurfaceTexture result = prepareRecording(filePath);
+                if (callback != null) {
+                    // 在主线程回调
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        if (result != null) {
+                            callback.onPrepareComplete(true, result, null);
+                        } else {
+                            callback.onPrepareComplete(false, null, "Preparation failed");
+                        }
+                    });
+                }
+            } catch (Exception e) {
+                AppLog.e(TAG, "Camera " + cameraId + " prepareRecordingAsync failed", e);
+                if (callback != null) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onPrepareComplete(false, null, e.getMessage()));
+                }
+            }
+        }, "CodecRecorderPrepare-" + cameraId).start();
+    }
 
     /**
      * 开始录制
@@ -376,7 +450,7 @@ public class CodecVideoRecorder {
             return false;
         }
 
-        if (isRecording) {
+        if (isRecording.get()) {
             AppLog.w(TAG, "Camera " + cameraId + " Already recording");
             return false;
         }
@@ -387,14 +461,24 @@ public class CodecVideoRecorder {
         segmentStartTimeNs = System.nanoTime();
         encodedOutputFrameCount = 0;
         
-        isRecording = true;
+        // 重置首次写入状态
+        hasFirstWrite = false;
+        lastFileSize = 0;
+        
+        isRecording.set(true);
 
         // 注意：不再使用单独的编码循环
         // 帧的处理直接在 onFrameAvailable 回调中完成（该回调在 encoderHandler 上执行）
         // 这样避免了 Handler 死锁问题
 
-        // 启动分段定时器
-        scheduleNextSegment();
+        // 【重要】分段定时器延迟到首次写入后启动
+        // 这样可以确保：
+        // 1. 摄像头启动慢或需要修复时，用户只会感觉"启动慢"而不是录制空视频
+        // 2. 钉钉指定时长录制时，实际录制时长是有效的
+        // scheduleNextSegment() 将在 scheduleFileSizeCheck() 检测到首次写入时调用
+
+        // 启动首次写入超时检查
+        scheduleFirstWriteTimeout();
 
         // 启动文件大小检查
         scheduleFileSizeCheck();
@@ -414,7 +498,7 @@ public class CodecVideoRecorder {
      * 停止录制
      */
     public void stopRecording() {
-        if (!isRecording) {
+        if (!isRecording.get()) {
             AppLog.w(TAG, "Camera " + cameraId + " Not recording");
             return;
         }
@@ -430,6 +514,9 @@ public class CodecVideoRecorder {
             segmentHandler.removeCallbacks(fileSizeCheckRunnable);
             fileSizeCheckRunnable = null;
         }
+        // 取消首次写入超时检查
+        cancelFirstWriteTimeout();
+        
         // 取消恢复重试任务
         if (recoveryRunnable != null) {
             segmentHandler.removeCallbacks(recoveryRunnable);
@@ -443,7 +530,7 @@ public class CodecVideoRecorder {
             healthCheckRunnable = null;
         }
 
-        isRecording = false;
+        isRecording.set(false);
 
         // 稍等一下让正在处理的帧完成
         try {
@@ -501,7 +588,7 @@ public class CodecVideoRecorder {
 
         isReleased = true;
 
-        if (isRecording) {
+        if (isRecording.get()) {
             stopRecording();
         }
 
@@ -509,6 +596,12 @@ public class CodecVideoRecorder {
         if (eglEncoder != null) {
             eglEncoder.release();
             eglEncoder = null;
+        }
+
+        // 释放缓存的录制 Surface（必须在 SurfaceTexture 之前释放）
+        if (cachedRecordSurface != null) {
+            cachedRecordSurface.release();
+            cachedRecordSurface = null;
         }
 
         // 释放 SurfaceTexture
@@ -559,17 +652,50 @@ public class CodecVideoRecorder {
             encoderHandler = null;
         }
 
+        // 清理分段处理线程
+        if (segmentHandler != null) {
+            segmentHandler.removeCallbacksAndMessages(null);
+        }
+        if (segmentThread != null) {
+            segmentThread.quitSafely();
+            try {
+                segmentThread.join(1000);  // 1秒超时
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                AppLog.w(TAG, "Camera " + cameraId + " segment thread join interrupted");
+            }
+            segmentThread = null;
+        }
+        segmentHandler = null;
+
         AppLog.d(TAG, "Camera " + cameraId + " CodecVideoRecorder released");
     }
 
     /**
      * 获取录制用的 Surface（供 Camera 使用）
+     * 使用缓存模式避免重复创建 Surface 导致内存泄漏
      */
     public Surface getRecordSurface() {
-        if (inputSurfaceTexture != null) {
-            return new Surface(inputSurfaceTexture);
+        if (inputSurfaceTexture == null) {
+            return null;
         }
-        return null;
+        
+        // 检查缓存的 Surface 是否有效
+        if (cachedRecordSurface != null && cachedRecordSurface.isValid()) {
+            return cachedRecordSurface;
+        }
+        
+        // 释放旧的无效 Surface
+        if (cachedRecordSurface != null) {
+            AppLog.d(TAG, "Camera " + cameraId + " releasing invalid cached record surface");
+            cachedRecordSurface.release();
+            cachedRecordSurface = null;
+        }
+        
+        // 创建新的 Surface 并缓存
+        cachedRecordSurface = new Surface(inputSurfaceTexture);
+        AppLog.d(TAG, "Camera " + cameraId + " created new record surface");
+        return cachedRecordSurface;
     }
 
     /**
@@ -583,7 +709,7 @@ public class CodecVideoRecorder {
      * 检查是否正在录制
      */
     public boolean isRecording() {
-        return isRecording;
+        return isRecording.get();
     }
 
     // ===== 私有方法 =====
@@ -750,7 +876,7 @@ public class CodecVideoRecorder {
         }
 
         segmentRunnable = () -> {
-            if (isRecording && encoderHandler != null) {
+            if (isRecording.get() && encoderHandler != null) {
                 AppLog.d(TAG, "Camera " + cameraId + " Scheduling segment switch on encoder thread");
                 // 在编码线程上执行切换，避免线程冲突
                 encoderHandler.post(() -> switchToNextSegment());
@@ -802,7 +928,7 @@ public class CodecVideoRecorder {
             createMuxer(nextSegmentPath);
             
             // 5. 重新开始录制
-            isRecording = true;
+            isRecording.set(true);
             switchSuccess = true;
             
             // 成功：重置恢复计数器
@@ -820,7 +946,7 @@ public class CodecVideoRecorder {
             AppLog.e(TAG, "Camera " + cameraId + " Failed to switch segment (attempt " + (recoveryAttempts + 1) + ")", e);
             
             // 标记录制状态（允许帧回调继续消费帧）
-            isRecording = false;
+            isRecording.set(false);
             
             if (callback != null) {
                 final String errorMsg = e.getMessage();
@@ -899,7 +1025,7 @@ public class CodecVideoRecorder {
             encodedOutputFrameCount = 0;
             
             // 恢复录制
-            isRecording = true;
+            isRecording.set(true);
             recoverySuccess = true;
             
             // 成功：重置恢复计数器
@@ -912,7 +1038,7 @@ public class CodecVideoRecorder {
             
         } catch (Exception e) {
             AppLog.e(TAG, "Camera " + cameraId + " Recovery attempt failed", e);
-            isRecording = false;
+            isRecording.set(false);
             
             // 继续快速重试或回到正常间隔
             recoveryAttempts++;
@@ -939,7 +1065,7 @@ public class CodecVideoRecorder {
         AppLog.d(TAG, "Camera " + cameraId + " Stopping recording for segment switch");
         
         // 1. 停止录制（阻止新帧写入）
-        isRecording = false;
+        isRecording.set(false);
         
         // 2. 排空编码器（drainEncoder 现在在同一线程执行，不会有竞争）
         if (encoder != null) {
@@ -1026,7 +1152,7 @@ public class CodecVideoRecorder {
         }
 
         healthCheckRunnable = () -> {
-            if (!isRecording || isReleased) {
+            if (!isRecording.get() || isReleased) {
                 return;
             }
 
@@ -1071,7 +1197,7 @@ public class CodecVideoRecorder {
         AppLog.d(TAG, "Camera " + cameraId + " Rebuilding encoder due to health check failure");
 
         // 暂停录制
-        isRecording = false;
+        isRecording.set(false);
 
         try {
             // 1. 清理旧的 Muxer（可能已损坏）
@@ -1139,7 +1265,7 @@ public class CodecVideoRecorder {
             lastEncoderOutputTime = System.currentTimeMillis();
 
             // 8. 恢复录制
-            isRecording = true;
+            isRecording.set(true);
 
             AppLog.d(TAG, "Camera " + cameraId + " Encoder rebuilt successfully, new file: " + newFilePath);
 
@@ -1177,23 +1303,82 @@ public class CodecVideoRecorder {
         }
 
         fileSizeCheckRunnable = () -> {
-            if (isRecording && currentFilePath != null) {
+            if (isRecording.get() && currentFilePath != null) {
                 File file = new File(currentFilePath);
                 long currentSize = file.exists() ? file.length() : 0;
                 long sizeIncrease = currentSize - lastFileSize;
 
-                if (sizeIncrease == 0 && lastFileSize > 0) {
-                    AppLog.w(TAG, "Camera " + cameraId + " WARNING: File size not growing! Current: " + currentSize + " bytes");
-                } else {
+                // 检查是否有写入
+                boolean hasWrite = (sizeIncrease > 0) || (currentSize > MIN_VALID_FILE_SIZE);
+                
+                if (hasWrite) {
+                    // 首次写入检测
+                    if (!hasFirstWrite) {
+                        hasFirstWrite = true;
+                        AppLog.d(TAG, "Camera " + cameraId + " first write detected! Size: " + currentSize + " bytes");
+                        // 取消首次写入超时检查
+                        cancelFirstWriteTimeout();
+                        
+                        // 【核心改动】首次写入后才启动分段定时器
+                        // 这确保了分段时长是"有效录制时长"而非"尝试录制时长"
+                        scheduleNextSegment();
+                        AppLog.d(TAG, "Camera " + cameraId + " segment timer started after first write");
+                        
+                        // 通知外部：首次写入成功，录制已真正开始
+                        // 外部可以据此开始钉钉录制计时等
+                        if (callback != null) {
+                            callback.onFirstDataWritten(cameraId);
+                        }
+                    }
                     AppLog.d(TAG, "Camera " + cameraId + " file size: " + currentSize + " bytes (" + (currentSize / 1024) + " KB), frames: " + recordedFrameCount);
+                } else if (sizeIncrease == 0 && lastFileSize > 0) {
+                    AppLog.w(TAG, "Camera " + cameraId + " WARNING: File size not growing! Current: " + currentSize + " bytes");
                 }
 
                 lastFileSize = currentSize;
-                scheduleFileSizeCheck();
+                
+                // 继续下一次检查（首次写入前用快速间隔，之后用正常间隔）
+                long nextDelay = hasFirstWrite ? FILE_SIZE_CHECK_INTERVAL_MS : FIRST_CHECK_DELAY_MS;
+                segmentHandler.postDelayed(fileSizeCheckRunnable, nextDelay);
             }
         };
 
-        segmentHandler.postDelayed(fileSizeCheckRunnable, FILE_SIZE_CHECK_INTERVAL_MS);
+        // 首次检查使用更短的延迟，快速检测首次写入
+        long initialDelay = hasFirstWrite ? FILE_SIZE_CHECK_INTERVAL_MS : FIRST_CHECK_DELAY_MS;
+        segmentHandler.postDelayed(fileSizeCheckRunnable, initialDelay);
+    }
+
+    /**
+     * 调度首次写入超时检查
+     */
+    private void scheduleFirstWriteTimeout() {
+        // 取消之前的超时检查
+        cancelFirstWriteTimeout();
+
+        firstWriteTimeoutRunnable = () -> {
+            if (isRecording.get() && !hasFirstWrite) {
+                AppLog.e(TAG, "Camera " + cameraId + " FIRST WRITE TIMEOUT: No data written in " + (FIRST_WRITE_TIMEOUT_MS / 1000) + " seconds");
+                // 触发编码器重建（通过健康检查机制处理）
+                encoderHealthy = false;
+                // 也可以通过回调通知外部
+                if (callback != null) {
+                    segmentHandler.post(() -> callback.onRecordingRebuildRequested(cameraId, "first_write_timeout"));
+                }
+            }
+        };
+
+        segmentHandler.postDelayed(firstWriteTimeoutRunnable, FIRST_WRITE_TIMEOUT_MS);
+        AppLog.d(TAG, "Camera " + cameraId + " first write timeout scheduled: " + (FIRST_WRITE_TIMEOUT_MS / 1000) + " seconds");
+    }
+
+    /**
+     * 取消首次写入超时检查
+     */
+    private void cancelFirstWriteTimeout() {
+        if (firstWriteTimeoutRunnable != null) {
+            segmentHandler.removeCallbacks(firstWriteTimeoutRunnable);
+            firstWriteTimeoutRunnable = null;
+        }
     }
 
     /**

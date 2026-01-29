@@ -47,6 +47,8 @@ public class PermissionSettingsFragment extends Fragment {
     private Button btnOverlayPermission;
     private TextView tvAccessibilityStatus;
     private Button btnAccessibilityPermission;
+    private TextView tvBatteryStatus;
+    private Button btnBatteryPermission;
 
     @Nullable
     @Override
@@ -107,6 +109,8 @@ public class PermissionSettingsFragment extends Fragment {
         btnOverlayPermission = view.findViewById(R.id.btn_overlay_permission);
         tvAccessibilityStatus = view.findViewById(R.id.tv_accessibility_status);
         btnAccessibilityPermission = view.findViewById(R.id.btn_accessibility_permission);
+        tvBatteryStatus = view.findViewById(R.id.tv_battery_status);
+        btnBatteryPermission = view.findViewById(R.id.btn_battery_permission);
         
         // 根据系统版本显示/隐藏某些选项
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -149,6 +153,13 @@ public class PermissionSettingsFragment extends Fragment {
         
         // 无障碍服务
         btnAccessibilityPermission.setOnClickListener(v -> openAccessibilitySettings());
+        
+        // 电池优化
+        btnBatteryPermission.setOnClickListener(v -> {
+            if (getContext() != null) {
+                WakeUpHelper.requestIgnoreBatteryOptimizations(getContext());
+            }
+        });
     }
 
     @Override
@@ -171,6 +182,7 @@ public class PermissionSettingsFragment extends Fragment {
         updateAllFilesPermissionStatus();
         updateOverlayPermissionStatus();
         updateAccessibilityServiceStatus();
+        updateBatteryOptimizationStatus();
     }
 
     /**
@@ -358,6 +370,27 @@ public class PermissionSettingsFragment extends Fragment {
             AppLog.e("PermissionSettings", "检查无障碍服务状态失败", e);
         }
         return false;
+    }
+
+    /**
+     * 更新电池优化状态
+     */
+    private void updateBatteryOptimizationStatus() {
+        if (getContext() == null) return;
+        
+        boolean ignored = WakeUpHelper.isIgnoringBatteryOptimizations(getContext());
+        
+        if (ignored) {
+            tvBatteryStatus.setText("已关闭优化 ✓");
+            tvBatteryStatus.setTextColor(getResources().getColor(android.R.color.holo_green_dark, null));
+            btnBatteryPermission.setText("已设置");
+            btnBatteryPermission.setEnabled(false);
+        } else {
+            tvBatteryStatus.setText("优化中 - 应用可能被系统休眠");
+            tvBatteryStatus.setTextColor(getResources().getColor(android.R.color.holo_orange_dark, null));
+            btnBatteryPermission.setText("去设置");
+            btnBatteryPermission.setEnabled(true);
+        }
     }
 
     /**

@@ -3,6 +3,8 @@ package com.kooo.evcam.camera;
 
 import com.kooo.evcam.AppLog;
 import android.media.MediaRecorder;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.util.Log;
 import android.view.Surface;
 
@@ -13,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 视频录制管理类
@@ -20,11 +23,24 @@ import java.util.Locale;
 public class VideoRecorder {
     private static final String TAG = "VideoRecorder";
 
+    /**
+     * 录制状态枚举 - 用于解决分段切换和停止录制的竞态条件
+     */
+    public enum RecordingState {
+        IDLE,                    // 空闲状态
+        PREPARING,               // 准备中
+        RECORDING,               // 录制中
+        SWITCHING_SEGMENT,       // 分段切换中（此状态下禁止停止）
+        STOPPING                 // 停止中
+    }
+
     private final String cameraId;
     private MediaRecorder mediaRecorder;
     private Surface cachedSurface;  // 缓存的录制 Surface，确保整个录制周期使用同一个对象
     private RecordCallback callback;
-    private boolean isRecording = false;
+    private final AtomicBoolean isRecording = new AtomicBoolean(false);  // 使用 AtomicBoolean 确保线程安全
+    private volatile RecordingState state = RecordingState.IDLE;  // 录制状态
+    private final Object stateLock = new Object();  // 状态锁
     private boolean waitingForSessionReconfiguration = false;  // 等待会话重新配置
     private String currentFilePath;
     
@@ -34,10 +50,15 @@ public class VideoRecorder {
 
     // 分段录制相关
     private long segmentDurationMs = 60000;  // 分段时长，默认1分钟，可通过 setSegmentDuration 配置
-    private static final long SEGMENT_DURATION_COMPENSATION_MS = 1000;  // 分段时长补偿（补偿编码器初始化和停止延迟）
+    private static final long SEGMENT_DURATION_COMPENSATION_MS = 0;  // 分段时长补偿（H3修复后定时器更精确，不再需要补偿）
     private static final long FILE_SIZE_CHECK_INTERVAL_MS = 3000;  // 每3秒检查一次文件大小（加快检测）
+    private static final long FIRST_CHECK_DELAY_MS = 500;  // 首次检查延迟（更快检测首次写入）
     private static final long MIN_VALID_FILE_SIZE = 10 * 1024;  // 最小有效文件大小 10KB
-    private android.os.Handler segmentHandler;
+    
+    // 使用独立的后台线程处理分段和文件 I/O 操作，避免阻塞主线程导致 ANR
+    private HandlerThread segmentThread;
+    private Handler segmentHandler;
+    
     private Runnable segmentRunnable;
     private Runnable fileSizeCheckRunnable;  // 文件大小检查任务
     private Runnable pendingSegmentSwitchRunnable;  // 待执行的分段切换任务（用于取消）
@@ -59,7 +80,10 @@ public class VideoRecorder {
 
     public VideoRecorder(String cameraId) {
         this.cameraId = cameraId;
-        this.segmentHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        // 创建独立的后台线程用于分段处理和文件 I/O 操作
+        segmentThread = new HandlerThread("VideoRecorder-Segment-" + cameraId);
+        segmentThread.start();
+        this.segmentHandler = new Handler(segmentThread.getLooper());
     }
 
     public void setCallback(RecordCallback callback) {
@@ -115,7 +139,7 @@ public class VideoRecorder {
     }
 
     public boolean isRecording() {
-        return isRecording;
+        return isRecording.get();
     }
 
     /**
@@ -123,7 +147,7 @@ public class VideoRecorder {
      * 用于判断是否可以启动初始录制
      */
     public boolean isPrepared() {
-        return mediaRecorder != null && cachedSurface != null && !isRecording && !waitingForSessionReconfiguration;
+        return mediaRecorder != null && cachedSurface != null && !isRecording.get() && !waitingForSessionReconfiguration;
     }
 
     public Surface getSurface() {
@@ -238,7 +262,7 @@ public class VideoRecorder {
      * 准备录制器（不启动）
      */
     public boolean prepareRecording(String filePath, int width, int height) {
-        if (isRecording) {
+        if (isRecording.get()) {
             AppLog.w(TAG, "Camera " + cameraId + " is already recording");
             return false;
         }
@@ -278,7 +302,7 @@ public class VideoRecorder {
             AppLog.e(TAG, "Failed to prepare recording for camera " + cameraId, e);
             releaseMediaRecorder();
             // 确保状态被重置
-            isRecording = false;
+            isRecording.set(false);
             waitingForSessionReconfiguration = false;
             currentFilePath = null;
             segmentIndex = 0;
@@ -307,7 +331,7 @@ public class VideoRecorder {
             return false;
         }
 
-        if (isRecording) {
+        if (isRecording.get()) {
             AppLog.w(TAG, "Camera " + cameraId + " is already recording");
             return false;
         }
@@ -324,13 +348,18 @@ public class VideoRecorder {
         try {
             AppLog.d(TAG, "Camera " + cameraId + " calling mediaRecorder.start()...");
             mediaRecorder.start();
-            isRecording = true;
+            isRecording.set(true);
             lastFileSize = 0;  // 重置文件大小计数
             recordingStartTime = System.currentTimeMillis();  // 记录开始时间
             
             // 重置 Watchdog 状态
             noWriteCount = 0;
             hasFirstWrite = false;
+            
+            // 更新状态为 RECORDING
+            synchronized (stateLock) {
+                state = RecordingState.RECORDING;
+            }
             
             AppLog.d(TAG, "Camera " + cameraId + " started recording segment " + segmentIndex);
             
@@ -345,13 +374,14 @@ public class VideoRecorder {
                 callback.onRecordStart(cameraId);
             }
 
-            // 启动分段定时器
-            scheduleNextSegment();
+            // 【重要】分段定时器延迟到首次写入后启动
+            // 这样可以确保：
+            // 1. 摄像头启动慢或需要修复时，用户只会感觉"启动慢"而不是录制空视频
+            // 2. 钉钉指定时长录制时，实际录制时长是有效的
+            // scheduleNextSegment() 将在 scheduleFileSizeCheck() 检测到首次写入时调用
             
-            // 启动首次写入超时检查（仅第一段）
-            if (segmentIndex == 0) {
-                scheduleFirstWriteTimeout();
-            }
+            // 启动首次写入超时检查（每段都需要，用于检测录制是否正常）
+            scheduleFirstWriteTimeout();
             
             // 启动文件大小检查（用于诊断 MediaRecorder 是否在接收帧）
             scheduleFileSizeCheck();
@@ -360,6 +390,10 @@ public class VideoRecorder {
         } catch (RuntimeException e) {
             AppLog.e(TAG, "Failed to start recording for camera " + cameraId, e);
             releaseMediaRecorder();
+            // 失败时恢复到 IDLE 状态
+            synchronized (stateLock) {
+                state = RecordingState.IDLE;
+            }
             if (callback != null) {
                 callback.onRecordError(cameraId, e.getMessage());
             }
@@ -383,7 +417,7 @@ public class VideoRecorder {
 
         // 创建新的分段任务
         segmentRunnable = () -> {
-            if (isRecording) {
+            if (isRecording.get()) {
                 AppLog.d(TAG, "Camera " + cameraId + " switching to next segment");
                 switchToNextSegment();
             }
@@ -411,7 +445,7 @@ public class VideoRecorder {
         }
 
         fileSizeCheckRunnable = () -> {
-            if (isRecording && currentFilePath != null) {
+            if (isRecording.get() && currentFilePath != null) {
                 File file = new File(currentFilePath);
                 long currentSize = file.exists() ? file.length() : 0;
                 long sizeIncrease = currentSize - lastFileSize;
@@ -427,6 +461,17 @@ public class VideoRecorder {
                         AppLog.d(TAG, "Camera " + cameraId + " first write detected! Size: " + currentSize + " bytes");
                         // 取消首次写入超时检查
                         cancelFirstWriteTimeout();
+                        
+                        // 【核心改动】首次写入后才启动分段定时器
+                        // 这确保了分段时长是"有效录制时长"而非"尝试录制时长"
+                        scheduleNextSegment();
+                        AppLog.d(TAG, "Camera " + cameraId + " segment timer started after first write");
+                        
+                        // 通知外部：首次写入成功，录制已真正开始
+                        // 外部可以据此开始钉钉录制计时等
+                        if (callback != null) {
+                            callback.onFirstDataWritten(cameraId);
+                        }
                     }
                     AppLog.d(TAG, "Camera " + cameraId + " file size check: " + currentSize + " bytes (" + (currentSize / 1024) + " KB), increase: " + sizeIncrease + " bytes");
                 } else if (currentSize == 0 || sizeIncrease == 0) {
@@ -449,12 +494,15 @@ public class VideoRecorder {
                 
                 lastFileSize = currentSize;
                 
-                // 继续下一次检查
-                scheduleFileSizeCheck();
+                // 继续下一次检查（首次写入前用快速间隔，之后用正常间隔）
+                long nextDelay = hasFirstWrite ? FILE_SIZE_CHECK_INTERVAL_MS : FIRST_CHECK_DELAY_MS;
+                segmentHandler.postDelayed(fileSizeCheckRunnable, nextDelay);
             }
         };
 
-        segmentHandler.postDelayed(fileSizeCheckRunnable, FILE_SIZE_CHECK_INTERVAL_MS);
+        // 首次检查使用更短的延迟，快速检测首次写入
+        long initialDelay = hasFirstWrite ? FILE_SIZE_CHECK_INTERVAL_MS : FIRST_CHECK_DELAY_MS;
+        segmentHandler.postDelayed(fileSizeCheckRunnable, initialDelay);
     }
 
     /**
@@ -465,7 +513,7 @@ public class VideoRecorder {
         cancelFirstWriteTimeout();
         
         firstWriteTimeoutRunnable = () -> {
-            if (isRecording && !hasFirstWrite) {
+            if (isRecording.get() && !hasFirstWrite) {
                 AppLog.e(TAG, "Camera " + cameraId + " FIRST WRITE TIMEOUT: No data written in " + (FIRST_WRITE_TIMEOUT_MS / 1000) + " seconds, requesting rebuild");
                 requestRecordingRebuild("first_write_timeout");
             }
@@ -490,9 +538,14 @@ public class VideoRecorder {
      */
     private void requestRecordingRebuild(String reason) {
         // 停止当前录制（不触发正常的 stop 回调）
-        isRecording = false;
+        isRecording.set(false);
         cancelFileSizeCheck();
         cancelFirstWriteTimeout();
+        
+        // 重置状态为 IDLE（等待外部重建）
+        synchronized (stateLock) {
+            state = RecordingState.IDLE;
+        }
         
         // 通知外部需要重建
         if (callback != null) {
@@ -522,6 +575,16 @@ public class VideoRecorder {
      * 5. 通知外部重新配置会话（onSegmentSwitch）
      */
     private void switchToNextSegment() {
+        // 【状态检查】确保当前处于录制状态才能切换分段
+        synchronized (stateLock) {
+            if (state != RecordingState.RECORDING) {
+                AppLog.w(TAG, "Camera " + cameraId + " cannot switch segment: current state=" + state);
+                return;
+            }
+            // 进入分段切换状态（此状态下 stopRecording 会等待或取消切换）
+            state = RecordingState.SWITCHING_SEGMENT;
+        }
+        
         AppLog.d(TAG, "Camera " + cameraId + " initiating segment switch from segment " + segmentIndex);
         
         // 【第一步】通知外部暂停 CaptureSession 的录制输出
@@ -548,9 +611,20 @@ public class VideoRecorder {
      * 执行实际的分段切换操作（在 CaptureSession 暂停后调用）
      */
     private void performActualSegmentSwitch() {
-        // 安全检查：如果录制已停止或 MediaRecorder 已释放，不执行切换
-        if (!isRecording || mediaRecorder == null) {
-            AppLog.w(TAG, "Camera " + cameraId + " performActualSegmentSwitch cancelled: recording stopped or MediaRecorder released");
+        // 【状态检查】确保当前处于分段切换状态
+        synchronized (stateLock) {
+            if (state != RecordingState.SWITCHING_SEGMENT) {
+                AppLog.w(TAG, "Camera " + cameraId + " performActualSegmentSwitch cancelled: current state=" + state);
+                return;
+            }
+        }
+        
+        // 安全检查：如果 MediaRecorder 已释放，不执行切换
+        if (mediaRecorder == null) {
+            AppLog.w(TAG, "Camera " + cameraId + " performActualSegmentSwitch cancelled: MediaRecorder released");
+            synchronized (stateLock) {
+                state = RecordingState.IDLE;
+            }
             return;
         }
         
@@ -573,10 +647,10 @@ public class VideoRecorder {
                     // 如果文件太小（<10KB），说明 MediaRecorder 没有接收到帧，跳过 stop()
                     if (fileSizeBeforeStop < MIN_VALID_FILE_SIZE) {
                         AppLog.e(TAG, "Camera " + cameraId + " file size too small (" + fileSizeBeforeStop + " bytes < " + MIN_VALID_FILE_SIZE + "), MediaRecorder may not be receiving frames. Skipping stop().");
-                        isRecording = false;
+                        isRecording.set(false);
                     } else {
                         mediaRecorder.stop();
-                        isRecording = false;  // 立即更新状态
+                        isRecording.set(false);  // 立即更新状态
                         AppLog.d(TAG, "Camera " + cameraId + " stopped segment " + segmentIndex + ": " + currentFilePath);
 
                         // 验证并清理损坏的文件
@@ -585,7 +659,7 @@ public class VideoRecorder {
                     }
                 } catch (RuntimeException e) {
                     AppLog.e(TAG, "Error stopping segment for camera " + cameraId + " (file size was: " + fileSizeBeforeStop + " bytes)", e);
-                    isRecording = false;  // 即使失败也更新状态
+                    isRecording.set(false);  // 即使失败也更新状态
 
                     // 停止失败，删除损坏的文件
                     if (currentFilePath != null) {
@@ -623,8 +697,12 @@ public class VideoRecorder {
 
         } catch (Exception e) {
             AppLog.e(TAG, "Failed to switch segment for camera " + cameraId, e);
-            isRecording = false;
+            isRecording.set(false);
             waitingForSessionReconfiguration = false;
+            // 切换失败，恢复到 IDLE 状态
+            synchronized (stateLock) {
+                state = RecordingState.IDLE;
+            }
             if (callback != null) {
                 callback.onRecordError(cameraId, "Failed to switch segment: " + e.getMessage());
             }
@@ -645,13 +723,39 @@ public class VideoRecorder {
      * 停止录制
      */
     public void stopRecording() {
+        // 【状态机检查】处理不同状态下的停止请求
+        synchronized (stateLock) {
+            if (state == RecordingState.IDLE) {
+                AppLog.w(TAG, "Camera " + cameraId + " is not recording (state=IDLE)");
+                return;
+            }
+            
+            if (state == RecordingState.STOPPING) {
+                AppLog.w(TAG, "Camera " + cameraId + " is already stopping");
+                return;
+            }
+            
+            // 如果正在分段切换，取消切换任务并继续停止
+            if (state == RecordingState.SWITCHING_SEGMENT) {
+                AppLog.w(TAG, "Camera " + cameraId + " stop requested during segment switch, cancelling switch");
+                // 取消待执行的分段切换任务
+                if (pendingSegmentSwitchRunnable != null) {
+                    segmentHandler.removeCallbacks(pendingSegmentSwitchRunnable);
+                    pendingSegmentSwitchRunnable = null;
+                }
+            }
+            
+            // 进入停止状态
+            state = RecordingState.STOPPING;
+        }
+        
         // 取消分段定时器
         if (segmentRunnable != null) {
             segmentHandler.removeCallbacks(segmentRunnable);
             segmentRunnable = null;
         }
         
-        // 取消待执行的分段切换任务（防止并发问题）
+        // 取消待执行的分段切换任务（再次确保取消）
         if (pendingSegmentSwitchRunnable != null) {
             segmentHandler.removeCallbacks(pendingSegmentSwitchRunnable);
             pendingSegmentSwitchRunnable = null;
@@ -665,7 +769,7 @@ public class VideoRecorder {
         // 如果正在等待会话重新配置，说明MediaRecorder已经stop过了，只需要清理状态
         if (waitingForSessionReconfiguration) {
             AppLog.d(TAG, "Camera " + cameraId + " is waiting for session reconfiguration, skipping stop");
-            isRecording = false;
+            isRecording.set(false);
             waitingForSessionReconfiguration = false;
             releaseMediaRecorder();
 
@@ -676,14 +780,21 @@ public class VideoRecorder {
             currentFilePath = null;
             segmentIndex = 0;
             recordedFilePaths.clear();
+            // 恢复到 IDLE 状态
+            synchronized (stateLock) {
+                state = RecordingState.IDLE;
+            }
             if (callback != null) {
                 callback.onRecordStop(cameraId);
             }
             return;
         }
 
-        if (!isRecording) {
+        if (!isRecording.get()) {
             AppLog.w(TAG, "Camera " + cameraId + " is not recording");
+            synchronized (stateLock) {
+                state = RecordingState.IDLE;
+            }
             return;
         }
 
@@ -706,7 +817,7 @@ public class VideoRecorder {
                     AppLog.d(TAG, "Camera " + cameraId + " stopped recording: " + currentFilePath + " (total segments: " + (segmentIndex + 1) + ")");
                 }
             }
-            isRecording = false;
+            isRecording.set(false);
 
             // 验证并清理所有录制的文件
             deletedFiles = validateAndCleanupAllFiles();
@@ -716,7 +827,7 @@ public class VideoRecorder {
             }
         } catch (RuntimeException e) {
             AppLog.e(TAG, "Failed to stop recording for camera " + cameraId + " (file size was: " + fileSizeBeforeStop + " bytes)", e);
-            isRecording = false;
+            isRecording.set(false);
 
             // 录制失败，删除损坏的文件
             if (currentFilePath != null) {
@@ -735,6 +846,11 @@ public class VideoRecorder {
             // 通知损坏文件被删除
             notifyCorruptedFilesDeleted(deletedFiles);
             recordedFilePaths.clear();
+            
+            // 恢复到 IDLE 状态
+            synchronized (stateLock) {
+                state = RecordingState.IDLE;
+            }
         }
     }
 
@@ -831,15 +947,45 @@ public class VideoRecorder {
         cancelFirstWriteTimeout();
 
         // 只有在真正录制中且mediaRecorder不为null时才调用stopRecording
-        if (isRecording && mediaRecorder != null) {
+        if (isRecording.get() && mediaRecorder != null) {
             stopRecording();
         } else {
             // 直接清理状态
-            isRecording = false;
+            isRecording.set(false);
             waitingForSessionReconfiguration = false;
             releaseMediaRecorder();
             currentFilePath = null;
             segmentIndex = 0;
+            // 确保状态重置为 IDLE
+            synchronized (stateLock) {
+                state = RecordingState.IDLE;
+            }
+        }
+        
+        // 清理分段处理线程
+        if (segmentHandler != null) {
+            segmentHandler.removeCallbacksAndMessages(null);
+        }
+        if (segmentThread != null) {
+            segmentThread.quitSafely();
+            try {
+                segmentThread.join(1000);  // 1秒超时
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                AppLog.w(TAG, "Camera " + cameraId + " segment thread join interrupted");
+            }
+            segmentThread = null;
+        }
+        segmentHandler = null;
+    }
+    
+    /**
+     * 获取当前录制状态
+     * @return 当前的 RecordingState
+     */
+    public RecordingState getState() {
+        synchronized (stateLock) {
+            return state;
         }
     }
 }

@@ -368,8 +368,9 @@ public class EglSurfaceEncoder {
 
         try {
             // 销毁旧的 EGL Surface
+            // 注意：当 surface 为 EGL_NO_SURFACE 时，context 必须也是 EGL_NO_CONTEXT，否则会报 EGL_BAD_MATCH
             if (eglSurface != EGL14.EGL_NO_SURFACE) {
-                EGL14.eglMakeCurrent(eglDisplay, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, eglContext);
+                EGL14.eglMakeCurrent(eglDisplay, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT);
                 EGL14.eglDestroySurface(eglDisplay, eglSurface);
                 eglSurface = EGL14.EGL_NO_SURFACE;
             }

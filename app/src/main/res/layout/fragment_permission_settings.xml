@@ -362,6 +362,52 @@
                 android:gravity="center_vertical"
                 android:padding="16dp"
                 android:background="@color/card_background"
+                android:layout_marginBottom="8dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="无障碍服务"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_accessibility_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="防止应用被系统清理"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp"
+                        android:layout_marginTop="2dp" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btn_accessibility_permission"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="去启用"
+                    android:textSize="14sp"
+                    android:minHeight="40dp"
+                    android:backgroundTint="@color/button_background"
+                    android:textColor="@color/button_text" />
+            </LinearLayout>
+
+            <!-- 电池优化 -->
+            <LinearLayout
+                android:id="@+id/layout_battery_optimization"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="16dp"
+                android:background="@color/card_background"
                 android:layout_marginBottom="16dp">
 
                 <LinearLayout
@@ -373,26 +419,26 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="无障碍服务（非必要）"
+                        android:text="电池优化"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <TextView
-                        android:id="@+id/tv_accessibility_status"
+                        android:id="@+id/tv_battery_status"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="用于防止应用被系统清理"
+                        android:text="关闭可防止应用被系统休眠"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:layout_marginTop="2dp" />
                 </LinearLayout>
 
                 <Button
-                    android:id="@+id/btn_accessibility_permission"
+                    android:id="@+id/btn_battery_permission"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="去启用"
+                    android:text="去设置"
                     android:textSize="14sp"
                     android:minHeight="40dp"
                     android:backgroundTint="@color/button_background"
@@ -412,7 +458,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="• 相机、麦克风、存储：核心功能必需权限\n\n• 通知权限：用于在后台录制时显示状态通知\n\n• 所有文件访问：仅当需要存储到U盘时授予\n\n• 悬浮窗权限：用于悬浮录制按钮和后台钉钉命令唤醒\n\n• 无障碍服务：可防止应用被系统清理，但非必要"
+                android:text="• 相机、麦克风、存储：核心功能必需权限\n\n• 通知权限：用于在后台录制时显示状态通知\n\n• 所有文件访问：仅当需要存储到U盘时授予\n\n• 悬浮窗权限：用于悬浮录制按钮和后台钉钉命令唤醒\n\n• 无障碍服务：防止应用被系统清理\n\n• 电池优化：关闭可防止应用被系统休眠"
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp"
                 android:lineSpacingExtra="4dp" />

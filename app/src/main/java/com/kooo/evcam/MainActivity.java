@@ -11,6 +11,9 @@ import android.hardware.camera2.CameraManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.SubMenu;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
@@ -47,6 +50,8 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
@@ -136,6 +141,8 @@ public class MainActivity extends AppCompatActivity {
     private String remoteRecordingTimestamp;  // 远程录制统一时间戳（用于文件命名和查找）
     private boolean isRemoteRecording = false;  // 是否正在进行远程录制
     private boolean wasManualRecordingBeforeRemote = false;  // 远程录制前是否有手动录制在进行
+    private int pendingRemoteDurationSeconds = 0;  // 待启动的远程录制时长（等待首次写入后启动定时器）
+    private boolean isPreparingRecording = false;  // 是否正在准备录制（等待首次写入）
 
     // 远程查看服务相关（移到 Activity 级别）
     private DingTalkConfig dingTalkConfig;
@@ -856,6 +863,9 @@ public class MainActivity extends AppCompatActivity {
         // 设置导航菜单点击监听
         navigationView.setNavigationItemSelectedListener(item -> {
             int itemId = item.getItemId();
+            // 先清除所有菜单项的选中状态（处理跨组选中）
+            clearAllNavigationChecks();
+            
             if (itemId == R.id.nav_recording) {
                 // 显示录制界面
                 showRecordingInterface();
@@ -871,12 +881,33 @@ public class MainActivity extends AppCompatActivity {
             } else if (itemId == R.id.nav_settings) {
                 showSettingsInterface();
             }
+            // 设置当前项为选中
+            navigationView.setCheckedItem(itemId);
             drawerLayout.closeDrawer(GravityCompat.START);
             return true;
         });
 
         // 默认选中录制界面
         navigationView.setCheckedItem(R.id.nav_recording);
+    }
+    
+    /**
+     * 清除所有导航菜单项的选中状态
+     * 用于处理跨组选中时的状态同步
+     */
+    private void clearAllNavigationChecks() {
+        Menu menu = navigationView.getMenu();
+        for (int i = 0; i < menu.size(); i++) {
+            MenuItem item = menu.getItem(i);
+            item.setChecked(false);
+            // 处理子菜单
+            if (item.hasSubMenu()) {
+                SubMenu subMenu = item.getSubMenu();
+                for (int j = 0; j < subMenu.size(); j++) {
+                    subMenu.getItem(j).setChecked(false);
+                }
+            }
+        }
     }
 
     /**
@@ -897,6 +928,7 @@ public class MainActivity extends AppCompatActivity {
         new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
             // 进入设置界面
             showSettingsInterface();
+            clearAllNavigationChecks();
             navigationView.setCheckedItem(R.id.nav_settings);
 
             // 显示引导弹窗
@@ -1030,6 +1062,11 @@ public class MainActivity extends AppCompatActivity {
             drawerLayout.closeDrawer(GravityCompat.START);
         }
         showRecordingInterface();
+        // 更新导航菜单选中状态（先清除所有选中，再设置当前项）
+        if (navigationView != null) {
+            clearAllNavigationChecks();
+            navigationView.setCheckedItem(R.id.nav_recording);
+        }
     }
 
     /**
@@ -1180,6 +1217,34 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, 
                     "录制故障，已回退到MediaCodec模式，如果频繁故障请手动更改录制模式", 
                     Toast.LENGTH_LONG).show();
+            });
+        });
+
+        // 设置首次数据写入回调
+        // 用于在摄像头真正开始输出数据后启动计时器（分段计时、钉钉录制计时等）
+        cameraManager.setFirstDataWrittenCallback(() -> {
+            AppLog.d(TAG, "收到首次数据写入回调，录制已真正开始");
+            runOnUiThread(() -> {
+                // 结束"准备中"状态
+                if (isPreparingRecording) {
+                    isPreparingRecording = false;
+                    hidePreparingIndicator();
+                    AppLog.d(TAG, "准备状态结束，录制进入正常状态");
+                }
+                
+                // 启动录制计时器（从首次写入开始计时，而不是从录制请求开始）
+                // 这样右上角显示的时间是"有效录制时长"
+                if (isRecording && !isRemoteRecording) {
+                    startRecordingTimer();
+                    AppLog.d(TAG, "手动录制计时器已启动（首次写入后）");
+                }
+                
+                // 如果是远程录制，现在才启动定时器
+                if (isRemoteRecording && pendingRemoteDurationSeconds > 0) {
+                    AppLog.d(TAG, "远程录制首次写入成功，启动 " + pendingRemoteDurationSeconds + " 秒定时器");
+                    autoStopHandler.postDelayed(autoStopRunnable, pendingRemoteDurationSeconds * 1000L);
+                    pendingRemoteDurationSeconds = 0;  // 重置
+                }
             });
         });
 
@@ -2056,15 +2121,17 @@ public class MainActivity extends AppCompatActivity {
             boolean success = cameraManager.startRecording(timestamp, enabledCameras);
             if (success) {
                 isRecording = true;
+                isPreparingRecording = true;  // 标记为准备中状态
 
                 // 启动前台服务保护（防止后台录制被中断）
                 CameraForegroundService.start(this, "正在录制视频", "录制进行中，点击返回应用");
 
-                // 开始闪烁动画
-                startBlinkAnimation();
+                // 显示准备中指示器（橙色旋转圈）
+                // 首次数据写入后会自动切换到绿色闪烁动画
+                showPreparingIndicator();
                 
-                // 启动录制计时器
-                startRecordingTimer();
+                // 注意：录制计时器延迟到首次写入回调中启动
+                // 这样计时从"有效录制"开始，而不是从"尝试录制"开始
 
                 // 发送录制状态广播（通知悬浮窗）
                 FloatingWindowService.sendRecordingStateChanged(this, true);
@@ -2096,6 +2163,7 @@ public class MainActivity extends AppCompatActivity {
         if (cameraManager != null) {
             cameraManager.stopRecording();
             isRecording = false;
+            isPreparingRecording = false;  // 重置准备中状态
 
             // 停止前台服务
             CameraForegroundService.stop(this);
@@ -2190,6 +2258,30 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * 显示准备中状态
+     * 按钮变为绿色（不闪烁），表示录制正在初始化
+     */
+    private void showPreparingIndicator() {
+        if (btnStartRecord != null) {
+            // 设置按钮为绿色（不闪烁），表示准备中
+            btnStartRecord.setTextColor(0xFF00FF00);  // 绿色
+            AppLog.d(TAG, "进入准备中状态：绿色（不闪烁）");
+        }
+    }
+
+    /**
+     * 结束准备中状态
+     * 录制真正开始后调用，开始绿色闪烁动画
+     */
+    private void hidePreparingIndicator() {
+        // 开始绿色闪烁动画（如果正在录制）
+        if (isRecording || isRemoteRecording) {
+            startBlinkAnimation();
+            AppLog.d(TAG, "准备完成，开始绿色闪烁");
+        }
+    }
+
     private void takePicture() {
         if (cameraManager != null) {
             cameraManager.takePicture();
@@ -2265,12 +2357,16 @@ public class MainActivity extends AppCompatActivity {
         boolean success = cameraManager.startRecording(remoteRecordingTimestamp);
         if (success) {
             AppLog.d(TAG, "远程录制已开始");
+            isPreparingRecording = true;  // 标记为准备中状态
 
             // 启动前台服务保护（防止后台录制被中断）
             CameraForegroundService.start(this, "远程录制进行中", "正在录制 " + durationSeconds + " 秒视频...");
 
             // 发送录制状态广播（通知悬浮窗）
             FloatingWindowService.sendRecordingStateChanged(this, true);
+            
+            // 显示准备中指示器（橙色旋转圈）
+            showPreparingIndicator();
 
             // 设置指定时长后自动停止
             autoStopRunnable = () -> {
@@ -2283,6 +2379,10 @@ public class MainActivity extends AppCompatActivity {
 
                 // 发送录制状态广播（通知悬浮窗）
                 FloatingWindowService.sendRecordingStateChanged(this, false);
+
+                // 停止闪烁动画，恢复红色
+                isPreparingRecording = false;
+                stopBlinkAnimation();
 
                 // 标记远程录制结束
                 isRemoteRecording = false;
@@ -2319,13 +2419,12 @@ public class MainActivity extends AppCompatActivity {
                 }, 1000);
             };
 
-            // 补偿摄像头会话配置延迟（约 1 秒）
-            // startRecording() 只是提交录制请求，实际录制在会话配置完成后才开始
-            // 为确保实际录制时长达到指定秒数，需要额外增加会话配置时间
-            final int SESSION_CONFIG_DELAY_MS = 1000;  // 会话配置延迟补偿
-            long actualDurationMs = durationSeconds * 1000L + SESSION_CONFIG_DELAY_MS;
-            AppLog.d(TAG, "远程录制定时器设置: " + durationSeconds + " 秒 + " + SESSION_CONFIG_DELAY_MS + "ms 补偿 = " + actualDurationMs + "ms");
-            autoStopHandler.postDelayed(autoStopRunnable, actualDurationMs);
+            // 【重要改动】定时器延迟到首次数据写入后启动
+            // 这样可以确保：
+            // 1. 摄像头启动慢或需要修复时，用户只会感觉"回复慢"而不是收到空视频
+            // 2. 实际录制时长是有效的（从真正有数据写入开始计时）
+            pendingRemoteDurationSeconds = durationSeconds;
+            AppLog.d(TAG, "远程录制定时器将在首次数据写入后启动，时长: " + durationSeconds + " 秒");
         } else {
             AppLog.e(TAG, "远程录制启动失败");
             isRemoteRecording = false;
@@ -3016,6 +3115,29 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onStop() {
+        super.onStop();
+        AppLog.d(TAG, "onStop called, isRecording=" + isRecording);
+        
+        // 如果正在录制但 Activity 即将被销毁，提前停止录制
+        // 这给予了比 onDestroy 更充裕的时间来完成清理
+        if (isRecording && cameraManager != null && isFinishing()) {
+            AppLog.d(TAG, "Activity is finishing, stopping recording in onStop for safer cleanup");
+            try {
+                cameraManager.stopRecording();
+                isRecording = false;
+                // 停止录制相关的 UI 更新（Activity 即将销毁，不显示 Toast）
+                stopBlinkAnimation();
+                stopRecordingTimer();
+                // 停止前台服务
+                CameraForegroundService.stop(this);
+            } catch (Exception e) {
+                AppLog.e(TAG, "Error stopping recording in onStop", e);
+            }
+        }
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         boolean wasInBackground = isInBackground;
@@ -3110,12 +3232,51 @@ public class MainActivity extends AppCompatActivity {
         // 停止文件传输服务
         FileTransferManager.getInstance(this).stop();
 
+        // 带超时保护的摄像头资源释放
         if (cameraManager != null) {
-            cameraManager.release();
+            releaseCameraManagerWithTimeout(3000);  // 3秒超时
         }
         
         // 重置自动录制触发标志（下次启动时可以再次触发）
         autoStartRecordingTriggered = false;
+    }
+    
+    /**
+     * 带超时保护的摄像头管理器释放
+     * 防止 release() 操作阻塞过久导致 ANR
+     * 
+     * @param timeoutMs 超时时间（毫秒）
+     */
+    private void releaseCameraManagerWithTimeout(long timeoutMs) {
+        if (cameraManager == null) {
+            return;
+        }
+        
+        final CountDownLatch latch = new CountDownLatch(1);
+        
+        // 在后台线程执行 release，避免阻塞主线程
+        new Thread(() -> {
+            try {
+                AppLog.d(TAG, "Releasing camera manager in background thread...");
+                cameraManager.release();
+                AppLog.d(TAG, "Camera manager released successfully");
+            } catch (Exception e) {
+                AppLog.e(TAG, "Error releasing camera manager", e);
+            } finally {
+                latch.countDown();
+            }
+        }, "CameraRelease").start();
+        
+        try {
+            // 等待 release 完成，但设置超时避免 ANR
+            if (!latch.await(timeoutMs, TimeUnit.MILLISECONDS)) {
+                AppLog.w(TAG, "Camera manager release timed out after " + timeoutMs + "ms, " +
+                        "resources may not be fully released");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            AppLog.w(TAG, "Camera manager release interrupted");
+        }
     }
 
     /**
