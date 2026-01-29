@@ -8,6 +8,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,7 +27,8 @@ public class RemoteViewFragment extends Fragment {
 
     private EditText etClientId, etClientSecret;
     private Button btnSaveConfig, btnStartService, btnStopService, btnMenu;
-    private Button btnTestConnection, btnToggleSecretVisibility;
+    private Button btnTestConnection;
+    private ImageButton btnToggleSecretVisibility;
     private TextView tvConnectionStatus;
     private SwitchCompat switchAutoStart;
     private boolean isSecretVisible = false;
@@ -129,11 +131,11 @@ public class RemoteViewFragment extends Fragment {
         if (isSecretVisible) {
             // 显示密码
             etClientSecret.setTransformationMethod(HideReturnsTransformationMethod.getInstance());
-            btnToggleSecretVisibility.setText("🔒");
+            btnToggleSecretVisibility.setImageResource(R.drawable.ic_visibility_off);
         } else {
             // 隐藏密码
             etClientSecret.setTransformationMethod(PasswordTransformationMethod.getInstance());
-            btnToggleSecretVisibility.setText("👁");
+            btnToggleSecretVisibility.setImageResource(R.drawable.ic_visibility);
         }
         // 将光标移到末尾
         etClientSecret.setSelection(etClientSecret.getText().length());
