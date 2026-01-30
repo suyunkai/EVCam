@@ -42,6 +42,10 @@ import com.kooo.evcam.dingtalk.DingTalkConfig;
 import com.kooo.evcam.dingtalk.DingTalkStreamManager;
 import com.kooo.evcam.dingtalk.PhotoUploadService;
 import com.kooo.evcam.dingtalk.VideoUploadService;
+import com.kooo.evcam.wechat.WechatMiniConfig;
+import com.kooo.evcam.wechat.WechatMiniApiClient;
+import com.kooo.evcam.wechat.WechatMiniStreamManager;
+import com.kooo.evcam.wechat.WechatFileUploadService;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -158,6 +162,12 @@ public class MainActivity extends AppCompatActivity {
     private DingTalkApiClient dingTalkApiClient;
     private DingTalkStreamManager dingTalkStreamManager;
     
+    // 微信小程序远程控制相关
+    private WechatMiniConfig wechatMiniConfig;
+    private WechatMiniApiClient wechatMiniApiClient;
+    private WechatMiniStreamManager wechatMiniStreamManager;
+    private String wechatCommandId;  // 当前执行的微信小程序指令ID
+    
     // 存储清理管理器
     private StorageCleanupManager storageCleanupManager;
 
@@ -201,6 +211,9 @@ public class MainActivity extends AppCompatActivity {
         // 初始化钉钉配置
         dingTalkConfig = new DingTalkConfig(this);
 
+        // 初始化微信小程序配置
+        wechatMiniConfig = new WechatMiniConfig(this);
+
         // 初始化自动停止 Handler
         autoStopHandler = new android.os.Handler(android.os.Looper.getMainLooper());
         
@@ -216,6 +229,11 @@ public class MainActivity extends AppCompatActivity {
         // 如果启用了自动启动，启动远程查看服务
         if (dingTalkConfig.isConfigured() && dingTalkConfig.isAutoStart()) {
             startDingTalkService();
+        }
+
+        // 如果启用了微信小程序自动启动，启动微信小程序服务
+        if (wechatMiniConfig.isServerConfigured() && wechatMiniConfig.isAutoStart()) {
+            startWechatMiniService();
         }
 
         // 启动定时保活任务（车机必需，始终开启）
@@ -450,15 +468,22 @@ public class MainActivity extends AppCompatActivity {
      * 根据车型配置设置布局
      */
     private void setupLayoutByCarModel() {
-        // 默认使用4摄像头布局（银河E5专用）
+        // 默认使用4摄像头布局（领克07/08）
         int layoutId = R.layout.activity_main;
         configuredCameraCount = 4;
         requiredTextureCount = 4;
 
         String carModel = appConfig.getCarModel();
         
+        // 领克07/08：横屏四摄像头布局（默认车型）
+        if (AppConfig.CAR_MODEL_LYNKCO_07.equals(carModel)) {
+            layoutId = R.layout.activity_main;
+            configuredCameraCount = 4;
+            requiredTextureCount = 4;
+            AppLog.d(TAG, "使用领克07/08配置：横屏四摄像头布局（全景模式=" + appConfig.isPanoramaModeEnabled() + "，鱼眼矫正=" + appConfig.isFisheyeCorrectionEnabled() + "，矫正比例=" + appConfig.getFisheyeCorrectionRatio() + "%）");
+        }
         // 银河E5-多按钮：横屏布局，左侧按钮列表
-        if (AppConfig.CAR_MODEL_E5_MULTI.equals(carModel)) {
+        else if (AppConfig.CAR_MODEL_E5_MULTI.equals(carModel)) {
             layoutId = R.layout.activity_main_e5_multi;
             configuredCameraCount = 4;
             requiredTextureCount = 4;
@@ -929,8 +954,11 @@ public class MainActivity extends AppCompatActivity {
                 // 显示图片回看界面
                 showPhotoPlaybackInterface();
             } else if (itemId == R.id.nav_remote_view) {
-                // 显示远程查看界面
+                // 显示钉钉远程查看界面
                 showRemoteViewInterface();
+            } else if (itemId == R.id.nav_wechat_mini) {
+                // 显示微信小程序远程控制界面
+                showWechatMiniInterface();
             } else if (itemId == R.id.nav_settings) {
                 showSettingsInterface();
             }
@@ -3010,6 +3038,190 @@ public class MainActivity extends AppCompatActivity {
     public boolean isDingTalkServiceRunning() {
         return dingTalkStreamManager != null && dingTalkStreamManager.isRunning();
     }
+
+    // ==================== 微信小程序远程控制相关方法 ====================
+
+    /**
+     * 启动微信小程序远程控制服务
+     */
+    public void startWechatMiniService() {
+        if (!wechatMiniConfig.isServerConfigured()) {
+            Toast.makeText(this, "请先配置服务器地址", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (wechatMiniStreamManager != null && wechatMiniStreamManager.isRunning()) {
+            AppLog.d(TAG, "微信小程序服务已在运行");
+            return;
+        }
+
+        AppLog.d(TAG, "正在启动微信小程序服务...");
+
+        // 创建 API 客户端
+        wechatMiniApiClient = new WechatMiniApiClient(wechatMiniConfig);
+
+        // 创建连接回调
+        WechatMiniStreamManager.ConnectionCallback connectionCallback = new WechatMiniStreamManager.ConnectionCallback() {
+            @Override
+            public void onConnected() {
+                runOnUiThread(() -> {
+                    AppLog.d(TAG, "微信小程序服务已连接");
+                    Toast.makeText(MainActivity.this, "微信小程序服务已连接", Toast.LENGTH_SHORT).show();
+                    updateWechatMiniFragmentUI();
+                });
+            }
+
+            @Override
+            public void onDisconnected() {
+                runOnUiThread(() -> {
+                    AppLog.d(TAG, "微信小程序服务已断开");
+                    updateWechatMiniFragmentUI();
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    AppLog.e(TAG, "微信小程序服务连接失败: " + error);
+                    Toast.makeText(MainActivity.this, "连接失败: " + error, Toast.LENGTH_LONG).show();
+                    updateWechatMiniFragmentUI();
+                });
+            }
+
+            @Override
+            public void onBindStatusChanged(boolean bound, String userNickname) {
+                runOnUiThread(() -> {
+                    if (bound) {
+                        AppLog.d(TAG, "微信用户已绑定: " + userNickname);
+                        Toast.makeText(MainActivity.this, "设备已与「" + userNickname + "」绑定", Toast.LENGTH_SHORT).show();
+                    } else {
+                        AppLog.d(TAG, "微信用户已解绑");
+                        Toast.makeText(MainActivity.this, "设备已解绑", Toast.LENGTH_SHORT).show();
+                    }
+                    updateWechatMiniFragmentBindStatus(bound, userNickname);
+                });
+            }
+        };
+
+        // 创建指令回调
+        WechatMiniStreamManager.CommandCallback commandCallback = new WechatMiniStreamManager.CommandCallback() {
+            @Override
+            public void onRecordCommand(String commandId, int durationSeconds) {
+                startWechatRemoteRecording(commandId, durationSeconds);
+            }
+
+            @Override
+            public void onPhotoCommand(String commandId) {
+                startWechatRemotePhoto(commandId);
+            }
+
+            @Override
+            public String getStatusInfo() {
+                return buildStatusInfo();
+            }
+
+            @Override
+            public String onStartRecordingCommand() {
+                return handleStartRecordingCommand();
+            }
+
+            @Override
+            public String onStopRecordingCommand() {
+                return handleStopRecordingCommand();
+            }
+        };
+
+        // 创建并启动 WebSocket 管理器（启用自动重连）
+        wechatMiniStreamManager = new WechatMiniStreamManager(this, wechatMiniConfig, wechatMiniApiClient, connectionCallback);
+        wechatMiniStreamManager.start(commandCallback, true);
+    }
+
+    /**
+     * 停止微信小程序远程控制服务
+     */
+    public void stopWechatMiniService() {
+        if (wechatMiniStreamManager != null) {
+            AppLog.d(TAG, "正在停止微信小程序服务...");
+            wechatMiniStreamManager.stop();
+            wechatMiniStreamManager = null;
+            wechatMiniApiClient = null;
+            Toast.makeText(this, "微信小程序服务已停止", Toast.LENGTH_SHORT).show();
+            updateWechatMiniFragmentUI();
+        }
+    }
+
+    /**
+     * 获取微信小程序服务运行状态
+     */
+    public boolean isWechatMiniServiceRunning() {
+        return wechatMiniStreamManager != null && wechatMiniStreamManager.isRunning();
+    }
+
+    /**
+     * 微信小程序远程录制
+     */
+    private void startWechatRemoteRecording(String commandId, int durationSeconds) {
+        this.wechatCommandId = commandId;
+        AppLog.d(TAG, "微信小程序远程录制: commandId=" + commandId + ", duration=" + durationSeconds);
+        
+        // 复用钉钉的录制逻辑，但使用微信小程序的上传方式
+        // 这里直接调用启动远程录制的方法
+        startRemoteRecording(null, null, null, durationSeconds);
+    }
+
+    /**
+     * 微信小程序远程拍照
+     */
+    private void startWechatRemotePhoto(String commandId) {
+        this.wechatCommandId = commandId;
+        AppLog.d(TAG, "微信小程序远程拍照: commandId=" + commandId);
+        
+        // 复用钉钉的拍照逻辑
+        startRemotePhoto(null, null, null);
+    }
+
+    /**
+     * 更新微信小程序 Fragment UI（连接状态）
+     */
+    private void updateWechatMiniFragmentUI() {
+        Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.fragment_container);
+        if (fragment instanceof WechatMiniFragment) {
+            ((WechatMiniFragment) fragment).updateServiceStatus();
+        }
+    }
+
+    /**
+     * 更新微信小程序 Fragment 绑定状态
+     */
+    private void updateWechatMiniFragmentBindStatus(boolean bound, String userNickname) {
+        Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.fragment_container);
+        if (fragment instanceof WechatMiniFragment) {
+            ((WechatMiniFragment) fragment).updateBindStatus(bound, userNickname);
+        }
+    }
+
+    /**
+     * 获取微信小程序配置
+     */
+    public WechatMiniConfig getWechatMiniConfig() {
+        return wechatMiniConfig;
+    }
+
+    /**
+     * 获取微信小程序流管理器
+     */
+    public WechatMiniStreamManager getWechatMiniStreamManager() {
+        return wechatMiniStreamManager;
+    }
+
+    /**
+     * 获取微信小程序 API 客户端
+     */
+    public WechatMiniApiClient getWechatMiniApiClient() {
+        return wechatMiniApiClient;
+    }
+
+    // ==================== 微信小程序远程控制方法结束 ====================
 
     /**
      * 构建应用状态信息（用于远程状态查询）
