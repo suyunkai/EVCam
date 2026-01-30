@@ -65,7 +65,7 @@ public class SettingsFragment extends Fragment {
     // 车型配置相关
     private Spinner carModelSpinner;
     private Button customCameraConfigButton;
-    private static final String[] CAR_MODEL_OPTIONS = {"银河E5", "银河E5-多按钮", "银河L6/L7", "银河L7-多按钮", "手机", "自定义车型"};
+    private static final String[] CAR_MODEL_OPTIONS = {"领克07/08", "银河E5", "银河E5-多按钮", "银河L6/L7", "银河L7-多按钮", "手机", "自定义车型"};
     private boolean isInitializingCarModel = false;
     private String lastAppliedCarModel = null;
     
@@ -791,18 +791,21 @@ public class SettingsFragment extends Fragment {
                 String modelName;
                 
                 if (position == 0) {
+                    newModel = AppConfig.CAR_MODEL_LYNKCO_07;
+                    modelName = "领克07/08";
+                } else if (position == 1) {
                     newModel = AppConfig.CAR_MODEL_GALAXY_E5;
                     modelName = "银河E5";
-                } else if (position == 1) {
+                } else if (position == 2) {
                     newModel = AppConfig.CAR_MODEL_E5_MULTI;
                     modelName = "银河E5-多按钮";
-                } else if (position == 2) {
+                } else if (position == 3) {
                     newModel = AppConfig.CAR_MODEL_L7;
                     modelName = "银河L6/L7";
-                } else if (position == 3) {
+                } else if (position == 4) {
                     newModel = AppConfig.CAR_MODEL_L7_MULTI;
                     modelName = "银河L7-多按钮";
-                } else if (position == 4) {
+                } else if (position == 5) {
                     newModel = AppConfig.CAR_MODEL_PHONE;
                     modelName = "手机";
                 } else {
@@ -811,7 +814,7 @@ public class SettingsFragment extends Fragment {
                 }
 
                 // 仅自定义车型显示配置按钮
-                updateCustomConfigButtonVisibility(position == 5);
+                updateCustomConfigButtonVisibility(position == 6);
 
                 if (isInitializingCarModel) {
                     return;
@@ -841,17 +844,21 @@ public class SettingsFragment extends Fragment {
         });
         
         String currentModel = appConfig.getCarModel();
-        int selectedIndex = 0;
-        if (AppConfig.CAR_MODEL_E5_MULTI.equals(currentModel)) {
+        int selectedIndex = 0;  // 默认领克07/08
+        if (AppConfig.CAR_MODEL_LYNKCO_07.equals(currentModel)) {
+            selectedIndex = 0;
+        } else if (AppConfig.CAR_MODEL_GALAXY_E5.equals(currentModel)) {
             selectedIndex = 1;
-        } else if (AppConfig.CAR_MODEL_L7.equals(currentModel)) {
+        } else if (AppConfig.CAR_MODEL_E5_MULTI.equals(currentModel)) {
             selectedIndex = 2;
-        } else if (AppConfig.CAR_MODEL_L7_MULTI.equals(currentModel)) {
+        } else if (AppConfig.CAR_MODEL_L7.equals(currentModel)) {
             selectedIndex = 3;
-        } else if (AppConfig.CAR_MODEL_PHONE.equals(currentModel)) {
+        } else if (AppConfig.CAR_MODEL_L7_MULTI.equals(currentModel)) {
             selectedIndex = 4;
-        } else if (AppConfig.CAR_MODEL_CUSTOM.equals(currentModel)) {
+        } else if (AppConfig.CAR_MODEL_PHONE.equals(currentModel)) {
             selectedIndex = 5;
+        } else if (AppConfig.CAR_MODEL_CUSTOM.equals(currentModel)) {
+            selectedIndex = 6;
         }
         carModelSpinner.setSelection(selectedIndex);
         
