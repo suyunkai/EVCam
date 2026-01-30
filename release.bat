@@ -1,5 +1,4 @@
-@echo off
-echo Script starting...
+./@echo off
 setlocal enabledelayedexpansion
 
 REM Set JAVA_HOME if not already set
