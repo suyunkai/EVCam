@@ -168,12 +168,20 @@ public class AppConfig {
     private static final String KEY_CAMERA_RIGHT_ROTATION = "camera_right_rotation";  // 右摄像头旋转角度
     
     // 车型常量
+    public static final String CAR_MODEL_LYNKCO_07 = "lynkco_07";  // 领克07/08（默认车型）
     public static final String CAR_MODEL_GALAXY_E5 = "galaxy_e5";  // 银河E5
     public static final String CAR_MODEL_E5_MULTI = "galaxy_e5_multi";  // 银河E5-多按钮
     public static final String CAR_MODEL_L7 = "galaxy_l7";  // 银河L6/L7
     public static final String CAR_MODEL_L7_MULTI = "galaxy_l7_multi";  // 银河L7-多按钮
     public static final String CAR_MODEL_PHONE = "phone";  // 手机
     public static final String CAR_MODEL_CUSTOM = "custom";  // 自定义车型
+    
+    // 全景摄像头模式配置
+    private static final String KEY_PANORAMA_MODE_ENABLED = "panorama_mode_enabled";  // 全景摄像头模式开关
+    
+    // 鱼眼矫正配置
+    private static final String KEY_FISHEYE_CORRECTION_ENABLED = "fisheye_correction_enabled";  // 鱼眼矫正开关
+    private static final String KEY_FISHEYE_CORRECTION_RATIO = "fisheye_correction_ratio";  // 鱼眼矫正比例（0-100）
     
     private final SharedPreferences prefs;
     
@@ -602,10 +610,10 @@ public class AppConfig {
     
     /**
      * 获取车型
-     * @return 车型标识，默认为银河E5
+     * @return 车型标识，默认为领克07/08
      */
     public String getCarModel() {
-        return prefs.getString(KEY_CAR_MODEL, CAR_MODEL_GALAXY_E5);
+        return prefs.getString(KEY_CAR_MODEL, CAR_MODEL_LYNKCO_07);
     }
     
     /**
@@ -635,11 +643,12 @@ public class AppConfig {
         switch (carModel) {
             case CAR_MODEL_PHONE:
                 return 2;  // 手机：2摄
+            case CAR_MODEL_LYNKCO_07:
             case CAR_MODEL_GALAXY_E5:
             case CAR_MODEL_E5_MULTI:
             case CAR_MODEL_L7:
             case CAR_MODEL_L7_MULTI:
-                return 4;  // 银河E5/L7：4摄
+                return 4;  // 领克07/银河E5/L7：4摄
             case CAR_MODEL_CUSTOM:
             default:
                 // 自定义车型使用用户设置的数量
@@ -1572,5 +1581,75 @@ public class AppConfig {
             case EFFECT_MODE_AQUA: return "水蓝";
             default: return "未知";
         }
+    }
+    
+    // ==================== 全景摄像头模式配置相关方法 ====================
+    
+    /**
+     * 设置全景摄像头模式开关
+     * @param enabled true 表示启用全景摄像头模式
+     */
+    public void setPanoramaModeEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_PANORAMA_MODE_ENABLED, enabled).apply();
+        AppLog.d(TAG, "全景摄像头模式设置: " + (enabled ? "启用" : "禁用"));
+    }
+    
+    /**
+     * 获取全景摄像头模式开关状态
+     * @return true 表示启用全景摄像头模式
+     */
+    public boolean isPanoramaModeEnabled() {
+        // 领克07/08车型默认开启全景摄像头模式
+        boolean defaultValue = CAR_MODEL_LYNKCO_07.equals(getCarModel());
+        return prefs.getBoolean(KEY_PANORAMA_MODE_ENABLED, defaultValue);
+    }
+    
+    // ==================== 鱼眼矫正配置相关方法 ====================
+    
+    /**
+     * 设置鱼眼矫正开关
+     * @param enabled true 表示启用鱼眼矫正
+     */
+    public void setFisheyeCorrectionEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_FISHEYE_CORRECTION_ENABLED, enabled).apply();
+        AppLog.d(TAG, "鱼眼矫正设置: " + (enabled ? "启用" : "禁用"));
+    }
+    
+    /**
+     * 获取鱼眼矫正开关状态
+     * @return true 表示启用鱼眼矫正
+     */
+    public boolean isFisheyeCorrectionEnabled() {
+        // 领克07/08车型默认开启鱼眼矫正
+        boolean defaultValue = CAR_MODEL_LYNKCO_07.equals(getCarModel());
+        return prefs.getBoolean(KEY_FISHEYE_CORRECTION_ENABLED, defaultValue);
+    }
+    
+    /**
+     * 设置鱼眼矫正比例
+     * @param ratio 矫正比例（0-100），50表示50%
+     */
+    public void setFisheyeCorrectionRatio(int ratio) {
+        // 确保比例在有效范围内
+        ratio = Math.max(0, Math.min(100, ratio));
+        prefs.edit().putInt(KEY_FISHEYE_CORRECTION_RATIO, ratio).apply();
+        AppLog.d(TAG, "鱼眼矫正比例设置: " + ratio + "%");
+    }
+    
+    /**
+     * 获取鱼眼矫正比例
+     * @return 矫正比例（0-100），默认为50%
+     */
+    public int getFisheyeCorrectionRatio() {
+        // 领克07/08车型默认50%
+        return prefs.getInt(KEY_FISHEYE_CORRECTION_RATIO, 50);
+    }
+    
+    /**
+     * 获取鱼眼矫正比例的浮点值（用于实际计算）
+     * @return 矫正比例（0.0-1.0）
+     */
+    public float getFisheyeCorrectionRatioFloat() {
+        return getFisheyeCorrectionRatio() / 100f;
     }
 }
