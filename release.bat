@@ -2,8 +2,7 @@
 setlocal enabledelayedexpansion
 chcp 65001 > nul
 REM ====================================================
-REM EVCam 自动化发布脚本
-REM 用途：构建签名的 Release APK 并发布到 GitHub Releases
+REM EVCam Release Script
 REM ====================================================
 
 set GRADLE_FILE=app\build.gradle.kts
@@ -15,25 +14,44 @@ echo ====================================================
 echo.
 
 REM ====================================================
-REM 读取当前版本信息
+REM Read version info
 REM ====================================================
 echo [信息] 读取当前版本信息...
 
-REM 读取当前 versionCode
+REM Read versionCode
 set CURRENT_VERSION_CODE=0
-for /f "tokens=3 delims== " %%a in ('findstr /r "versionCode.*=" "%GRADLE_FILE%"') do (
-    set CURRENT_VERSION_CODE=%%a
+for /f "tokens=*" %%a in ('findstr /R "versionCode" "%GRADLE_FILE%"') do (
+    set "LINE=%%a"
+)
+for /f "tokens=3 delims= " %%b in ("!LINE!") do (
+    set CURRENT_VERSION_CODE=%%b
 )
 echo [信息] 当前 versionCode: !CURRENT_VERSION_CODE!
 
-REM 读取当前 versionName
-set CURRENT_VERSION_NAME=
-for /f "tokens=3 delims== " %%a in ('findstr /r "versionName.*=" "%GRADLE_FILE%"') do (
-    set CURRENT_VERSION_NAME=%%~a
+REM Read versionName
+set CURRENT_VERSION_NAME=unknown
+for /f "tokens=*" %%a in ('findstr /R "versionName" "%GRADLE_FILE%"') do (
+    set "LINE=%%a"
+)
+for /f "tokens=3 delims= " %%b in ("!LINE!") do (
+    set "TEMP=%%~b"
 )
 REM 去除引号
-set CURRENT_VERSION_NAME=!CURRENT_VERSION_NAME:"=!
+set CURRENT_VERSION_NAME=!TEMP:"=!
 echo [信息] 当前 versionName: !CURRENT_VERSION_NAME!
+
+REM 检查是否包含 -test- 后缀，提取基础版本号
+set BASE_VERSION_NAME=!CURRENT_VERSION_NAME!
+set IS_TEST_VERSION=0
+echo !CURRENT_VERSION_NAME! | findstr /C:"-test-" > nul
+if !ERRORLEVEL! EQU 0 (
+    set IS_TEST_VERSION=1
+    REM 提取 -test- 之前的部分作为基础版本号
+    for /f "tokens=1 delims=-" %%b in ("!CURRENT_VERSION_NAME!") do (
+        set BASE_VERSION_NAME=%%b
+    )
+    echo [信息] 检测到测试版本，基础版本号: !BASE_VERSION_NAME!
+)
 echo.
 
 REM ====================================================
@@ -46,13 +64,13 @@ REM ====================================================
 REM 用户输入 versionName
 REM ====================================================
 echo.
-echo [提示] 请输入新的 versionName（例如: 1.0.3）
-echo        直接按回车将使用当前版本: !CURRENT_VERSION_NAME!
+echo [提示] 请输入 versionName（例如: 1.0.3）
+echo        直接按回车将使用: !BASE_VERSION_NAME!
 set /p NEW_VERSION_NAME="versionName: "
 
 if "!NEW_VERSION_NAME!"=="" (
-    set NEW_VERSION_NAME=!CURRENT_VERSION_NAME!
-    echo [信息] 使用当前版本名: !NEW_VERSION_NAME!
+    set NEW_VERSION_NAME=!BASE_VERSION_NAME!
+    echo [信息] 使用版本名: !NEW_VERSION_NAME!
 )
 
 REM 设置 Git Tag 版本号（添加 v 前缀）
@@ -195,7 +213,7 @@ if errorlevel 1 (
     echo [警告] Tag 可能已存在，继续...
 )
 
-echo [完成] 推送 Tag 到远程仓库...
+echo [推送] 推送 Tag 到远程仓库...
 git push origin !VERSION!
 if errorlevel 1 (
     echo [错误] 推送 Tag 失败！
