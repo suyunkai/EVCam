@@ -268,10 +268,8 @@ public class SingleCamera {
     }
 
     /**
-     * 暂停向录制 Surface 发送帧
-     * 用于分段切换时，在停止 MediaRecorder 之前调用，避免向即将释放的 Surface 发送帧导致 CAPTURE FAILED
-     * 
-     * 注意：此方法会停止当前的 CaptureSession 重复请求，需要后续调用 recreateSession() 恢复
+     * 暂停向录制 Surface 发送帧（旧方法，保留兼容性）
+     * 注意：此方法会停止整个预览，导致画面卡顿，建议使用 switchToPreviewOnlyMode() 代替
      */
     public void pauseRecordSurface() {
         if (captureSession != null) {
@@ -287,6 +285,67 @@ public class SingleCamera {
             }
         } else {
             AppLog.w(TAG, "Camera " + cameraId + " captureSession is null, cannot pause recording surface");
+        }
+    }
+
+    /**
+     * 切换到仅预览模式（优化的分段切换方法）
+     * 
+     * 与 pauseRecordSurface() 不同，此方法不会停止预览，而是：
+     * 1. 创建一个只包含预览 Surface 的新请求
+     * 2. 继续向预览 Surface 发送帧（预览不卡顿）
+     * 3. 停止向录制 Surface 发送帧（安全停止 MediaRecorder）
+     * 
+     * @return true 如果成功切换，false 如果失败（将回退到 pauseRecordSurface）
+     */
+    public boolean switchToPreviewOnlyMode() {
+        if (captureSession == null || cameraDevice == null || previewSurface == null) {
+            AppLog.w(TAG, "Camera " + cameraId + " cannot switch to preview-only mode: session/device/surface not ready");
+            // 回退到旧方法
+            pauseRecordSurface();
+            return false;
+        }
+
+        try {
+            // 创建一个只包含预览 Surface 的请求
+            CaptureRequest.Builder previewOnlyBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            previewOnlyBuilder.addTarget(previewSurface);
+            
+            // 应用当前的图像调节参数（如果启用）
+            if (imageAdjustEnabled && currentRequestBuilder != null) {
+                // 复制关键参数
+                try {
+                    Integer exposure = currentRequestBuilder.get(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION);
+                    if (exposure != null) {
+                        previewOnlyBuilder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, exposure);
+                    }
+                    Integer awbMode = currentRequestBuilder.get(CaptureRequest.CONTROL_AWB_MODE);
+                    if (awbMode != null) {
+                        previewOnlyBuilder.set(CaptureRequest.CONTROL_AWB_MODE, awbMode);
+                    }
+                } catch (Exception e) {
+                    // 忽略参数复制错误
+                }
+            }
+            
+            // 替换当前的重复请求（预览继续，但不再向录制 Surface 发送帧）
+            captureSession.setRepeatingRequest(previewOnlyBuilder.build(), null, backgroundHandler);
+            AppLog.d(TAG, "Camera " + cameraId + " switched to preview-only mode (preview continues, recording paused)");
+            return true;
+            
+        } catch (CameraAccessException e) {
+            AppLog.e(TAG, "Camera " + cameraId + " failed to switch to preview-only mode", e);
+            // 回退到旧方法
+            pauseRecordSurface();
+            return false;
+        } catch (IllegalStateException e) {
+            AppLog.w(TAG, "Camera " + cameraId + " session closed when switching to preview-only mode");
+            return false;
+        } catch (IllegalArgumentException e) {
+            // 某些设备可能不支持动态切换请求目标
+            AppLog.w(TAG, "Camera " + cameraId + " device may not support dynamic request change: " + e.getMessage());
+            pauseRecordSurface();
+            return false;
         }
     }
 
@@ -1099,11 +1158,12 @@ public class SingleCamera {
                 captureSession = null;
             }
             // 注意：不在这里释放 previewSurface，因为 createCameraPreviewSession 会处理
-            // 延迟创建会话，确保之前的会话完全关闭
+            // 减少延迟时间：Camera2 的 createCaptureSession 会自动处理旧 session
+            // 20ms 足够让系统完成清理
             if (backgroundHandler != null) {
                 backgroundHandler.postDelayed(() -> {
                     createCameraPreviewSession();
-                }, 100);
+                }, 20);
             } else {
                 createCameraPreviewSession();
             }

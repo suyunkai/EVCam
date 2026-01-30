@@ -645,7 +645,9 @@ public class VideoRecorder {
             pendingSegmentSwitchRunnable = null;  // 执行后清除引用
             performActualSegmentSwitch();
         };
-        segmentHandler.postDelayed(pendingSegmentSwitchRunnable, 300);
+        // 使用 switchToPreviewOnlyMode() 后，不再需要等待 stopRepeating 完成
+        // 50ms 足够让 Camera2 框架处理请求切换
+        segmentHandler.postDelayed(pendingSegmentSwitchRunnable, 50);
     }
     
     /**

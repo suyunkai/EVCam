@@ -456,13 +456,14 @@ public class MultiCameraManager {
             @Override
             public void onPrepareSegmentSwitch(String cameraId, int currentSegmentIndex) {
                 AppLog.d(TAG, "Prepare segment switch for camera " + cameraId + " (current segment: " + currentSegmentIndex + ")");
-                // 找到对应的 camera 并暂停向录制 Surface 发送帧
-                // 这是为了避免在 MediaRecorder 被释放后继续向旧 Surface 发送帧导致 CAPTURE FAILED
+                // 找到对应的 camera 并切换到仅预览模式
+                // 使用优化的 switchToPreviewOnlyMode() 方法：预览继续流畅，只停止向录制 Surface 发送帧
                 for (Map.Entry<String, SingleCamera> entry : cameras.entrySet()) {
                     if (entry.getValue().getCameraId().equals(cameraId)) {
                         SingleCamera camera = entry.getValue();
-                        camera.pauseRecordSurface();
-                        AppLog.d(TAG, "Camera " + cameraId + " recording surface paused before segment switch");
+                        // 优先使用新的仅预览模式（保持预览不卡顿）
+                        boolean success = camera.switchToPreviewOnlyMode();
+                        AppLog.d(TAG, "Camera " + cameraId + " switched to preview-only mode: " + (success ? "success" : "fallback to pause"));
                         break;
                     }
                 }
