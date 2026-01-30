@@ -1,7 +1,13 @@
 @echo off
+echo Script starting...
 setlocal enabledelayedexpansion
 
 set GRADLE_FILE=app\build.gradle.kts
+if not exist "%GRADLE_FILE%" (
+    echo ERROR: %GRADLE_FILE% not found!
+    pause
+    exit /b 1
+)
 
 echo.
 echo ====================================================
