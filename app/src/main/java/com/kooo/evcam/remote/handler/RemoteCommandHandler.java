@@ -64,6 +64,8 @@ public abstract class RemoteCommandHandler {
         void stopRecordingTimer();
         void stopBlinkAnimation();
         void startRecording();  // 恢复手动录制
+        void setSegmentDurationOverride(long durationMs);  // 设置分段时长覆盖（用于远程录制）
+        void clearSegmentDurationOverride();  // 清除分段时长覆盖
     }
     
     /**
@@ -170,7 +172,13 @@ public abstract class RemoteCommandHandler {
         // 7. 标记开始远程录制
         isRemoteRecording = true;
         
-        // 8. 开始录制
+        // 8. 设置分段时长覆盖（远程录制不分段）
+        // 将分段时长设置为录制时长 + 30秒余量，确保整个录制过程不会触发分段
+        long segmentOverrideMs = (durationSeconds + 30) * 1000L;
+        cameraController.setSegmentDurationOverride(segmentOverrideMs);
+        AppLog.d(TAG, platformName + " 设置分段时长覆盖: " + (segmentOverrideMs / 1000) + " 秒（禁用分段）");
+        
+        // 9. 开始录制
         boolean success = cameraController.startRecording(timestamp);
         if (success) {
             onRecordingStarted(currentContext, durationSeconds);
@@ -215,6 +223,8 @@ public abstract class RemoteCommandHandler {
             // 停止录制（跳过自动传输，等上传完成后再传输）
             if (cameraController != null) {
                 cameraController.stopRecording(true);
+                // 清除分段时长覆盖（恢复为用户配置值）
+                cameraController.clearSegmentDurationOverride();
             }
             
             // 停止前台服务
@@ -294,6 +304,11 @@ public abstract class RemoteCommandHandler {
         String platformName = getPlatformName();
         AppLog.e(TAG, platformName + " 远程录制启动失败");
         isRemoteRecording = false;
+        
+        // 清除分段时长覆盖
+        if (cameraController != null) {
+            cameraController.clearSegmentDurationOverride();
+        }
         
         // 如果之前有手动录制，尝试恢复
         if (ctx.wasManualRecordingBefore() && cameraController != null) {

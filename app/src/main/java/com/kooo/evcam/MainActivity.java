@@ -1233,6 +1233,20 @@ public class MainActivity extends AppCompatActivity {
             public void startRecording() {
                 MainActivity.this.startRecording();
             }
+            
+            @Override
+            public void setSegmentDurationOverride(long durationMs) {
+                if (cameraManager != null) {
+                    cameraManager.setSegmentDurationOverride(durationMs);
+                }
+            }
+            
+            @Override
+            public void clearSegmentDurationOverride() {
+                if (cameraManager != null) {
+                    cameraManager.clearSegmentDurationOverride();
+                }
+            }
         });
         
         // 设置录制状态监听器
