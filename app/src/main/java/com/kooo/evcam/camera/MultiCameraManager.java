@@ -776,6 +776,7 @@ public class MultiCameraManager {
             recorder.setSegmentDuration(segmentDurationMs);
             recorder.setVideoBitrate(bitrate);
             recorder.setVideoFrameRate(targetFrameRate);
+            // 注：最大编码分辨率限制使用 VideoRecorder 内部默认值（4096x4096）
             
             AppLog.d(TAG, "Recording params for " + key + ": " + 
                     previewSize.getWidth() + "x" + previewSize.getHeight() + 
@@ -1013,17 +1014,33 @@ public class MultiCameraManager {
                 previewSize = new Size(1280, 800);
             }
             
-            // 计算码率（基于分辨率和帧率）
-            int bitrate = appConfig.getActualBitrate(
-                    previewSize.getWidth(), 
-                    previewSize.getHeight(), 
-                    targetFrameRate);
+            // 最大编码分辨率限制（H.264 编码器硬件限制，固定值）
+            final int MAX_ENCODE_SIZE = 4096;
+            
+            // 计算调整后的编码分辨率（防止超大分辨率摄像头导致编码失败）
+            int encodeWidth = previewSize.getWidth();
+            int encodeHeight = previewSize.getHeight();
+            if (encodeWidth > MAX_ENCODE_SIZE || encodeHeight > MAX_ENCODE_SIZE) {
+                float widthRatio = (float) MAX_ENCODE_SIZE / encodeWidth;
+                float heightRatio = (float) MAX_ENCODE_SIZE / encodeHeight;
+                float scaleFactor = Math.min(widthRatio, heightRatio);
+                encodeWidth = ((int) (encodeWidth * scaleFactor) / 2) * 2;  // 确保是偶数
+                encodeHeight = ((int) (encodeHeight * scaleFactor) / 2) * 2;
+                if (encodeWidth < 2) encodeWidth = 2;
+                if (encodeHeight < 2) encodeHeight = 2;
+                AppLog.w(TAG, "Camera " + key + " codec resolution adjusted: " + 
+                        previewSize.getWidth() + "x" + previewSize.getHeight() + " -> " + 
+                        encodeWidth + "x" + encodeHeight + " (max: " + MAX_ENCODE_SIZE + ")");
+            }
+            
+            // 计算码率（基于调整后的分辨率和帧率）
+            int bitrate = appConfig.getActualBitrate(encodeWidth, encodeHeight, targetFrameRate);
 
-            // 创建软编码录制器
+            // 创建软编码录制器（使用调整后的分辨率）
             CodecVideoRecorder codecRecorder = new CodecVideoRecorder(
                     camera.getCameraId(), 
-                    previewSize.getWidth(), 
-                    previewSize.getHeight()
+                    encodeWidth, 
+                    encodeHeight
             );
 
             // 设置录制参数
@@ -1032,7 +1049,7 @@ public class MultiCameraManager {
             codecRecorder.setFrameRate(targetFrameRate);
             
             AppLog.d(TAG, "Codec recording params for " + key + ": " + 
-                    previewSize.getWidth() + "x" + previewSize.getHeight() + 
+                    encodeWidth + "x" + encodeHeight + 
                     " @ " + targetFrameRate + "fps, " + AppConfig.formatBitrate(bitrate));
 
             // 设置时间水印（从配置读取，使用方法开头已创建的 appConfig）
