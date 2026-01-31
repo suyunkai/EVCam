@@ -1,0 +1,123 @@
+/* pages/scan/scan.wxss */
+.scan-tip {
+  text-align: center;
+  padding: 60rpx 30rpx;
+}
+
+.scan-icon-wrapper {
+  margin-bottom: 30rpx;
+}
+
+.scan-icon-text {
+  font-size: 120rpx;
+}
+
+.scan-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 16rpx;
+}
+
+.scan-desc {
+  font-size: 28rpx;
+  color: #666;
+  margin-bottom: 40rpx;
+  line-height: 1.6;
+}
+
+.scanning-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #1a73e8;
+  font-size: 30rpx;
+}
+
+.mini-spinner {
+  width: 40rpx;
+  height: 40rpx;
+  border: 4rpx solid #eee;
+  border-top-color: #1a73e8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 16rpx;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 确认绑定 */
+.confirm-card {
+  padding: 40rpx 30rpx;
+}
+
+.confirm-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  text-align: center;
+  margin-bottom: 40rpx;
+}
+
+.device-preview {
+  display: flex;
+  align-items: center;
+  padding: 30rpx;
+  background-color: #f5f5f5;
+  border-radius: 12rpx;
+  margin-bottom: 30rpx;
+}
+
+.device-preview .device-icon {
+  width: 100rpx;
+  height: 100rpx;
+  background-color: #e3f2fd;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 24rpx;
+}
+
+.device-icon-emoji {
+  font-size: 48rpx;
+}
+
+.device-detail {
+  flex: 1;
+}
+
+.device-detail .device-name {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.device-detail .device-id {
+  margin-top: 8rpx;
+}
+
+.confirm-tip {
+  font-size: 28rpx;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 40rpx;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 20rpx;
+}
+
+.confirm-actions button {
+  flex: 1;
+}
+
+.rescan-link {
+  text-align: center;
+  margin-top: 30rpx;
+  color: #1a73e8;
+  font-size: 28rpx;
+}

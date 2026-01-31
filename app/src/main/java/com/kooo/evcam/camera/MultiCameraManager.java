@@ -43,6 +43,7 @@ public class MultiCameraManager {
     private boolean useRelayWrite = false;      // 是否使用中转写入（录制到内部存储，异步传输到U盘）
     private File finalSaveDir = null;           // 最终存储目录（用于中转写入模式）
     private volatile int lastNotifiedSegmentIndex = -1;  // 已通知的分段索引，避免重复通知
+    private long overrideSegmentDurationMs = 0;  // 临时覆盖分段时长（0=使用配置值，>0=使用此值）
     
     // Watchdog 回退相关
     private String currentRecordingTimestamp = null;  // 当前录制的时间戳（用于重建时继续录制）
@@ -154,6 +155,24 @@ public class MultiCameraManager {
     
     public void setSegmentSwitchCallback(SegmentSwitchCallback callback) {
         this.segmentSwitchCallback = callback;
+    }
+
+    /**
+     * 设置临时分段时长覆盖值
+     * 用于远程录制时禁用分段（设置为录制时长+余量）
+     * @param durationMs 分段时长（毫秒），0表示使用配置值
+     */
+    public void setSegmentDurationOverride(long durationMs) {
+        this.overrideSegmentDurationMs = durationMs;
+        AppLog.d(TAG, "Segment duration override set to: " + (durationMs > 0 ? (durationMs / 1000) + " seconds" : "disabled"));
+    }
+
+    /**
+     * 清除分段时长覆盖，恢复使用配置值
+     */
+    public void clearSegmentDurationOverride() {
+        this.overrideSegmentDurationMs = 0;
+        AppLog.d(TAG, "Segment duration override cleared, using config value");
     }
 
     public void setCodecFallbackCallback(CodecFallbackCallback callback) {
@@ -716,8 +735,15 @@ public class MultiCameraManager {
         }
 
         // 获取录制配置（使用上面已创建的 appConfig）
-        long segmentDurationMs = appConfig.getSegmentDurationMs();
-        AppLog.d(TAG, "Segment duration: " + (segmentDurationMs / 1000) + " seconds (" + appConfig.getSegmentDurationMinutes() + " minutes)");
+        // 如果有临时覆盖值（远程录制），使用覆盖值；否则使用配置值
+        long segmentDurationMs = (overrideSegmentDurationMs > 0) 
+                ? overrideSegmentDurationMs 
+                : appConfig.getSegmentDurationMs();
+        if (overrideSegmentDurationMs > 0) {
+            AppLog.d(TAG, "Segment duration (override for remote recording): " + (segmentDurationMs / 1000) + " seconds");
+        } else {
+            AppLog.d(TAG, "Segment duration: " + (segmentDurationMs / 1000) + " seconds (" + appConfig.getSegmentDurationMinutes() + " minutes)");
+        }
         
         // 获取帧率配置（根据帧率等级设置计算）
         int targetFrameRate = appConfig.getActualFrameRate(30);  // 假设硬件支持30fps
@@ -750,6 +776,7 @@ public class MultiCameraManager {
             recorder.setSegmentDuration(segmentDurationMs);
             recorder.setVideoBitrate(bitrate);
             recorder.setVideoFrameRate(targetFrameRate);
+            // 注：最大编码分辨率限制使用 VideoRecorder 内部默认值（4096x4096）
             
             AppLog.d(TAG, "Recording params for " + key + ": " + 
                     previewSize.getWidth() + "x" + previewSize.getHeight() + 
@@ -952,8 +979,15 @@ public class MultiCameraManager {
         }
 
         // 获取录制配置（使用上面已创建的 appConfig）
-        long segmentDurationMs = appConfig.getSegmentDurationMs();
-        AppLog.d(TAG, "Codec segment duration: " + (segmentDurationMs / 1000) + " seconds (" + appConfig.getSegmentDurationMinutes() + " minutes)");
+        // 如果有临时覆盖值（远程录制），使用覆盖值；否则使用配置值
+        long segmentDurationMs = (overrideSegmentDurationMs > 0) 
+                ? overrideSegmentDurationMs 
+                : appConfig.getSegmentDurationMs();
+        if (overrideSegmentDurationMs > 0) {
+            AppLog.d(TAG, "Codec segment duration (override for remote recording): " + (segmentDurationMs / 1000) + " seconds");
+        } else {
+            AppLog.d(TAG, "Codec segment duration: " + (segmentDurationMs / 1000) + " seconds (" + appConfig.getSegmentDurationMinutes() + " minutes)");
+        }
         
         // 获取帧率配置（根据帧率等级设置计算）
         int targetFrameRate = appConfig.getActualFrameRate(30);
@@ -980,17 +1014,33 @@ public class MultiCameraManager {
                 previewSize = new Size(1280, 800);
             }
             
-            // 计算码率（基于分辨率和帧率）
-            int bitrate = appConfig.getActualBitrate(
-                    previewSize.getWidth(), 
-                    previewSize.getHeight(), 
-                    targetFrameRate);
+            // 最大编码分辨率限制（H.264 编码器硬件限制，固定值）
+            final int MAX_ENCODE_SIZE = 4096;
+            
+            // 计算调整后的编码分辨率（防止超大分辨率摄像头导致编码失败）
+            int encodeWidth = previewSize.getWidth();
+            int encodeHeight = previewSize.getHeight();
+            if (encodeWidth > MAX_ENCODE_SIZE || encodeHeight > MAX_ENCODE_SIZE) {
+                float widthRatio = (float) MAX_ENCODE_SIZE / encodeWidth;
+                float heightRatio = (float) MAX_ENCODE_SIZE / encodeHeight;
+                float scaleFactor = Math.min(widthRatio, heightRatio);
+                encodeWidth = ((int) (encodeWidth * scaleFactor) / 2) * 2;  // 确保是偶数
+                encodeHeight = ((int) (encodeHeight * scaleFactor) / 2) * 2;
+                if (encodeWidth < 2) encodeWidth = 2;
+                if (encodeHeight < 2) encodeHeight = 2;
+                AppLog.w(TAG, "Camera " + key + " codec resolution adjusted: " + 
+                        previewSize.getWidth() + "x" + previewSize.getHeight() + " -> " + 
+                        encodeWidth + "x" + encodeHeight + " (max: " + MAX_ENCODE_SIZE + ")");
+            }
+            
+            // 计算码率（基于调整后的分辨率和帧率）
+            int bitrate = appConfig.getActualBitrate(encodeWidth, encodeHeight, targetFrameRate);
 
-            // 创建软编码录制器
+            // 创建软编码录制器（使用调整后的分辨率）
             CodecVideoRecorder codecRecorder = new CodecVideoRecorder(
                     camera.getCameraId(), 
-                    previewSize.getWidth(), 
-                    previewSize.getHeight()
+                    encodeWidth, 
+                    encodeHeight
             );
 
             // 设置录制参数
@@ -999,7 +1049,7 @@ public class MultiCameraManager {
             codecRecorder.setFrameRate(targetFrameRate);
             
             AppLog.d(TAG, "Codec recording params for " + key + ": " + 
-                    previewSize.getWidth() + "x" + previewSize.getHeight() + 
+                    encodeWidth + "x" + encodeHeight + 
                     " @ " + targetFrameRate + "fps, " + AppConfig.formatBitrate(bitrate));
 
             // 设置时间水印（从配置读取，使用方法开头已创建的 appConfig）

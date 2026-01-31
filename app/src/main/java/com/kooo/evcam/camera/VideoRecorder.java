@@ -34,6 +34,14 @@ public class VideoRecorder {
         STOPPING                 // 停止中
     }
 
+    // 编码器分辨率限制（H.264 编码器通常有分辨率上限）
+    // 大多数 Android 设备的 H.264 编码器最大支持 4096x4096 或类似
+    // 但某些摄像头可能输出超过 5000 宽度的分辨率，导致编码失败
+    private static final int DEFAULT_MAX_ENCODE_WIDTH = 4096;   // 默认最大编码宽度
+    private static final int DEFAULT_MAX_ENCODE_HEIGHT = 4096;  // 默认最大编码高度
+    private int maxEncodeWidth = DEFAULT_MAX_ENCODE_WIDTH;      // 可配置的最大编码宽度
+    private int maxEncodeHeight = DEFAULT_MAX_ENCODE_HEIGHT;    // 可配置的最大编码高度
+
     private final String cameraId;
     private MediaRecorder mediaRecorder;
     private Surface cachedSurface;  // 缓存的录制 Surface，确保整个录制周期使用同一个对象
@@ -47,6 +55,10 @@ public class VideoRecorder {
     // 录制参数（可配置）
     private int videoBitrate = 3000000;  // 默认 3Mbps
     private int videoFrameRate = 30;     // 默认 30fps
+    
+    // 实际使用的编码分辨率（可能因限制而缩小）
+    private int actualEncodeWidth;
+    private int actualEncodeHeight;
 
     // 分段录制相关
     private long segmentDurationMs = 60000;  // 分段时长，默认1分钟，可通过 setSegmentDuration 配置
@@ -132,6 +144,92 @@ public class VideoRecorder {
     }
 
     /**
+     * 设置最大编码分辨率（用于限制超大分辨率摄像头）
+     * @param maxWidth 最大宽度
+     * @param maxHeight 最大高度
+     */
+    public void setMaxEncodeResolution(int maxWidth, int maxHeight) {
+        this.maxEncodeWidth = maxWidth;
+        this.maxEncodeHeight = maxHeight;
+        AppLog.d(TAG, "Camera " + cameraId + " max encode resolution set to " + maxWidth + "x" + maxHeight);
+    }
+
+    /**
+     * 获取最大编码宽度
+     */
+    public int getMaxEncodeWidth() {
+        return maxEncodeWidth;
+    }
+
+    /**
+     * 获取最大编码高度
+     */
+    public int getMaxEncodeHeight() {
+        return maxEncodeHeight;
+    }
+
+    /**
+     * 获取实际编码宽度（可能因分辨率限制而缩小）
+     */
+    public int getActualEncodeWidth() {
+        return actualEncodeWidth;
+    }
+
+    /**
+     * 获取实际编码高度（可能因分辨率限制而缩小）
+     */
+    public int getActualEncodeHeight() {
+        return actualEncodeHeight;
+    }
+
+    /**
+     * 计算调整后的编码分辨率（保持宽高比，且宽高都为偶数）
+     * @param inputWidth 输入宽度
+     * @param inputHeight 输入高度
+     * @return int[2] 包含调整后的 [宽度, 高度]
+     */
+    private int[] calculateAdjustedResolution(int inputWidth, int inputHeight) {
+        int outputWidth = inputWidth;
+        int outputHeight = inputHeight;
+        
+        // 检查是否需要缩小分辨率
+        boolean needsAdjustment = false;
+        
+        if (inputWidth > maxEncodeWidth || inputHeight > maxEncodeHeight) {
+            needsAdjustment = true;
+            
+            // 计算缩放比例（取较大的缩放因子以确保两边都在限制内）
+            float widthRatio = (float) maxEncodeWidth / inputWidth;
+            float heightRatio = (float) maxEncodeHeight / inputHeight;
+            float scaleFactor = Math.min(widthRatio, heightRatio);
+            
+            // 按比例缩小
+            outputWidth = (int) (inputWidth * scaleFactor);
+            outputHeight = (int) (inputHeight * scaleFactor);
+            
+            AppLog.w(TAG, "Camera " + cameraId + " resolution exceeds encoder limit! " +
+                    "Input: " + inputWidth + "x" + inputHeight + 
+                    ", Max: " + maxEncodeWidth + "x" + maxEncodeHeight +
+                    ", Scale factor: " + String.format("%.3f", scaleFactor));
+        }
+        
+        // 确保宽高都是偶数（编码器要求）
+        outputWidth = (outputWidth / 2) * 2;
+        outputHeight = (outputHeight / 2) * 2;
+        
+        // 确保分辨率不为 0
+        if (outputWidth < 2) outputWidth = 2;
+        if (outputHeight < 2) outputHeight = 2;
+        
+        if (needsAdjustment) {
+            AppLog.w(TAG, "Camera " + cameraId + " resolution adjusted: " + 
+                    inputWidth + "x" + inputHeight + " -> " + outputWidth + "x" + outputHeight);
+        }
+        
+        return new int[] { outputWidth, outputHeight };
+    }
+
+    /**
      * 获取分段时长（毫秒）
      */
     public long getSegmentDuration() {
@@ -203,6 +301,15 @@ public class VideoRecorder {
      * 准备录制器
      */
     private void prepareMediaRecorder(String filePath, int width, int height) throws IOException {
+        // 【关键】检查并调整分辨率以适应编码器限制
+        int[] adjusted = calculateAdjustedResolution(width, height);
+        int encodeWidth = adjusted[0];
+        int encodeHeight = adjusted[1];
+        
+        // 保存实际使用的编码分辨率
+        actualEncodeWidth = encodeWidth;
+        actualEncodeHeight = encodeHeight;
+        
         mediaRecorder = new MediaRecorder();
         
         // 添加监听器以监控 MediaRecorder 状态（调试用）
@@ -240,12 +347,19 @@ public class VideoRecorder {
         mediaRecorder.setOutputFile(filePath);
         mediaRecorder.setVideoEncodingBitRate(videoBitrate);
         mediaRecorder.setVideoFrameRate(videoFrameRate);
-        mediaRecorder.setVideoSize(width, height);
+        mediaRecorder.setVideoSize(encodeWidth, encodeHeight);  // 使用调整后的分辨率
         mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
         mediaRecorder.prepare();
         
-        AppLog.d(TAG, "Camera " + cameraId + " MediaRecorder configured: " + width + "x" + height + 
-                " @ " + videoFrameRate + "fps, " + (videoBitrate / 1000) + " Kbps");
+        // 日志：显示原始和实际编码分辨率
+        if (width != encodeWidth || height != encodeHeight) {
+            AppLog.w(TAG, "Camera " + cameraId + " MediaRecorder configured with ADJUSTED resolution: " + 
+                    width + "x" + height + " -> " + encodeWidth + "x" + encodeHeight + 
+                    " @ " + videoFrameRate + "fps, " + (videoBitrate / 1000) + " Kbps");
+        } else {
+            AppLog.d(TAG, "Camera " + cameraId + " MediaRecorder configured: " + encodeWidth + "x" + encodeHeight + 
+                    " @ " + videoFrameRate + "fps, " + (videoBitrate / 1000) + " Kbps");
+        }
         
         // 准备后立即缓存 Surface，确保整个录制周期使用同一个对象
         // 这对于某些车机平台很重要，因为 Camera2 API 可能无法识别不同的 Surface 包装对象
@@ -978,8 +1092,17 @@ public class VideoRecorder {
         cachedSurface = null;
         
         if (mediaRecorder != null) {
-            mediaRecorder.reset();
-            mediaRecorder.release();
+            try {
+                mediaRecorder.reset();
+            } catch (IllegalStateException e) {
+                // MediaRecorder 可能处于无效状态（如 Error 状态），忽略此异常
+                AppLog.w(TAG, "Camera " + cameraId + " MediaRecorder.reset() failed (may be in invalid state): " + e.getMessage());
+            }
+            try {
+                mediaRecorder.release();
+            } catch (Exception e) {
+                AppLog.w(TAG, "Camera " + cameraId + " MediaRecorder.release() failed: " + e.getMessage());
+            }
             mediaRecorder = null;
         }
     }

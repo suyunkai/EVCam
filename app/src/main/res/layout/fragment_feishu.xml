@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/page_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- 标题栏（包含菜单按钮和主页按钮） -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="24dp"
+            android:background="@color/menu_background"
+            android:padding="8dp">
+
+            <Button
+                android:id="@+id/btn_menu"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="☰"
+                android:textSize="18sp"
+                android:minWidth="48dp"
+                android:minHeight="48dp"
+                android:layout_marginEnd="12dp"
+                android:backgroundTint="@color/button_background"
+                android:textColor="@color/button_text" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="飞书机器人配置"
+                android:textColor="@color/text_primary"
+                android:textSize="28sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btn_home"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⌂"
+                android:textSize="22sp"
+                android:minWidth="48dp"
+                android:minHeight="48dp"
+                android:backgroundTint="@color/button_background"
+                android:textColor="@color/button_text" />
+        </LinearLayout>
+
+        <!-- App ID -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="App ID"
+            android:textColor="@color/text_secondary"
+            android:textSize="18sp"
+            android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/et_app_id"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="请输入应用的 App ID"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_secondary"
+            android:textSize="16sp"
+            android:background="@color/card_background"
+            android:padding="16dp"
+            android:minHeight="56dp"
+            android:inputType="text"
+            android:layout_marginBottom="16dp" />
+
+        <!-- App Secret -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="App Secret"
+            android:textColor="@color/text_secondary"
+            android:textSize="18sp"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@color/card_background"
+            android:layout_marginBottom="16dp">
+
+            <EditText
+                android:id="@+id/et_app_secret"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="请输入应用的 App Secret"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_secondary"
+                android:textSize="16sp"
+                android:background="@android:color/transparent"
+                android:padding="16dp"
+                android:minHeight="56dp"
+                android:inputType="textPassword" />
+
+            <ImageButton
+                android:id="@+id/btn_toggle_secret_visibility"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_visibility"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="切换密码可见性"
+                android:tint="@color/text_primary"
+                android:layout_marginEnd="8dp" />
+        </LinearLayout>
+
+        <!-- 允许的用户 ID -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="允许的用户 ID（可选）"
+            android:textColor="@color/text_secondary"
+            android:textSize="18sp"
+            android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/et_allowed_user_ids"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="限制可使用的用户 ID（逗号分隔，留空则允许所有）"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_secondary"
+            android:textSize="16sp"
+            android:background="@color/card_background"
+            android:padding="16dp"
+            android:minHeight="56dp"
+            android:layout_marginBottom="24dp" />
+
+        <!-- 保存按钮 -->
+        <Button
+            android:id="@+id/btn_save_config"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="保存配置"
+            android:textSize="20sp"
+            android:minHeight="56dp"
+            android:layout_marginBottom="16dp"
+            android:backgroundTint="@color/button_background"
+            android:textColor="@color/button_text" />
+
+        <!-- 自动启动开关 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp"
+            android:padding="12dp"
+            android:background="@color/card_background">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="自动启动服务"
+                    android:textColor="@color/text_primary"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="应用启动时自动连接飞书机器人"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="16sp"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/switch_auto_start"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp" />
+        </LinearLayout>
+
+        <!-- 连接状态 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="连接状态："
+                android:textColor="@color/text_secondary"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/tv_connection_status"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="未连接"
+                android:textColor="#FF6666"
+                android:textSize="18sp"
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
+
+        <!-- 启动/停止服务按钮 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_start_service"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="启动服务"
+                android:textSize="20sp"
+                android:minHeight="56dp"
+                android:layout_marginEnd="8dp"
+                android:backgroundTint="@color/button_background"
+                android:textColor="@color/button_text" />
+
+            <Button
+                android:id="@+id/btn_stop_service"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="停止服务"
+                android:textSize="20sp"
+                android:minHeight="56dp"
+                android:enabled="false"
+                android:layout_marginStart="8dp"
+                android:backgroundTint="@color/button_background"
+                android:textColor="@color/button_text" />
+        </LinearLayout>
+
+        <!-- 使用说明 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="使用说明"
+            android:textColor="@color/text_primary"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:id="@+id/tv_help_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="1. 登录飞书开放平台 (open.feishu.cn)\n2. 创建企业自建应用\n3. 获取 App ID 和 App Secret\n4. 在应用中添加「机器人」能力\n5. 配置事件订阅（接收消息）\n6. 发布应用并添加到群聊\n7. 保存配置并启动服务\n8. 向机器人发送指令：\n   • 录制 / 录制30 - 录制视频\n   • 拍照 - 拍摄照片\n   • 状态 - 查看应用状态\n   • 帮助 - 查看所有指令"
+            android:textColor="@color/text_secondary"
+            android:textSize="16sp"
+            android:lineSpacingExtra="6dp" />
+
+    </LinearLayout>
+
+</ScrollView>

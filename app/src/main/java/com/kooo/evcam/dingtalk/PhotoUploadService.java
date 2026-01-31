@@ -99,6 +99,12 @@ public class PhotoUploadService {
                     String successMessage = "图片上传完成！共上传 " + uploadedFiles.size() + " 张照片";
                     callback.onSuccess(successMessage);
 
+                    // 等待3秒，确保图片消息被钉钉服务器处理完毕后再发送完成消息
+                    // 避免"上传完成"消息比图片先到达用户端
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException ignored) {}
+
                     // 发送完成消息，传递 conversationType 和 userId
                     apiClient.sendTextMessage(conversationId, conversationType, successMessage, userId);
                 }

@@ -1,0 +1,14 @@
+{
+  "name": "commandPoll",
+  "version": "1.0.0",
+  "description": "轮询命令云函数（车机端调用）",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

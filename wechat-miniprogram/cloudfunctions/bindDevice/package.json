@@ -1,0 +1,14 @@
+{
+  "name": "bindDevice",
+  "version": "1.0.0",
+  "description": "设备绑定云函数",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

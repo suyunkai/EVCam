@@ -1,0 +1,104 @@
+<!--pages/control/control.wxml-->
+<view class="container">
+  <!-- 命令执行提示 -->
+  <view class="command-tip-overlay" wx:if="{{showCommandTip}}">
+    <view class="command-tip-card">
+      <view class="tip-icon">
+        <text wx:if="{{commandCountdown > 0}}">⏳</text>
+        <text wx:else>✅</text>
+      </view>
+      <view class="tip-message">{{commandMessage}}</view>
+      <view class="tip-countdown" wx:if="{{commandCountdown > 0}}">
+        剩余 {{commandCountdown}} 秒
+      </view>
+      <view class="tip-actions">
+        <button class="tip-btn" bindtap="goToFiles">查看文件</button>
+        <button class="tip-btn secondary" bindtap="hideCommandTip">关闭</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 设备状态 -->
+  <view class="card status-card">
+    <view class="status-header">
+      <view class="status-title">设备状态</view>
+      <view class="status-indicator {{deviceOnline ? 'online' : 'offline'}}">
+        <view class="status-dot"></view>
+        <text>{{deviceOnline ? '在线' : '离线'}}</text>
+      </view>
+    </view>
+    
+    <view class="device-name">{{device.deviceName || 'EVCam 设备'}}</view>
+    
+    <view class="status-info" wx:if="{{statusInfo}}">
+      <text>{{statusInfo}}</text>
+    </view>
+
+    <button class="refresh-btn" bindtap="refreshStatus">
+      <text>刷新状态</text>
+    </button>
+  </view>
+
+  <!-- 快捷控制 -->
+  <view class="card control-card" wx:if="{{deviceOnline}}">
+    <view class="card-title">快捷控制</view>
+    
+    <view class="control-grid">
+      <view class="control-item preview" bindtap="goToPreview">
+        <text class="emoji-icon">📹</text>
+        <text>预览</text>
+      </view>
+      
+      <view class="control-item record" bindtap="startRecord">
+        <text class="emoji-icon">🎬</text>
+        <text>录像</text>
+        <text class="duration-text">{{recordDuration}}秒</text>
+      </view>
+      
+      <view class="control-item photo" bindtap="takePhoto">
+        <text class="emoji-icon">📷</text>
+        <text>拍照</text>
+      </view>
+      
+      <view class="control-item status" bindtap="queryStatus">
+        <text class="emoji-icon">ℹ️</text>
+        <text>状态</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 录制时长设置 -->
+  <view class="card" wx:if="{{deviceOnline}}">
+    <view class="card-title">录像时长</view>
+    <picker mode="selector" range="{{durationOptions}}" bindchange="onDurationChange">
+      <view class="duration-picker">
+        <text>{{recordDuration}} 秒</text>
+        <text class="picker-arrow">▼</text>
+      </view>
+    </picker>
+  </view>
+
+  <!-- 高级控制 -->
+  <view class="card" wx:if="{{deviceOnline}}">
+    <view class="card-title">持续录制控制</view>
+    <view class="advanced-controls">
+      <button class="btn-primary start-btn" bindtap="startContinuousRecord" wx:if="{{!recording}}">
+        开始持续录制
+      </button>
+      <button class="btn-danger stop-btn" bindtap="stopRecord" wx:if="{{recording}}">
+        停止录制
+      </button>
+    </view>
+    <view class="control-tip text-small">
+      持续录制会一直录像直到手动停止或存储空间不足
+    </view>
+  </view>
+
+  <!-- 离线提示 -->
+  <view class="card offline-card" wx:if="{{!deviceOnline}}">
+    <image src="/images/offline.png" mode="aspectFit" class="offline-icon"></image>
+    <view class="offline-title">设备离线</view>
+    <view class="offline-desc">请检查车机是否开机并连接网络</view>
+    <button class="btn-secondary" bindtap="refreshStatus">重新检查</button>
+  </view>
+</view>

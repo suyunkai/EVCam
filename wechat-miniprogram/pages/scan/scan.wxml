@@ -1,0 +1,44 @@
+<!--pages/scan/scan.wxml-->
+<view class="container">
+  <!-- 扫码提示 -->
+  <view class="card scan-tip" wx:if="{{!bindingDevice}}">
+    <view class="scan-icon-wrapper">
+      <text class="scan-icon-text">📱</text>
+    </view>
+    <view class="scan-title">扫描设备二维码</view>
+    <view class="scan-desc">请打开车机 EVCam 应用，进入「微信小程序」设置页面，扫描屏幕上的二维码</view>
+    <button class="btn-primary" bindtap="startScan" wx:if="{{!scanning}}">开始扫码</button>
+    <view class="scanning-text" wx:if="{{scanning}}">
+      <view class="mini-spinner"></view>
+      <text>正在扫码...</text>
+    </view>
+  </view>
+
+  <!-- 确认绑定 -->
+  <view class="card confirm-card" wx:if="{{bindingDevice}}">
+    <view class="confirm-title">发现设备</view>
+    
+    <view class="device-preview">
+      <view class="device-icon">
+        <text class="device-icon-emoji">📹</text>
+      </view>
+      <view class="device-detail">
+        <view class="device-name">{{bindingDevice.deviceName}}</view>
+        <view class="device-id text-small">ID: {{bindingDevice.deviceId}}</view>
+      </view>
+    </view>
+
+    <view class="confirm-tip">
+      确认绑定此设备？绑定后您可以通过小程序远程控制车机进行录像和拍照。
+    </view>
+
+    <view class="confirm-actions">
+      <button class="btn-secondary" bindtap="cancelBind">取消</button>
+      <button class="btn-primary" bindtap="confirmBind">确认绑定</button>
+    </view>
+
+    <view class="rescan-link" bindtap="rescan">
+      <text>不是这个设备？重新扫码</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,88 @@
+<!--pages/index/index.wxml-->
+<view class="container">
+  <!-- 未绑定设备 -->
+  <view class="card" wx:if="{{!boundDevice}}">
+    <view class="empty-state">
+      <view class="empty-icon-wrapper">
+        <text class="empty-icon-text">🚗</text>
+      </view>
+      <view class="empty-title">尚未绑定设备</view>
+      <view class="empty-desc">扫描车机上的二维码绑定您的 EVCam 行车记录仪</view>
+      <button class="btn-primary scan-btn" bindtap="goToScan">扫码绑定设备</button>
+    </view>
+  </view>
+
+  <!-- 已绑定设备 -->
+  <view wx:if="{{boundDevice}}">
+    <!-- 设备信息卡片 -->
+    <view class="card device-card">
+      <view class="device-header">
+        <view class="device-icon">
+          <text class="device-icon-text">📹</text>
+        </view>
+        <view class="device-info">
+          <view class="device-name">{{boundDevice.deviceName || 'EVCam 设备'}}</view>
+          <view class="device-id text-small">ID: {{boundDevice.deviceId}}</view>
+        </view>
+        <view class="device-status {{deviceOnline ? 'status-online' : 'status-offline'}}" bindtap="refreshDeviceStatus">
+          <view class="status-dot"></view>
+          <text>{{deviceOnline ? '在线' : '离线'}}</text>
+        </view>
+      </view>
+
+      <view class="device-actions" wx:if="{{deviceOnline}}">
+        <view class="action-item" bindtap="goToPreview">
+          <text class="action-icon">📹</text>
+          <text>实时预览</text>
+        </view>
+        <view class="action-item" bindtap="goToControl">
+          <text class="action-icon">🎮</text>
+          <text>远程控制</text>
+        </view>
+        <view class="action-item" bindtap="goToFiles">
+          <text class="action-icon">📁</text>
+          <text>查看文件</text>
+        </view>
+      </view>
+
+      <view class="offline-tip" wx:if="{{!deviceOnline && !loading}}">
+        <text>设备离线，请检查车机是否开机并连接网络</text>
+        <text class="debug-info" wx:if="{{lastHeartbeatInfo}}">（{{lastHeartbeatInfo}}）</text>
+        <button class="refresh-small-btn" bindtap="refreshDeviceStatus">点击刷新</button>
+      </view>
+
+      <view class="loading-tip" wx:if="{{loading}}">
+        <view class="mini-spinner"></view>
+        <text>正在获取设备状态...</text>
+      </view>
+    </view>
+
+    <!-- 快捷操作卡片 -->
+    <view class="card" wx:if="{{deviceOnline}}">
+      <view class="card-title">快捷操作</view>
+      <view class="quick-actions">
+        <button class="quick-btn record-btn {{commandPending ? 'disabled' : ''}}" bindtap="quickRecord" disabled="{{commandPending}}">
+          <text class="quick-icon">🎬</text>
+          <text>一键录像</text>
+          <text class="quick-desc">60秒</text>
+        </button>
+        <button class="quick-btn photo-btn {{commandPending ? 'disabled' : ''}}" bindtap="quickPhoto" disabled="{{commandPending}}">
+          <text class="quick-icon">📷</text>
+          <text>一键拍照</text>
+          <text class="quick-desc">立即拍</text>
+        </button>
+      </view>
+      
+      <!-- 命令状态提示 -->
+      <view class="command-status-bar" wx:if="{{commandStatus}}">
+        <text class="status-icon">{{commandStatus === 'pending' ? '⏳' : commandStatus === 'completed' ? '✅' : '❌'}}</text>
+        <text class="status-text">{{commandMessage}}</text>
+      </view>
+    </view>
+
+    <!-- 解绑按钮 -->
+    <view class="unbind-section">
+      <button class="btn-secondary unbind-btn" bindtap="unbindDevice">解绑设备</button>
+    </view>
+  </view>
+</view>

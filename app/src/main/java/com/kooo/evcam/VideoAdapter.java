@@ -1,13 +1,8 @@
 package com.kooo.evcam;
 
 
-import com.kooo.evcam.AppLog;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.media.MediaMetadataRetriever;
-import android.net.Uri;
-import android.os.AsyncTask;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,6 +14,11 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.bumptech.glide.request.RequestOptions;
+import com.bumptech.glide.signature.ObjectKey;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -165,52 +165,29 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
     }
 
     /**
-     * 异步加载视频缩略图
+     * 使用 Glide 加载视频缩略图（带内存和磁盘缓存）
      */
     private void loadThumbnail(File videoFile, ImageView imageView) {
-        // 使用AsyncTask在后台线程加载缩略图
-        new AsyncTask<Void, Void, Bitmap>() {
-            @Override
-            protected Bitmap doInBackground(Void... voids) {
-                MediaMetadataRetriever retriever = null;
-                try {
-                    // 检查文件是否存在且大小大于0（避免加载正在录制的文件）
-                    if (!videoFile.exists() || videoFile.length() == 0) {
-                        return null;
-                    }
+        // 检查文件是否存在且大小大于0（避免加载正在录制的文件）
+        if (!videoFile.exists() || videoFile.length() == 0) {
+            imageView.setImageResource(android.R.drawable.ic_media_play);
+            return;
+        }
 
-                    retriever = new MediaMetadataRetriever();
-                    retriever.setDataSource(videoFile.getAbsolutePath());
+        // 使用文件修改时间作为缓存签名，文件变化时自动更新缓存
+        RequestOptions options = new RequestOptions()
+                .frame(0)  // 获取视频第一帧
+                .centerCrop()
+                .diskCacheStrategy(DiskCacheStrategy.RESOURCE)  // 缓存解码后的资源
+                .signature(new ObjectKey(videoFile.lastModified()))  // 文件修改时间作为缓存key
+                .placeholder(android.R.drawable.ic_media_play)
+                .error(android.R.drawable.ic_media_play);
 
-                    // 获取视频第一帧作为缩略图
-                    Bitmap bitmap = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
-
-                    return bitmap;
-                } catch (Exception e) {
-                    // 静默处理异常（可能是正在录制的文件）
-                    // e.printStackTrace();
-                    return null;
-                } finally {
-                    if (retriever != null) {
-                        try {
-                            retriever.release();
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-            }
-
-            @Override
-            protected void onPostExecute(Bitmap bitmap) {
-                if (bitmap != null) {
-                    imageView.setImageBitmap(bitmap);
-                } else {
-                    // 如果无法加载缩略图，显示默认图标
-                    imageView.setImageResource(android.R.drawable.ic_media_play);
-                }
-            }
-        }.execute();
+        Glide.with(context)
+                .asBitmap()
+                .load(videoFile)
+                .apply(options)
+                .into(imageView);
     }
 
     static class VideoViewHolder extends RecyclerView.ViewHolder {

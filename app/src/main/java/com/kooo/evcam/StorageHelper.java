@@ -12,6 +12,8 @@ import java.util.List;
 /**
  * 存储帮助类
  * 提供U盘检测和存储路径管理功能
+ * 
+ * 性能优化：使用内存缓存减少重复的文件系统 I/O 操作
  */
 public class StorageHelper {
     private static final String TAG = "StorageHelper";
@@ -21,29 +23,73 @@ public class StorageHelper {
     public static final String PHOTO_DIR_NAME = "EVCam_Photo";
     public static final String LOG_DIR_NAME = "EVCam_Log";
     
+    // ==================== 内存缓存（性能优化）====================
+    // U盘检测结果缓存（避免重复的文件系统 I/O）
+    private static volatile Boolean cachedHasSdCard = null;
+    private static volatile File cachedSdCardRoot = null;
+    private static volatile long cacheTimestamp = 0;
+    private static final long CACHE_VALIDITY_MS = 5000;  // 缓存有效期：5秒
+    
+    // 用于同步的锁对象
+    private static final Object cacheLock = new Object();
+    
+    /**
+     * 清除内存缓存（U盘插拔时调用）
+     */
+    public static void clearCache() {
+        synchronized (cacheLock) {
+            cachedHasSdCard = null;
+            cachedSdCardRoot = null;
+            cacheTimestamp = 0;
+            AppLog.d(TAG, "U盘检测缓存已清除");
+        }
+    }
+    
+    /**
+     * 检查缓存是否有效
+     */
+    private static boolean isCacheValid() {
+        return cacheTimestamp > 0 && (System.currentTimeMillis() - cacheTimestamp) < CACHE_VALIDITY_MS;
+    }
+    
     /**
      * 检测是否有U盘（并且可以写入公共目录）
+     * 使用内存缓存，5秒内不重复检测
      * @param context 上下文
      * @return true 如果检测到U盘且可写入
      */
     public static boolean hasExternalSdCard(Context context) {
-        File sdCardRoot = getExternalSdCardRoot(context);
-        if (sdCardRoot == null || !sdCardRoot.exists()) {
-            return false;
-        }
-        
-        // 检查 DCIM 目录是否可写
-        File dcimDir = new File(sdCardRoot, Environment.DIRECTORY_DCIM);
-        if (!dcimDir.exists()) {
-            // 尝试创建 DCIM 目录
-            boolean created = dcimDir.mkdirs();
-            if (!created) {
-                AppLog.w(TAG, "无法在U盘上创建 DCIM 目录");
-                return false;
+        // 先检查缓存
+        synchronized (cacheLock) {
+            if (isCacheValid() && cachedHasSdCard != null) {
+                return cachedHasSdCard;
             }
         }
         
-        return dcimDir.canWrite();
+        // 缓存无效，执行检测
+        File sdCardRoot = getExternalSdCardRoot(context);
+        boolean result = false;
+        
+        if (sdCardRoot != null && sdCardRoot.exists()) {
+            // 检查 DCIM 目录是否可写
+            File dcimDir = new File(sdCardRoot, Environment.DIRECTORY_DCIM);
+            if (!dcimDir.exists()) {
+                // 尝试创建 DCIM 目录
+                boolean created = dcimDir.mkdirs();
+                if (!created) {
+                    AppLog.w(TAG, "无法在U盘上创建 DCIM 目录");
+                }
+            }
+            result = dcimDir.exists() && dcimDir.canWrite();
+        }
+        
+        // 更新缓存
+        synchronized (cacheLock) {
+            cachedHasSdCard = result;
+            cacheTimestamp = System.currentTimeMillis();
+        }
+        
+        return result;
     }
     
     /**
@@ -294,7 +340,7 @@ public class StorageHelper {
     
     /**
      * 获取U盘根目录（用于写入公共目录）
-     * 优化检测逻辑：缓存优先 + 无感切换不同U盘
+     * 优化检测逻辑：内存缓存优先 + SharedPreferences缓存 + 无感切换不同U盘
      * @param context 上下文
      * @return U盘根目录，如果没有则返回 null
      */
@@ -303,6 +349,35 @@ public class StorageHelper {
             return null;
         }
         
+        // 优先检查内存缓存（最快，避免任何 I/O）
+        synchronized (cacheLock) {
+            if (isCacheValid() && cachedSdCardRoot != null) {
+                // 快速验证缓存的路径仍然有效
+                if (cachedSdCardRoot.exists() && cachedSdCardRoot.canRead()) {
+                    return cachedSdCardRoot;
+                }
+                // 缓存的路径失效了，清除缓存继续检测
+                cachedSdCardRoot = null;
+                cachedHasSdCard = null;
+            }
+        }
+        
+        // 内存缓存未命中，执行检测
+        File result = getExternalSdCardRootInternal(context);
+        
+        // 更新内存缓存
+        synchronized (cacheLock) {
+            cachedSdCardRoot = result;
+            cacheTimestamp = System.currentTimeMillis();
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 实际执行U盘检测（内部方法，不使用缓存）
+     */
+    private static File getExternalSdCardRootInternal(Context context) {
         AppConfig config = new AppConfig(context);
         
         // 方法0：优先使用用户手动设置的路径
@@ -314,10 +389,10 @@ public class StorageHelper {
             }
         }
         
-        // 方法1：检测上次缓存的路径（快速，避免重复检测）
-        String cachedPath = config.getLastDetectedSdPath();
-        if (cachedPath != null && !cachedPath.isEmpty()) {
-            File cachedDir = new File(cachedPath);
+        // 方法1：检测上次 SharedPreferences 缓存的路径（比重新检测快）
+        String spCachedPath = config.getLastDetectedSdPath();
+        if (spCachedPath != null && !spCachedPath.isEmpty()) {
+            File cachedDir = new File(spCachedPath);
             if (cachedDir.exists() && cachedDir.isDirectory() && cachedDir.canRead()) {
                 return cachedDir;
             }
@@ -328,7 +403,7 @@ public class StorageHelper {
         // 会检测任何 XXXX-XXXX 格式的 SD 卡，实现无感切换
         File sdRoot = getSdCardFromMounts();
         if (sdRoot != null) {
-            // 检测到U盘，更新缓存
+            // 检测到U盘，更新 SharedPreferences 缓存
             config.setLastDetectedSdPath(sdRoot.getAbsolutePath());
             return sdRoot;
         }
@@ -336,7 +411,7 @@ public class StorageHelper {
         // 方法3：通过 getExternalFilesDirs 获取（标准 API）
         sdRoot = getSdCardFromExternalFilesDirs(context);
         if (sdRoot != null) {
-            // 检测到U盘，更新缓存
+            // 检测到U盘，更新 SharedPreferences 缓存
             config.setLastDetectedSdPath(sdRoot.getAbsolutePath());
             return sdRoot;
         }

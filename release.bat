@@ -1,56 +1,63 @@
 @echo off
 setlocal enabledelayedexpansion
+chcp 65001 > nul
 
-REM Set JAVA_HOME if not already set
+REM 设置 JAVA_HOME
 if "%JAVA_HOME%"=="" (
-    REM Check Eclipse Adoptium (Temurin) JDK
     for /d %%d in ("C:\Program Files\Eclipse Adoptium\jdk-21*") do (
         set "JAVA_HOME=%%d"
     )
     if "!JAVA_HOME!"=="" for /d %%d in ("C:\Program Files\Eclipse Adoptium\jdk-17*") do (
         set "JAVA_HOME=%%d"
     )
-    REM Check Oracle/OpenJDK
     if "!JAVA_HOME!"=="" if exist "C:\Program Files\Java\jdk-21" set "JAVA_HOME=C:\Program Files\Java\jdk-21"
     if "!JAVA_HOME!"=="" if exist "C:\Program Files\Java\jdk-17" set "JAVA_HOME=C:\Program Files\Java\jdk-17"
     if "!JAVA_HOME!"=="" if exist "C:\Program Files\Java\jdk-25.0.2" set "JAVA_HOME=C:\Program Files\Java\jdk-25.0.2"
     
     if "!JAVA_HOME!"=="" (
-        echo ERROR: JAVA_HOME not set and no JDK found!
-        echo Please install JDK 17+ or set JAVA_HOME manually.
+        echo 错误: 未设置 JAVA_HOME 且未找到 JDK!
+        echo 请安装 JDK 17+ 或手动设置 JAVA_HOME
         pause
         exit /b 1
     )
-    echo [Info] Using JAVA_HOME: !JAVA_HOME!
+    echo [信息] 使用 JAVA_HOME: !JAVA_HOME!
 )
 set "PATH=%JAVA_HOME%\bin;%PATH%"
 
+echo.
+echo ====================================================
+echo   EVCam 发布助手
+echo ====================================================
+echo.
+echo 此脚本将执行:
+echo   1. 构建 Release APK
+echo   2. 创建 Git Tag 并推送
+echo   3. 创建 GitHub Release 并上传 APK
+echo.
+echo 注意: 请在运行此脚本前手动提交并推送代码
+echo.
+
+REM 检查未提交的更改（仅提示，不阻止）
+git diff --quiet
+set HAS_CHANGES=%ERRORLEVEL%
+git diff --cached --quiet
+set HAS_STAGED=%ERRORLEVEL%
+
+if !HAS_CHANGES! NEQ 0 (
+    echo [提示] 存在未提交的更改
+)
+if !HAS_STAGED! NEQ 0 (
+    echo [提示] 存在已暂存但未提交的更改
+)
+
+REM 从 build.gradle.kts 读取当前版本号
 set GRADLE_FILE=app\build.gradle.kts
 if not exist "%GRADLE_FILE%" (
-    echo ERROR: %GRADLE_FILE% not found!
+    echo 错误: 未找到 %GRADLE_FILE%!
     pause
     exit /b 1
 )
 
-echo.
-echo ====================================================
-echo   EVCam Release Helper
-echo ====================================================
-echo.
-
-echo [Info] Reading version info...
-
-REM Read versionCode
-set CURRENT_VERSION_CODE=0
-for /f "tokens=*" %%a in ('findstr /R "versionCode" "%GRADLE_FILE%"') do (
-    set "LINE=%%a"
-)
-for /f "tokens=3 delims= " %%b in ("!LINE!") do (
-    set CURRENT_VERSION_CODE=%%b
-)
-echo [Info] Current versionCode: !CURRENT_VERSION_CODE!
-
-REM Read versionName
 set CURRENT_VERSION_NAME=unknown
 for /f "tokens=*" %%a in ('findstr /R "versionName" "%GRADLE_FILE%"') do (
     set "LINE=%%a"
@@ -59,148 +66,78 @@ for /f "tokens=3 delims= " %%b in ("!LINE!") do (
     set "TEMP=%%~b"
 )
 set CURRENT_VERSION_NAME=!TEMP:"=!
-echo [Info] Current versionName: !CURRENT_VERSION_NAME!
+echo [信息] 当前版本号: !CURRENT_VERSION_NAME!
 
-REM Check for -test- suffix
-set BASE_VERSION_NAME=!CURRENT_VERSION_NAME!
-set IS_TEST_VERSION=0
-echo !CURRENT_VERSION_NAME! | findstr /C:"-test-" > nul
-if !ERRORLEVEL! EQU 0 (
-    set IS_TEST_VERSION=1
-    for /f "tokens=1 delims=-" %%b in ("!CURRENT_VERSION_NAME!") do set BASE_VERSION_NAME=%%b
-    echo [Info] Test version detected, base version: !BASE_VERSION_NAME!
-)
-echo.
-
-REM Auto increment versionCode
-set /a NEW_VERSION_CODE=!CURRENT_VERSION_CODE!+1
-echo [Auto] New versionCode: !NEW_VERSION_CODE!
-
-REM User input versionName
-echo.
-echo [Input] Enter versionName (e.g. 1.0.3), press Enter for: !BASE_VERSION_NAME!
-set /p NEW_VERSION_NAME="versionName: "
-if "!NEW_VERSION_NAME!"=="" set NEW_VERSION_NAME=!BASE_VERSION_NAME!
-echo [Info] Using version: !NEW_VERSION_NAME!
-
-REM Set Git Tag
-set VERSION=v!NEW_VERSION_NAME!
+REM 从版本号生成 Git Tag
+set VERSION=v!CURRENT_VERSION_NAME!
 
 echo.
 echo ====================================================
-echo   Version Confirmation
+echo   发布确认
 echo ====================================================
-echo   versionCode: !CURRENT_VERSION_CODE! -- !NEW_VERSION_CODE!
-echo   versionName: !CURRENT_VERSION_NAME! -- !NEW_VERSION_NAME!
-echo   Git Tag:     !VERSION!
+echo   版本号:    !CURRENT_VERSION_NAME!
+echo   Git Tag:   !VERSION!
 echo ====================================================
 echo.
-set /p CONFIRM="Continue? (Y/N): "
+set /p CONFIRM="是否继续? (Y/N): "
 if /i not "!CONFIRM!"=="Y" (
-    echo [Cancel] User cancelled
+    echo [取消] 用户取消操作
     pause
     exit /b 0
 )
 
-REM Update build.gradle.kts
+REM 步骤 1: 清理
 echo.
-echo [Update] Updating %GRADLE_FILE%...
-powershell -Command "(Get-Content '%GRADLE_FILE%') -replace 'versionCode = %CURRENT_VERSION_CODE%', 'versionCode = %NEW_VERSION_CODE%' | Set-Content '%GRADLE_FILE%' -Encoding UTF8"
-if errorlevel 1 goto update_error
-powershell -Command "(Get-Content '%GRADLE_FILE%') -replace 'versionName = \"%CURRENT_VERSION_NAME%\"', 'versionName = \"%NEW_VERSION_NAME%\"' | Set-Content '%GRADLE_FILE%' -Encoding UTF8"
-if errorlevel 1 goto update_error
-echo [Done] build.gradle.kts updated
-echo.
-
-REM Step 0: Check uncommitted changes
-echo [0/6] Checking Git status...
-git diff --quiet
-set HAS_CHANGES=%ERRORLEVEL%
-git diff --cached --quiet
-set HAS_STAGED=%ERRORLEVEL%
-
-set NEED_COMMIT=0
-if !HAS_CHANGES! NEQ 0 set NEED_COMMIT=1
-if !HAS_STAGED! NEQ 0 set NEED_COMMIT=1
-
-if !NEED_COMMIT! EQU 0 (
-    echo [Info] Working directory clean
-    goto skip_commit
-)
-echo [Notice] Uncommitted changes detected
-
-echo.
-set /p DO_COMMIT="Commit changes? (Y/N): "
-if /i not "!DO_COMMIT!"=="Y" goto skip_commit
-
-echo.
-echo [Input] Enter commit message (press Enter for default: Release !VERSION!)
-set /p COMMIT_MSG="Message: "
-if "!COMMIT_MSG!"=="" set COMMIT_MSG=Release !VERSION!
-
-echo [Commit] Committing...
-git add .
-git commit -m "!COMMIT_MSG!"
-if errorlevel 1 goto commit_error
-
-echo [Push] Pushing to remote...
-for /f "tokens=*" %%i in ('git branch --show-current') do set CURRENT_BRANCH=%%i
-git push origin !CURRENT_BRANCH!
-echo [Done] Code pushed
-echo.
-
-:skip_commit
-
-REM Step 1: Clean
-echo [1/6] Cleaning old build...
+echo [1/5] 清理旧构建...
 call gradlew.bat clean
 if errorlevel 1 goto build_error
-echo [Done] Clean complete
+echo [完成] 清理完成
 echo.
 
-REM Step 2: Build Release APK
-echo [2/6] Building Release APK...
+REM 步骤 2: 构建 Release APK
+echo [2/5] 构建 Release APK...
 call gradlew.bat assembleRelease
 if errorlevel 1 goto build_error
-echo [Done] Build successful
+echo [完成] 构建成功
 echo.
 
-REM Check APK
+REM 检查 APK
 set APK_PATH=app\build\outputs\apk\release\app-release.apk
 if not exist "%APK_PATH%" goto apk_not_found
 
-REM Rename APK
+REM 重命名 APK
 set RENAMED_APK=app\build\outputs\apk\release\EVCam-!VERSION!-release.apk
 copy "%APK_PATH%" "!RENAMED_APK!" > nul
-echo [Done] APK renamed to: EVCam-!VERSION!-release.apk
+echo [完成] APK 已重命名为: EVCam-!VERSION!-release.apk
 echo.
 
-REM Step 3: Create Git Tag
-echo [3/6] Creating Git Tag...
+REM 步骤 3: 创建 Git Tag
+echo [3/5] 创建 Git Tag...
 git tag -a !VERSION! -m "Release !VERSION!"
-echo [Push] Pushing Tag...
+if errorlevel 1 goto tag_create_error
+echo [推送] 推送 Tag...
 git push origin !VERSION!
-if errorlevel 1 goto tag_error
-echo [Done] Tag pushed
+if errorlevel 1 goto tag_push_error
+echo [完成] Tag 已推送
 echo.
 
-REM Step 4: Check GitHub CLI
-echo [4/6] Checking GitHub CLI...
+REM 步骤 4: 检查 GitHub CLI
+echo [4/5] 检查 GitHub CLI...
 where gh > nul 2>&1
 if errorlevel 1 goto no_gh
 
-echo [Done] GitHub CLI available
+echo [完成] GitHub CLI 可用
 echo.
 
-REM Step 5: Release Notes
-echo [5/6] Preparing release notes...
+REM 步骤 5: 发布说明
+echo [5/5] 准备发布说明...
 echo.
-echo [Input] Enter release notes (press Enter to skip)
-set /p RELEASE_NOTES="Notes: "
+echo [输入] 请输入发布说明 (直接回车跳过)
+set /p RELEASE_NOTES="说明: "
 echo.
 
-REM Step 6: Create GitHub Release
-echo [6/6] Creating GitHub Release...
+REM 创建 GitHub Release
+echo 正在创建 GitHub Release...
 if "!RELEASE_NOTES!"=="" (
     gh release create !VERSION! "!RENAMED_APK!" --title "EVCam !VERSION!" --notes ""
 ) else (
@@ -210,58 +147,60 @@ if errorlevel 1 goto release_error
 
 echo.
 echo ====================================================
-echo [Success] Release published!
+echo [成功] 发布完成!
 echo ====================================================
 echo.
-echo Version: !VERSION!
+echo 版本: !VERSION!
 echo APK: !RENAMED_APK!
 echo.
-echo View: gh release view !VERSION! --web
+echo 查看: gh release view !VERSION! --web
 echo.
+pause
 exit /b 0
 
-REM Error handlers
-:update_error
-echo [Error] Failed to update build.gradle.kts
-pause
-exit /b 1
-
-:commit_error
-echo [Error] Commit failed
-pause
-exit /b 1
-
+REM 错误处理
 :build_error
-echo [Error] Build failed
+echo [错误] 构建失败
+pause
 exit /b 1
 
 :apk_not_found
-echo [Error] APK not found: %APK_PATH%
+echo [错误] 未找到 APK: %APK_PATH%
+pause
 exit /b 1
 
-:tag_error
-echo [Error] Failed to push tag
-echo   - Tag may already exist
-echo   - Network issue
-echo   - Permission denied
+:tag_create_error
+echo [错误] 创建 Tag 失败
+echo   - Tag !VERSION! 可能已存在
+echo   - 运行: git tag -d !VERSION!  删除本地 tag
+pause
+exit /b 1
+
+:tag_push_error
+echo [错误] 推送 Tag 失败
+echo   - Tag 可能已存在于远程
+echo   - 网络问题
+echo   - 权限不足
+pause
 exit /b 1
 
 :no_gh
-echo [Warning] GitHub CLI not found
+echo [警告] 未找到 GitHub CLI
 echo.
-echo Create release manually:
+echo 请手动创建 Release:
 echo   1. https://github.com/suyunkai/EVCam/releases/new
 echo   2. Tag: !VERSION!
-echo   3. Upload: !RENAMED_APK!
+echo   3. 上传: !RENAMED_APK!
 echo.
-echo APK location: !RENAMED_APK!
+echo APK 位置: !RENAMED_APK!
 echo.
 pause
 exit /b 0
 
 :release_error
-echo [Error] Failed to create release
-echo   - Run: gh auth login
-echo   - Check permissions
-echo   - Tag may have release
+echo [错误] 创建 Release 失败
+echo   - 运行: gh auth login 登录
+echo   - 检查权限
+echo   - Tag 可能已有 Release
+pause
 exit /b 1

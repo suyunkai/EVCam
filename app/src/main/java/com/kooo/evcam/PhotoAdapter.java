@@ -1,13 +1,8 @@
 package com.kooo.evcam;
 
 
-import com.kooo.evcam.AppLog;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.net.Uri;
-import android.os.AsyncTask;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,6 +14,11 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.bumptech.glide.request.RequestOptions;
+import com.bumptech.glide.signature.ObjectKey;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -163,53 +163,28 @@ public class PhotoAdapter extends RecyclerView.Adapter<PhotoAdapter.PhotoViewHol
     }
 
     /**
-     * 异步加载照片缩略图
+     * 使用 Glide 加载照片缩略图（带内存和磁盘缓存）
      */
     private void loadThumbnail(File photoFile, ImageView imageView) {
-        // 使用AsyncTask在后台线程加载缩略图
-        new AsyncTask<Void, Void, Bitmap>() {
-            @Override
-            protected Bitmap doInBackground(Void... voids) {
-                try {
-                    // 检查文件是否存在且大小大于0
-                    if (!photoFile.exists() || photoFile.length() == 0) {
-                        return null;
-                    }
+        // 检查文件是否存在且大小大于0
+        if (!photoFile.exists() || photoFile.length() == 0) {
+            imageView.setImageResource(android.R.drawable.ic_menu_gallery);
+            return;
+        }
 
-                    // 先获取图片尺寸
-                    BitmapFactory.Options options = new BitmapFactory.Options();
-                    options.inJustDecodeBounds = true;
-                    BitmapFactory.decodeFile(photoFile.getAbsolutePath(), options);
+        // 使用文件修改时间作为缓存签名，文件变化时自动更新缓存
+        RequestOptions options = new RequestOptions()
+                .override(300, 300)  // 缩略图尺寸
+                .centerCrop()
+                .diskCacheStrategy(DiskCacheStrategy.RESOURCE)  // 缓存解码后的资源
+                .signature(new ObjectKey(photoFile.lastModified()))  // 文件修改时间作为缓存key
+                .placeholder(android.R.drawable.ic_menu_gallery)
+                .error(android.R.drawable.ic_menu_gallery);
 
-                    // 计算缩放比例
-                    int targetWidth = 300;
-                    int targetHeight = 300;
-                    int scaleFactor = Math.min(
-                            options.outWidth / targetWidth,
-                            options.outHeight / targetHeight
-                    );
-
-                    // 加载缩略图
-                    options.inJustDecodeBounds = false;
-                    options.inSampleSize = scaleFactor > 0 ? scaleFactor : 1;
-
-                    return BitmapFactory.decodeFile(photoFile.getAbsolutePath(), options);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    return null;
-                }
-            }
-
-            @Override
-            protected void onPostExecute(Bitmap bitmap) {
-                if (bitmap != null) {
-                    imageView.setImageBitmap(bitmap);
-                } else {
-                    // 如果无法加载缩略图，显示默认图标
-                    imageView.setImageResource(android.R.drawable.ic_menu_gallery);
-                }
-            }
-        }.execute();
+        Glide.with(context)
+                .load(photoFile)
+                .apply(options)
+                .into(imageView);
     }
 
     static class PhotoViewHolder extends RecyclerView.ViewHolder {

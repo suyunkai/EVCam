@@ -49,6 +49,35 @@ public class CameraForegroundService extends Service {
         
         // 获取 WakeLock 防止系统休眠（车机必须）
         acquireWakeLock();
+        
+        // 启动远程服务（钉钉/Telegram）
+        // 这样远程服务不依赖 MainActivity，即使 Activity 被杀也能继续运行
+        startRemoteServicesIfNeeded();
+    }
+    
+    /**
+     * 启动远程服务（如果配置了自动启动）
+     * 这是轻量优化的核心：远程服务在 Service 中启动，不依赖 MainActivity
+     */
+    private void startRemoteServicesIfNeeded() {
+        try {
+            AppConfig appConfig = new AppConfig(this);
+            // 只有开启了开机自启动才启动远程服务和悬浮窗
+            if (appConfig.isAutoStartOnBoot()) {
+                AppLog.d(TAG, "开机自启动已开启，从 Service 启动远程服务...");
+                RemoteServiceManager.getInstance().startRemoteServicesFromService(this);
+                
+                // 启动悬浮窗（如果已启用）
+                if (appConfig.isFloatingWindowEnabled()) {
+                    AppLog.d(TAG, "悬浮窗已启用，从 Service 启动悬浮窗...");
+                    FloatingWindowService.start(this);
+                }
+            } else {
+                AppLog.d(TAG, "开机自启动未开启，跳过远程服务启动");
+            }
+        } catch (Exception e) {
+            AppLog.e(TAG, "启动远程服务失败: " + e.getMessage(), e);
+        }
     }
     
     /**

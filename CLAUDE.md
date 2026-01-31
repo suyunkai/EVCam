@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is an Android multi-camera recording application that simultaneously captures video from up to 4 cameras. The app uses the Camera2 API and is designed for devices with multiple camera sensors (e.g., surveillance or multi-angle recording scenarios).
 
-**Package**: `com.test.cam`
+**Package**: `com.kooo.evcam`
 **Min SDK**: API 28 (Android 9.0)
 **Target SDK**: API 36 (Android 14+)
 **Build System**: Gradle with Kotlin DSL
@@ -81,18 +81,18 @@ adb devices
 adb logcat -v time -s CameraService:V Camera3-Device:V Camera3-Stream:V Camera3-Output:V camera3:V MainActivity:D MultiCameraManager:D SingleCamera:D VideoRecorder:D
 
 # View app-specific logs only
-adb logcat -v time | findstr "com.test.cam"
+adb logcat -v time | findstr "com.kooo.evcam"
 
 # Clear logcat buffer
 adb logcat -c
 
 # Uninstall app
-adb uninstall com.test.cam
+adb uninstall com.kooo.evcam
 
 # Grant permissions manually (useful for testing)
-adb shell pm grant com.test.cam android.permission.CAMERA
-adb shell pm grant com.test.cam android.permission.RECORD_AUDIO
-adb shell pm grant com.test.cam android.permission.WRITE_EXTERNAL_STORAGE
+adb shell pm grant com.kooo.evcam android.permission.CAMERA
+adb shell pm grant com.kooo.evcam android.permission.RECORD_AUDIO
+adb shell pm grant com.kooo.evcam android.permission.WRITE_EXTERNAL_STORAGE
 
 # Check recorded videos on device
 adb shell ls -la /sdcard/DCIM/EVCam_Video/
@@ -113,28 +113,28 @@ adb pull /sdcard/DCIM/EVCam_Photo/ ./photos/
 
 The application follows a layered architecture with clear separation between UI, camera management, and recording:
 
-**MainActivity** ([MainActivity.java](app/src/main/java/com/test/cam/MainActivity.java))
+**MainActivity** ([MainActivity.java](app/src/main/java/com/kooo/evcam/MainActivity.java))
 - Entry point and UI controller
 - Manages 4 TextureView instances for camera previews
 - Handles runtime permissions (camera, audio, storage)
 - Implements adaptive camera initialization (waits for all TextureViews to be ready)
 - Includes integrated logging system with logcat reader
 
-**MultiCameraManager** ([MultiCameraManager.java](app/src/main/java/com/test/cam/camera/MultiCameraManager.java))
+**MultiCameraManager** ([MultiCameraManager.java](app/src/main/java/com/kooo/evcam/camera/MultiCameraManager.java))
 - Orchestrates multiple SingleCamera instances
 - Manages camera lifecycle across all active cameras
 - Coordinates synchronized recording start/stop
 - Implements fallback logic: 4→2→1 camera configurations
 - Uses LinkedHashMap to maintain camera order (front, back, left, right)
 
-**SingleCamera** ([SingleCamera.java](app/src/main/java/com/test/cam/camera/SingleCamera.java))
+**SingleCamera** ([SingleCamera.java](app/src/main/java/com/kooo/evcam/camera/SingleCamera.java))
 - Wraps Camera2 API for individual camera control
 - Manages camera device lifecycle (open, configure, close)
 - Handles preview sessions with TextureView
 - Uses HandlerThread for background camera operations
 - Target resolution: 1280x800 (referenced as "guardapp" standard)
 
-**VideoRecorder** ([VideoRecorder.java](app/src/main/java/com/test/cam/camera/VideoRecorder.java))
+**VideoRecorder** ([VideoRecorder.java](app/src/main/java/com/kooo/evcam/camera/VideoRecorder.java))
 - Encapsulates MediaRecorder for video recording
 - Configuration: MP4 format, H.264 encoding, 1Mbps bitrate, 30fps
 - Saves to: `/DCIM/EVCam_Video/` directory
@@ -220,8 +220,8 @@ The app includes comprehensive error handling:
 ## File Locations
 
 ### Source Code
-- Main activity: `app/src/main/java/com/test/cam/MainActivity.java`
-- Camera package: `app/src/main/java/com/test/cam/camera/`
+- Main activity: `app/src/main/java/com/kooo/evcam/MainActivity.java`
+- Camera package: `app/src/main/java/com/kooo/evcam/camera/`
 
 ### Resources
 - Main layout: `app/src/main/res/layout/activity_main.xml`

@@ -1,0 +1,72 @@
+<!--pages/preview/preview.wxml-->
+<view class="container">
+  <!-- 顶部状态栏 -->
+  <view class="header">
+    <view class="back-btn" bindtap="goBack">
+      <text>←</text>
+    </view>
+    <view class="header-title">实时预览</view>
+    <view class="header-status {{deviceOnline ? 'online' : 'offline'}}">
+      <view class="status-dot"></view>
+      <text>{{deviceOnline ? '在线' : '离线'}}</text>
+    </view>
+  </view>
+
+  <!-- 预览区域 -->
+  <view class="preview-area">
+    <!-- 加载中 -->
+    <view class="preview-loading" wx:if="{{previewLoading && !previewUrl}}">
+      <view class="loading-spinner"></view>
+      <text>正在连接摄像头...</text>
+    </view>
+
+    <!-- 预览图片 -->
+    <image 
+      class="preview-image" 
+      wx:if="{{previewUrl}}"
+      src="{{previewUrl}}" 
+      mode="aspectFit"
+      binderror="onImageError"
+    />
+
+    <!-- 错误提示 -->
+    <view class="preview-error" wx:if="{{previewError && !previewUrl}}">
+      <text class="error-icon">⚠️</text>
+      <text class="error-text">{{errorMessage}}</text>
+      <button class="retry-btn" bindtap="onRefresh">重试</button>
+    </view>
+
+    <!-- 预览信息覆盖层 -->
+    <view class="preview-overlay" wx:if="{{isStreaming && previewUrl}}">
+      <view class="streaming-indicator">
+        <view class="live-dot"></view>
+        <text>LIVE</text>
+      </view>
+      <view class="update-time" wx:if="{{lastUpdateTime}}">
+        更新: {{lastUpdateTime}}
+      </view>
+    </view>
+  </view>
+
+  <!-- 控制按钮 -->
+  <view class="controls">
+    <button class="control-btn start" wx:if="{{!isStreaming}}" bindtap="startPreview">
+      <text class="btn-icon">▶️</text>
+      <text>开始预览</text>
+    </button>
+    <button class="control-btn stop" wx:if="{{isStreaming}}" bindtap="stopPreview">
+      <text class="btn-icon">⏹️</text>
+      <text>停止预览</text>
+    </button>
+    <button class="control-btn refresh" bindtap="onRefresh">
+      <text class="btn-icon">🔄</text>
+      <text>刷新</text>
+    </button>
+  </view>
+
+  <!-- 提示信息 -->
+  <view class="tips">
+    <text>提示：预览画面每2秒刷新一次，可能存在延迟</text>
+    <text class="device-id-tip">设备ID: {{device.deviceId}}</text>
+  </view>
+</view>

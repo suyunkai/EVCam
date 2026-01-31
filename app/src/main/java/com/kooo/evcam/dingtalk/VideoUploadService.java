@@ -116,6 +116,12 @@ public class VideoUploadService {
                     String successMessage = "视频上传完成！共上传 " + uploadedFiles.size() + " 个文件";
                     callback.onSuccess(successMessage);
 
+                    // 等待5秒，确保视频消息被钉钉服务器处理完毕后再发送完成消息
+                    // 视频处理比图片更慢，需要更长的等待时间
+                    try {
+                        Thread.sleep(5000);
+                    } catch (InterruptedException ignored) {}
+
                     // 发送完成消息，传递 conversationType 和 userId
                     apiClient.sendTextMessage(conversationId, conversationType, successMessage, userId);
                 }

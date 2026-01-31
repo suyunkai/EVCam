@@ -9,6 +9,8 @@
     <color name="card_background">#FF060809</color>
     <color name="text_primary">#FFFFFFFF</color>
     <color name="text_secondary">#FF888888</color>
+    <color name="text_hint">#FF666666</color>
+    <color name="input_background">#FF2A3038</color>
     <color name="nav_header_background">#FF20272E</color>
 
     <!-- 导航菜单配色 - 夜间模式（与主界面一致） -->
