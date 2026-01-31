@@ -40,15 +40,10 @@ import com.kooo.evcam.StorageHelper;
 import com.kooo.evcam.dingtalk.DingTalkApiClient;
 import com.kooo.evcam.dingtalk.DingTalkConfig;
 import com.kooo.evcam.dingtalk.DingTalkStreamManager;
-import com.kooo.evcam.dingtalk.PhotoUploadService;
-import com.kooo.evcam.dingtalk.VideoUploadService;
 import com.kooo.evcam.telegram.TelegramApiClient;
 import com.kooo.evcam.telegram.TelegramBotManager;
 import com.kooo.evcam.telegram.TelegramConfig;
-import com.kooo.evcam.telegram.TelegramPhotoUploadService;
-import com.kooo.evcam.telegram.TelegramVideoUploadService;
 import com.kooo.evcam.remote.RemoteCommandDispatcher;
-import com.kooo.evcam.remote.core.RemotePlatform;
 import com.kooo.evcam.remote.handler.RemoteCommandHandler;
 
 import java.io.BufferedReader;
@@ -150,9 +145,6 @@ public class MainActivity extends AppCompatActivity {
 
 
     // 远程录制相关
-    private String remoteConversationId;  // 钉钉会话 ID
-    private String remoteConversationType;  // 钉钉会话类型（"1"=单聊，"2"=群聊）
-    private String remoteUserId;  // 钉钉用户 ID
     private android.os.Handler autoStopHandler;  // 自动停止录制的 Handler
     private Runnable autoStopRunnable;  // 自动停止录制的 Runnable
     private String remoteRecordingTimestamp;  // 远程录制统一时间戳（用于文件命名和查找）
@@ -619,10 +611,14 @@ public class MainActivity extends AppCompatActivity {
         
         if ("record".equals(action)) {
             AppLog.d(TAG, "Starting remote recording for " + duration + " seconds");
-            startRemoteRecording(conversationId, conversationType, userId, duration);
+            if (remoteCommandDispatcher != null) {
+                remoteCommandDispatcher.startDingTalkRecording(conversationId, conversationType, userId, duration);
+            }
         } else if ("photo".equals(action)) {
             AppLog.d(TAG, "Taking remote photo");
-            startRemotePhoto(conversationId, conversationType, userId);
+            if (remoteCommandDispatcher != null) {
+                remoteCommandDispatcher.startDingTalkPhoto(conversationId, conversationType, userId);
+            }
         } else if ("start_recording".equals(action)) {
             AppLog.d(TAG, "Starting persistent recording (like button click)");
             executeStartPersistentRecording();
@@ -642,10 +638,14 @@ public class MainActivity extends AppCompatActivity {
         
         if ("record".equals(action)) {
             AppLog.d(TAG, "Telegram: Starting remote recording for " + duration + " seconds");
-            startRemoteRecordingTelegram(chatId, duration);
+            if (remoteCommandDispatcher != null) {
+                remoteCommandDispatcher.startTelegramRecording(chatId, duration);
+            }
         } else if ("photo".equals(action)) {
             AppLog.d(TAG, "Telegram: Taking remote photo");
-            startRemotePhotoTelegram(chatId);
+            if (remoteCommandDispatcher != null) {
+                remoteCommandDispatcher.startTelegramPhoto(chatId);
+            }
         } else {
             AppLog.w(TAG, "Telegram: Unknown action: " + action);
         }
@@ -659,10 +659,14 @@ public class MainActivity extends AppCompatActivity {
         
         if ("record".equals(action)) {
             AppLog.d(TAG, "Feishu: Starting remote recording for " + duration + " seconds");
-            startRemoteRecordingFeishu(chatId, duration);
+            if (remoteCommandDispatcher != null) {
+                remoteCommandDispatcher.startFeishuRecording(chatId, duration);
+            }
         } else if ("photo".equals(action)) {
             AppLog.d(TAG, "Feishu: Taking remote photo");
-            startRemotePhotoFeishu(chatId);
+            if (remoteCommandDispatcher != null) {
+                remoteCommandDispatcher.startFeishuPhoto(chatId);
+            }
         } else {
             AppLog.w(TAG, "Feishu: Unknown action: " + action);
         }
@@ -2841,469 +2845,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * 远程录制（由钉钉指令触发）
-     * 自动录制指定时长视频并上传到钉钉
-     */
-    public void startRemoteRecording(String conversationId, String conversationType, String userId, int durationSeconds) {
-        this.remoteConversationId = conversationId;
-        this.remoteConversationType = conversationType;
-        this.remoteUserId = userId;
-
-        AppLog.d(TAG, "收到远程录制指令，开始录制 " + durationSeconds + " 秒视频...");
-
-        // 第一步：检查是否已有远程录制任务正在进行
-        if (isRemoteRecording) {
-            AppLog.w(TAG, "远程录制任务正在进行中，拒绝新的远程录制指令");
-            sendErrorToRemote("远程录制任务正在进行中，请等待完成后再试");
-            return;
-        }
-
-        // 第二步：检查摄像头管理器是否初始化
-        if (cameraManager == null) {
-            AppLog.e(TAG, "摄像头管理器未初始化");
-            sendErrorToRemote("摄像头未初始化");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 第三步：检查是否有已连接的摄像头
-        if (!cameraManager.hasConnectedCameras()) {
-            AppLog.e(TAG, "没有可用的相机");
-            sendErrorToRemote("没有可用的相机（可能在后台被限制）");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 第四步：生成统一的时间戳（用于文件命名和后续查找）
-        remoteRecordingTimestamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
-                .format(new java.util.Date());
-        AppLog.d(TAG, "录制统一时间戳: " + remoteRecordingTimestamp);
-
-        // 第五步：如果正在手动录制，记录状态并停止
-        wasManualRecordingBeforeRemote = false;
-        if (cameraManager.isRecording()) {
-            // 当前是手动录制（因为 isRemoteRecording 已经检查过了）
-            wasManualRecordingBeforeRemote = true;
-            AppLog.d(TAG, "检测到手动录制正在进行，暂停手动录制以执行远程录制任务");
-            cameraManager.stopRecording();
-            
-            // 停止手动录制的计时器
-            stopRecordingTimer();
-            
-            // 停止闪烁动画，恢复按钮状态
-            stopBlinkAnimation();
-            
-            try {
-                Thread.sleep(500);  // 等待停止完成
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
-        // 第六步：标记开始远程录制
-        isRemoteRecording = true;
-
-        // 第七步：开始录制（使用统一时间戳）
-        boolean success = cameraManager.startRecording(remoteRecordingTimestamp);
-        if (success) {
-            AppLog.d(TAG, "远程录制已开始");
-            isPreparingRecording = true;  // 标记为准备中状态
-
-            // 启动前台服务保护（防止后台录制被中断）
-            CameraForegroundService.start(this, "远程录制进行中", "正在录制 " + durationSeconds + " 秒视频...");
-
-            // 发送录制状态广播（通知悬浮窗）
-            FloatingWindowService.sendRecordingStateChanged(this, true);
-            
-            // 显示准备中指示器（橙色旋转圈）
-            showPreparingIndicator();
-
-            // 设置指定时长后自动停止
-            autoStopRunnable = () -> {
-                AppLog.d(TAG, durationSeconds + " 秒录制完成，正在停止...");
-                // 跳过自动传输，等上传完成后再传输（从临时目录上传更快）
-                cameraManager.stopRecording(true);
-
-                // 停止前台服务
-                CameraForegroundService.stop(this);
-
-                // 发送录制状态广播（通知悬浮窗）
-                FloatingWindowService.sendRecordingStateChanged(this, false);
-
-                // 停止闪烁动画，恢复红色
-                isPreparingRecording = false;
-                stopBlinkAnimation();
-
-                // 标记远程录制结束
-                isRemoteRecording = false;
-
-                // 等待录制完全停止后上传视频（从临时目录上传，无需等待文件传输）
-                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                    // 先保存恢复录制的标志，因为 uploadRecordedVideos 可能会 return
-                    final boolean shouldResumeRecording = wasManualRecordingBeforeRemote;
-                    wasManualRecordingBeforeRemote = false;  // 重置标志
-                    
-                    // 尝试上传视频（可能因为找不到文件而提前返回）
-                    try {
-                        uploadRecordedVideos();
-                    } catch (Exception e) {
-                        AppLog.e(TAG, "上传视频时发生异常: " + e.getMessage());
-                    }
-                    
-                    // 【重要】无论上传是否成功，都要检查是否需要恢复手动录制
-                    if (shouldResumeRecording) {
-                        AppLog.d(TAG, "远程录制任务完成，恢复之前的手动录制");
-                        
-                        // 延迟一点时间再恢复，确保上传逻辑不受影响
-                        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                            // 再次检查：确保此时不是远程录制状态，且没有正在录制
-                            if (!isRemoteRecording && !cameraManager.isRecording()) {
-                                AppLog.d(TAG, "正在恢复手动录制...");
-                                startRecording();
-                            } else {
-                                AppLog.d(TAG, "跳过恢复录制：isRemoteRecording=" + isRemoteRecording + 
-                                        ", isRecording=" + cameraManager.isRecording());
-                            }
-                        }, 500);
-                    }
-                }, 1000);
-            };
-
-            // 【重要改动】定时器延迟到首次数据写入后启动
-            // 这样可以确保：
-            // 1. 摄像头启动慢或需要修复时，用户只会感觉"回复慢"而不是收到空视频
-            // 2. 实际录制时长是有效的（从真正有数据写入开始计时）
-            pendingRemoteDurationSeconds = durationSeconds;
-            AppLog.d(TAG, "远程录制定时器将在首次数据写入后启动，时长: " + durationSeconds + " 秒");
-        } else {
-            AppLog.e(TAG, "远程录制启动失败");
-            isRemoteRecording = false;
-            
-            // 如果之前有手动录制，尝试恢复
-            if (wasManualRecordingBeforeRemote) {
-                AppLog.d(TAG, "远程录制启动失败，尝试恢复手动录制");
-                wasManualRecordingBeforeRemote = false;
-                startRecording();
-            }
-            
-            sendErrorToRemote("录制启动失败");
-            returnToBackgroundIfRemoteWakeUp();
-        }
-    }
-
-    /**
-     * 远程拍照（由钉钉指令触发）
-     * 拍摄照片并上传到钉钉
-     */
-    public void startRemotePhoto(String conversationId, String conversationType, String userId) {
-        this.remoteConversationId = conversationId;
-        this.remoteConversationType = conversationType;
-        this.remoteUserId = userId;
-
-        AppLog.d(TAG, "收到远程拍照指令，开始拍照...");
-
-        // 第一步：检查摄像头管理器是否初始化
-        if (cameraManager == null) {
-            AppLog.e(TAG, "摄像头管理器未初始化");
-            sendErrorToRemote("摄像头未初始化");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 第二步：检查是否有已连接的摄像头
-        if (!cameraManager.hasConnectedCameras()) {
-            AppLog.e(TAG, "没有可用的相机");
-            sendErrorToRemote("没有可用的相机（可能在后台被限制）");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 第三步：生成统一的时间戳（用于文件命名和后续查找）
-        remoteRecordingTimestamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
-                .format(new java.util.Date());
-        AppLog.d(TAG, "拍照统一时间戳: " + remoteRecordingTimestamp);
-
-        // 第四步：执行拍照（传递统一时间戳）
-        cameraManager.takePicture(remoteRecordingTimestamp);
-        AppLog.d(TAG, "远程拍照已执行（拍照间隔300ms，保存间隔1s）");
-
-        // 等待所有摄像头拍照完成后上传
-        // 时间线：拍照(0-0.9s) + 最后保存延迟(3s) + 保存时间(1s) = 5s
-        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-            uploadPhotos();
-        }, 5000);  // 等待5秒确保所有照片保存完成
-    }
-
-    /**
-     * 上传录制的视频到钉钉
-     * 优先从临时目录上传（内部存储，速度快），上传后再传输到最终存储位置
-     */
-    private void uploadRecordedVideos() {
-        AppLog.d(TAG, "开始上传视频到钉钉...");
-
-        // 检查时间戳
-        if (remoteRecordingTimestamp == null || remoteRecordingTimestamp.isEmpty()) {
-            AppLog.e(TAG, "录制时间戳为空，无法查找视频文件");
-            sendErrorToRemote("录制失败：时间戳丢失");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 【优化】优先从临时目录查找文件（内部存储，读取快）
-        File tempDir = new File(getCacheDir(), FileTransferManager.TEMP_VIDEO_DIR);
-        File[] tempFiles = null;
-        if (tempDir.exists() && tempDir.isDirectory()) {
-            tempFiles = tempDir.listFiles((dir, name) -> 
-                name.endsWith(".mp4") && name.startsWith(remoteRecordingTimestamp + "_") && new File(dir, name).length() > 0
-            );
-        }
-
-        List<File> filesToUpload;
-        final boolean uploadFromTempDir;
-
-        if (tempFiles != null && tempFiles.length > 0) {
-            // 从临时目录上传
-            filesToUpload = new ArrayList<>(Arrays.asList(tempFiles));
-            uploadFromTempDir = true;
-            AppLog.d(TAG, "从临时目录上传 " + filesToUpload.size() + " 个视频文件（更快）");
-        } else {
-            // 临时目录没有文件，从最终存储目录上传（可能已经传输完成）
-            File videoDir = StorageHelper.getVideoDir(this);
-            if (!videoDir.exists() || !videoDir.isDirectory()) {
-                AppLog.e(TAG, "视频目录不存在");
-                sendErrorToRemote("视频目录不存在");
-                returnToBackgroundIfRemoteWakeUp();
-                return;
-            }
-
-            File[] files = videoDir.listFiles((dir, name) -> 
-                name.endsWith(".mp4") && name.startsWith(remoteRecordingTimestamp + "_")
-            );
-
-            if (files == null || files.length == 0) {
-                AppLog.e(TAG, "没有找到时间戳为 " + remoteRecordingTimestamp + " 的视频文件（录制可能失败）");
-                sendErrorToRemote("录制失败：未生成视频文件");
-                returnToBackgroundIfRemoteWakeUp();
-                return;
-            }
-
-            filesToUpload = new ArrayList<>(Arrays.asList(files));
-            uploadFromTempDir = false;
-            AppLog.d(TAG, "从最终目录上传 " + filesToUpload.size() + " 个视频文件");
-        }
-
-        // 记录日志
-        AppLog.d(TAG, "找到 " + filesToUpload.size() + " 个时间戳为 " + remoteRecordingTimestamp + " 的视频文件");
-        for (File file : filesToUpload) {
-            AppLog.d(TAG, "  - " + file.getName() + " (" + (file.length() / 1024) + " KB)");
-        }
-
-        // 保存文件列表的副本，用于上传后传输
-        final List<File> uploadedFiles = new ArrayList<>(filesToUpload);
-
-        // 使用 Activity 级别的 API 客户端
-        if (dingTalkApiClient != null && remoteConversationId != null) {
-            VideoUploadService uploadService = new VideoUploadService(this, dingTalkApiClient);
-            uploadService.uploadVideos(filesToUpload, remoteConversationId, remoteConversationType, remoteUserId, new VideoUploadService.UploadCallback() {
-                @Override
-                public void onProgress(String message) {
-                    AppLog.d(TAG, message);
-                }
-
-                @Override
-                public void onSuccess(String message) {
-                    AppLog.d(TAG, message);
-                    
-                    // 如果是从临时目录上传的，上传成功后传输到最终存储位置
-                    if (uploadFromTempDir) {
-                        transferTempFilesToFinalDir(uploadedFiles);
-                    }
-                    
-                    runOnUiThread(() -> {
-                        Toast.makeText(MainActivity.this, "视频上传成功", Toast.LENGTH_SHORT).show();
-                        // 上传完成后自动退回后台
-                        returnToBackgroundIfRemoteWakeUp();
-                    });
-                }
-
-                @Override
-                public void onError(String error) {
-                    AppLog.e(TAG, "上传失败: " + error);
-                    
-                    // 即使上传失败，也要传输文件到最终存储位置（保留视频）
-                    if (uploadFromTempDir) {
-                        transferTempFilesToFinalDir(uploadedFiles);
-                    }
-                    
-                    sendErrorToRemote("上传失败: " + error);
-                    
-                    // 如果是 413 错误（文件太大），额外发送提示
-                    if (error.contains("413")) {
-                        sendErrorToRemote("提示：钉钉限制上传文件不能超过20MB，该文件大小已超出，可能会上传失败。");
-                    }
-                    
-                    // 即使失败也退回后台
-                    runOnUiThread(() -> returnToBackgroundIfRemoteWakeUp());
-                }
-            });
-        } else {
-            AppLog.e(TAG, "远程查看服务未启动");
-            
-            // 即使远程查看服务未启动，也要传输文件到最终存储位置（保留视频）
-            if (uploadFromTempDir) {
-                transferTempFilesToFinalDir(uploadedFiles);
-            }
-            
-            sendErrorToRemote("远程查看服务未启动");
-            returnToBackgroundIfRemoteWakeUp();
-        }
-    }
-
-    /**
-     * 将临时目录的视频文件传输到最终存储位置
-     * 在上传完成后异步执行
-     */
-    private void transferTempFilesToFinalDir(List<File> tempFiles) {
-        if (tempFiles == null || tempFiles.isEmpty()) {
-            return;
-        }
-
-        File finalDir = StorageHelper.getVideoDir(this);
-        if (!finalDir.exists()) {
-            finalDir.mkdirs();
-        }
-
-        AppLog.d(TAG, "开始传输 " + tempFiles.size() + " 个临时文件到最终存储位置...");
-
-        FileTransferManager transferManager = FileTransferManager.getInstance(this);
-        for (File tempFile : tempFiles) {
-            // 检查文件是否还存在（可能已经被其他逻辑传输了）
-            if (!tempFile.exists()) {
-                AppLog.d(TAG, "文件已不存在（可能已传输）: " + tempFile.getName());
-                continue;
-            }
-
-            File targetFile = new File(finalDir, tempFile.getName());
-            transferManager.addTransferTask(tempFile, targetFile, new FileTransferManager.TransferCallback() {
-                @Override
-                public void onTransferComplete(File sourceFile, File targetFile) {
-                    AppLog.d(TAG, "视频已保存到: " + targetFile.getAbsolutePath());
-                }
-
-                @Override
-                public void onTransferFailed(File sourceFile, File targetFile, String error) {
-                    AppLog.e(TAG, "视频保存失败: " + sourceFile.getName() + " - " + error);
-                }
-            });
-        }
-    }
-
-    /**
-     * 上传拍摄的照片到钉钉
-     */
-    private void uploadPhotos() {
-        AppLog.d(TAG, "开始上传照片到钉钉...");
-
-        // 检查时间戳
-        if (remoteRecordingTimestamp == null || remoteRecordingTimestamp.isEmpty()) {
-            AppLog.e(TAG, "拍照时间戳为空，无法查找照片文件");
-            sendErrorToRemote("拍照失败：时间戳丢失");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 获取照片文件
-        File photoDir = StorageHelper.getPhotoDir(this);
-
-        if (!photoDir.exists() || !photoDir.isDirectory()) {
-            AppLog.e(TAG, "照片目录不存在");
-            sendErrorToRemote("照片目录不存在");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 直接过滤：只获取本次拍摄的照片文件（精确匹配时间戳，秒级）
-        // 文件名格式: 20260124_235933_front.jpg
-        File[] files = photoDir.listFiles((dir, name) -> 
-            name.endsWith(".jpg") && name.startsWith(remoteRecordingTimestamp + "_")
-        );
-
-        if (files == null || files.length == 0) {
-            AppLog.e(TAG, "没有找到时间戳为 " + remoteRecordingTimestamp + " 的照片文件（拍照可能失败）");
-            sendErrorToRemote("拍照失败：未生成照片文件");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 转换为 List 并记录日志
-        List<File> recentFiles = new ArrayList<>(Arrays.asList(files));
-        AppLog.d(TAG, "找到 " + recentFiles.size() + " 张时间戳为 " + remoteRecordingTimestamp + " 的照片");
-        for (File file : recentFiles) {
-            AppLog.d(TAG, "  - " + file.getName());
-        }
-
-        // 使用 Activity 级别的 API 客户端
-        if (dingTalkApiClient != null && remoteConversationId != null) {
-            PhotoUploadService uploadService = new PhotoUploadService(this, dingTalkApiClient);
-            uploadService.uploadPhotos(recentFiles, remoteConversationId, remoteConversationType, remoteUserId, new PhotoUploadService.UploadCallback() {
-                @Override
-                public void onProgress(String message) {
-                    AppLog.d(TAG, message);
-                }
-
-                @Override
-                public void onSuccess(String message) {
-                    AppLog.d(TAG, message);
-                    runOnUiThread(() -> {
-                        Toast.makeText(MainActivity.this, "照片上传成功", Toast.LENGTH_SHORT).show();
-                        // 上传完成后自动退回后台
-                        returnToBackgroundIfRemoteWakeUp();
-                    });
-                }
-
-                @Override
-                public void onError(String error) {
-                    AppLog.e(TAG, "上传失败: " + error);
-                    sendErrorToRemote("上传失败: " + error);
-                    // 即使失败也退回后台
-                    runOnUiThread(() -> returnToBackgroundIfRemoteWakeUp());
-                }
-            });
-        } else {
-            AppLog.e(TAG, "远程查看服务未启动");
-            sendErrorToRemote("远程查看服务未启动");
-            returnToBackgroundIfRemoteWakeUp();
-        }
-    }
-
-    /**
-     * 发送错误消息到钉钉
-     */
-    private void sendErrorToRemote(String error) {
-        if (remoteConversationId == null) {
-            return;
-        }
-
-        if (dingTalkApiClient != null) {
-            new Thread(() -> {
-                try {
-                    // 延迟1秒发送错误消息，确保确认消息（Webhook）先到达钉钉并被用户看到
-                    // 原因：虽然现在命令已在确认消息发送后执行，但仍需考虑网络延迟和服务器处理时间
-                    AppLog.d(TAG, "错误消息将在1秒后发送，确保确认消息先到达...");
-                    Thread.sleep(1000);
-                    
-                    dingTalkApiClient.sendTextMessage(remoteConversationId, remoteConversationType, "录制失败: " + error, remoteUserId);
-                    AppLog.d(TAG, "错误消息已发送到钉钉");
-                } catch (InterruptedException e) {
-                    AppLog.w(TAG, "错误消息延迟被中断");
-                } catch (Exception e) {
-                    AppLog.e(TAG, "发送错误消息失败", e);
-                }
-            }).start();
-        }
-    }
-
-    /**
      * 如果是远程唤醒的，完成后自动退回后台
      * 延迟2秒后执行，让用户看到上传成功的提示
      */
@@ -3401,22 +2942,17 @@ public class MainActivity extends AppCompatActivity {
         DingTalkStreamManager.CommandCallback commandCallback = new DingTalkStreamManager.CommandCallback() {
             @Override
             public void onRecordCommand(String conversationId, String conversationType, String userId, int durationSeconds) {
-                // 使用新的分发器处理远程录制
+                // 使用分发器处理远程录制
                 if (remoteCommandDispatcher != null) {
                     remoteCommandDispatcher.startDingTalkRecording(conversationId, conversationType, userId, durationSeconds);
-                } else {
-                    // 兼容：如果分发器未初始化，使用旧方法
-                    startRemoteRecording(conversationId, conversationType, userId, durationSeconds);
                 }
             }
 
             @Override
             public void onPhotoCommand(String conversationId, String conversationType, String userId) {
-                // 使用新的分发器处理远程拍照
+                // 使用分发器处理远程拍照
                 if (remoteCommandDispatcher != null) {
                     remoteCommandDispatcher.startDingTalkPhoto(conversationId, conversationType, userId);
-                } else {
-                    startRemotePhoto(conversationId, conversationType, userId);
                 }
             }
 
@@ -3545,22 +3081,18 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onRecordCommand(long chatId, int durationSeconds) {
                 pendingTelegramChatId = chatId;
-                // 使用新的分发器处理远程录制
+                // 使用分发器处理远程录制
                 if (remoteCommandDispatcher != null) {
                     remoteCommandDispatcher.startTelegramRecording(chatId, durationSeconds);
-                } else {
-                    startRemoteRecordingTelegram(chatId, durationSeconds);
                 }
             }
 
             @Override
             public void onPhotoCommand(long chatId) {
                 pendingTelegramChatId = chatId;
-                // 使用新的分发器处理远程拍照
+                // 使用分发器处理远程拍照
                 if (remoteCommandDispatcher != null) {
                     remoteCommandDispatcher.startTelegramPhoto(chatId);
-                } else {
-                    startRemotePhotoTelegram(chatId);
                 }
             }
 
@@ -3701,22 +3233,18 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onRecordCommand(String chatId, String messageId, int durationSeconds) {
                 pendingFeishuChatId = chatId;
-                // 使用新的分发器处理远程录制
+                // 使用分发器处理远程录制
                 if (remoteCommandDispatcher != null) {
                     remoteCommandDispatcher.startFeishuRecording(chatId, durationSeconds);
-                } else {
-                    startRemoteRecordingFeishu(chatId, durationSeconds);
                 }
             }
 
             @Override
             public void onPhotoCommand(String chatId, String messageId) {
                 pendingFeishuChatId = chatId;
-                // 使用新的分发器处理远程拍照
+                // 使用分发器处理远程拍照
                 if (remoteCommandDispatcher != null) {
                     remoteCommandDispatcher.startFeishuPhoto(chatId);
-                } else {
-                    startRemotePhotoFeishu(chatId);
                 }
             }
 
@@ -3782,619 +3310,6 @@ public class MainActivity extends AppCompatActivity {
         Fragment fragment = fragmentManager.findFragmentById(R.id.fragment_container);
         if (fragment instanceof FeishuFragment) {
             ((FeishuFragment) fragment).updateServiceStatus();
-        }
-    }
-
-    /**
-     * 启动飞书远程录制
-     */
-    private void startRemoteRecordingFeishu(String chatId, int durationSeconds) {
-        AppLog.d(TAG, "飞书远程录制: chatId=" + chatId + ", duration=" + durationSeconds);
-        pendingFeishuChatId = chatId;
-        
-        // 检查是否已有远程录制任务正在进行
-        if (isRemoteRecording) {
-            AppLog.w(TAG, "远程录制任务正在进行中，拒绝新的飞书录制指令");
-            sendFeishuMessage(chatId, "❌ 远程录制任务正在进行中，请等待完成后再试");
-            return;
-        }
-
-        // 检查摄像头管理器是否初始化
-        if (cameraManager == null) {
-            AppLog.e(TAG, "摄像头管理器未初始化");
-            sendFeishuMessage(chatId, "❌ 摄像头未初始化");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 检查是否有已连接的摄像头
-        if (!cameraManager.hasConnectedCameras()) {
-            AppLog.e(TAG, "没有可用的相机");
-            sendFeishuMessage(chatId, "❌ 没有可用的相机");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 生成统一的时间戳
-        remoteRecordingTimestamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
-                .format(new java.util.Date());
-        AppLog.d(TAG, "飞书录制统一时间戳: " + remoteRecordingTimestamp);
-
-        // 如果正在手动录制，记录状态并停止
-        wasManualRecordingBeforeRemote = false;
-        if (cameraManager.isRecording()) {
-            wasManualRecordingBeforeRemote = true;
-            AppLog.d(TAG, "飞书: 检测到手动录制正在进行，暂停手动录制");
-            cameraManager.stopRecording();
-            stopRecordingTimer();
-            stopBlinkAnimation();
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
-        // 标记开始远程录制
-        isRemoteRecording = true;
-
-        // 开始录制
-        boolean success = cameraManager.startRecording(remoteRecordingTimestamp);
-        if (success) {
-            AppLog.d(TAG, "飞书远程录制已开始");
-            isPreparingRecording = true;
-
-            // 启动前台服务保护
-            CameraForegroundService.start(this, "飞书远程录制", "正在录制 " + durationSeconds + " 秒视频...");
-            FloatingWindowService.sendRecordingStateChanged(this, true);
-            showPreparingIndicator();
-
-            // 设置自动停止
-            final String finalChatId = chatId;
-            autoStopRunnable = () -> {
-                AppLog.d(TAG, "飞书 " + durationSeconds + " 秒录制完成，正在停止...");
-                cameraManager.stopRecording(true);
-                CameraForegroundService.stop(this);
-                FloatingWindowService.sendRecordingStateChanged(this, false);
-                isPreparingRecording = false;
-                stopBlinkAnimation();
-                isRemoteRecording = false;
-
-                // 上传视频
-                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                    final boolean shouldResumeRecording = wasManualRecordingBeforeRemote;
-                    wasManualRecordingBeforeRemote = false;
-                    
-                    uploadFeishuVideos(finalChatId);
-                    
-                    // 恢复手动录制
-                    if (shouldResumeRecording) {
-                        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                            if (!isRemoteRecording && !cameraManager.isRecording()) {
-                                startRecording();
-                            }
-                        }, 500);
-                    }
-                }, 1000);
-            };
-
-            // 定时器延迟到首次数据写入后启动
-            pendingRemoteDurationSeconds = durationSeconds;
-            AppLog.d(TAG, "飞书录制定时器将在首次数据写入后启动，时长: " + durationSeconds + " 秒");
-        } else {
-            AppLog.e(TAG, "飞书远程录制启动失败");
-            sendFeishuMessage(chatId, "❌ 录制启动失败");
-            isRemoteRecording = false;
-            returnToBackgroundIfRemoteWakeUp();
-        }
-    }
-
-    /**
-     * 启动飞书远程拍照
-     */
-    private void startRemotePhotoFeishu(String chatId) {
-        AppLog.d(TAG, "飞书远程拍照: chatId=" + chatId);
-        pendingFeishuChatId = chatId;
-
-        // 检查摄像头管理器
-        if (cameraManager == null) {
-            AppLog.e(TAG, "摄像头管理器未初始化");
-            sendFeishuMessage(chatId, "❌ 摄像头未初始化");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 检查是否有已连接的摄像头
-        if (!cameraManager.hasConnectedCameras()) {
-            AppLog.e(TAG, "没有可用的相机");
-            sendFeishuMessage(chatId, "❌ 没有可用的相机");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 生成时间戳
-        String timestamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
-                .format(new java.util.Date());
-        AppLog.d(TAG, "飞书拍照时间戳: " + timestamp);
-
-        // 执行拍照
-        cameraManager.takePicture(timestamp);
-        AppLog.d(TAG, "飞书远程拍照已执行");
-
-        // 等待拍照完成后上传
-        final String finalChatId = chatId;
-        final String finalTimestamp = timestamp;
-        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-            uploadFeishuPhotos(finalChatId, finalTimestamp);
-        }, 5000);
-    }
-
-    /**
-     * 上传飞书视频
-     * 与 Telegram 保持一致的实现
-     */
-    private void uploadFeishuVideos(String chatId) {
-        if (feishuApiClient == null) {
-            AppLog.e(TAG, "飞书 API 客户端未初始化");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 检查时间戳
-        final String timestamp = remoteRecordingTimestamp;
-        if (timestamp == null || timestamp.isEmpty()) {
-            AppLog.e(TAG, "录制时间戳为空，无法查找视频文件");
-            sendFeishuMessage(chatId, "❌ 录制失败：时间戳丢失");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 优先从临时目录查找文件
-        java.io.File tempDir = new java.io.File(getCacheDir(), FileTransferManager.TEMP_VIDEO_DIR);
-        java.io.File[] tempFiles = null;
-        if (tempDir.exists() && tempDir.isDirectory()) {
-            tempFiles = tempDir.listFiles((dir, name) -> 
-                name.endsWith(".mp4") && name.startsWith(timestamp + "_") && new java.io.File(dir, name).length() > 0
-            );
-        }
-
-        java.util.List<java.io.File> videoFiles;
-        if (tempFiles != null && tempFiles.length > 0) {
-            videoFiles = new java.util.ArrayList<>(java.util.Arrays.asList(tempFiles));
-            AppLog.d(TAG, "飞书: 从临时目录找到 " + videoFiles.size() + " 个视频文件");
-        } else {
-            // 从最终目录查找
-            java.io.File videoDir = StorageHelper.getVideoDir(this);
-            if (videoDir == null || !videoDir.exists()) {
-                AppLog.e(TAG, "视频目录不存在");
-                sendFeishuMessage(chatId, "❌ 视频目录不存在");
-                returnToBackgroundIfRemoteWakeUp();
-                return;
-            }
-
-            java.io.File[] files = videoDir.listFiles((dir, name) -> 
-                    name.startsWith(timestamp) && name.endsWith(".mp4"));
-            
-            if (files == null || files.length == 0) {
-                AppLog.e(TAG, "未找到录制的视频文件，时间戳: " + timestamp);
-                sendFeishuMessage(chatId, "❌ 未找到录制的视频文件");
-                returnToBackgroundIfRemoteWakeUp();
-                return;
-            }
-            
-            videoFiles = new java.util.ArrayList<>(java.util.Arrays.asList(files));
-            AppLog.d(TAG, "飞书: 从最终目录找到 " + videoFiles.size() + " 个视频文件");
-        }
-        AppLog.d(TAG, "找到 " + videoFiles.size() + " 个视频文件，开始上传到飞书");
-
-        com.kooo.evcam.feishu.FeishuVideoUploadService uploadService = 
-            new com.kooo.evcam.feishu.FeishuVideoUploadService(this, feishuApiClient);
-        uploadService.uploadVideos(videoFiles, chatId, new com.kooo.evcam.feishu.FeishuVideoUploadService.UploadCallback() {
-            @Override
-            public void onProgress(String message) {
-                AppLog.d(TAG, "飞书视频上传进度: " + message);
-            }
-
-            @Override
-            public void onSuccess(String message) {
-                AppLog.d(TAG, "飞书视频上传成功: " + message);
-                returnToBackgroundIfRemoteWakeUp();
-            }
-
-            @Override
-            public void onError(String error) {
-                AppLog.e(TAG, "飞书视频上传失败: " + error);
-                
-                // 如果是文件太大的错误，发送提示
-                if (error.contains("413") || error.contains("99991663") || 
-                    error.contains("file size")) {
-                    sendFeishuMessage(chatId, "提示：飞书限制上传文件不能超过30MB，该文件大小已超出。");
-                }
-                
-                returnToBackgroundIfRemoteWakeUp();
-            }
-        });
-    }
-
-    /**
-     * 上传飞书照片
-     */
-    private void uploadFeishuPhotos(String chatId, String timestamp) {
-        if (feishuApiClient == null) {
-            AppLog.e(TAG, "飞书 API 客户端未初始化");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 查找照片文件
-        java.io.File photoDir = StorageHelper.getPhotoDir(this);
-        if (photoDir == null || !photoDir.exists()) {
-            AppLog.e(TAG, "照片目录不存在");
-            sendFeishuMessage(chatId, "❌ 照片目录不存在");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 查找匹配时间戳的照片
-        java.io.File[] files = photoDir.listFiles((dir, name) -> 
-                name.startsWith(timestamp) && (name.endsWith(".jpg") || name.endsWith(".jpeg")));
-        
-        if (files == null || files.length == 0) {
-            AppLog.e(TAG, "未找到拍摄的照片，时间戳: " + timestamp);
-            sendFeishuMessage(chatId, "❌ 未找到拍摄的照片");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        java.util.List<java.io.File> photoFiles = new java.util.ArrayList<>(java.util.Arrays.asList(files));
-        AppLog.d(TAG, "找到 " + photoFiles.size() + " 张照片，开始上传到飞书");
-
-        com.kooo.evcam.feishu.FeishuPhotoUploadService uploadService = 
-            new com.kooo.evcam.feishu.FeishuPhotoUploadService(this, feishuApiClient);
-        uploadService.uploadPhotos(photoFiles, chatId, new com.kooo.evcam.feishu.FeishuPhotoUploadService.UploadCallback() {
-            @Override
-            public void onProgress(String message) {
-                AppLog.d(TAG, "飞书照片上传进度: " + message);
-            }
-
-            @Override
-            public void onSuccess(String message) {
-                AppLog.d(TAG, "飞书照片上传成功: " + message);
-                returnToBackgroundIfRemoteWakeUp();
-            }
-
-            @Override
-            public void onError(String error) {
-                AppLog.e(TAG, "飞书照片上传失败: " + error);
-                returnToBackgroundIfRemoteWakeUp();
-            }
-        });
-    }
-
-    /**
-     * 发送飞书消息
-     */
-    private void sendFeishuMessage(String chatId, String text) {
-        if (feishuApiClient == null) {
-            AppLog.e(TAG, "飞书 API 客户端未初始化");
-            return;
-        }
-
-        new Thread(() -> {
-            try {
-                feishuApiClient.sendTextMessage("chat_id", chatId, text);
-            } catch (Exception e) {
-                AppLog.e(TAG, "发送飞书消息失败", e);
-            }
-        }).start();
-    }
-
-    /**
-     * 启动 Telegram 远程录制
-     * 参考 startRemoteRecording 方法实现
-     */
-    private void startRemoteRecordingTelegram(long chatId, int durationSeconds) {
-        AppLog.d(TAG, "Telegram 远程录制: chatId=" + chatId + ", duration=" + durationSeconds);
-        pendingTelegramChatId = chatId;
-        
-        // 检查是否已有远程录制任务正在进行
-        if (isRemoteRecording) {
-            AppLog.w(TAG, "远程录制任务正在进行中，拒绝新的 Telegram 录制指令");
-            sendTelegramMessage(chatId, "❌ 远程录制任务正在进行中，请等待完成后再试");
-            return;
-        }
-
-        // 检查摄像头管理器是否初始化
-        if (cameraManager == null) {
-            AppLog.e(TAG, "摄像头管理器未初始化");
-            sendTelegramMessage(chatId, "❌ 摄像头未初始化");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 检查是否有已连接的摄像头
-        if (!cameraManager.hasConnectedCameras()) {
-            AppLog.e(TAG, "没有可用的相机");
-            sendTelegramMessage(chatId, "❌ 没有可用的相机");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 生成统一的时间戳
-        remoteRecordingTimestamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
-                .format(new java.util.Date());
-        AppLog.d(TAG, "Telegram 录制统一时间戳: " + remoteRecordingTimestamp);
-
-        // 如果正在手动录制，记录状态并停止
-        wasManualRecordingBeforeRemote = false;
-        if (cameraManager.isRecording()) {
-            wasManualRecordingBeforeRemote = true;
-            AppLog.d(TAG, "Telegram: 检测到手动录制正在进行，暂停手动录制");
-            cameraManager.stopRecording();
-            stopRecordingTimer();
-            stopBlinkAnimation();
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
-        // 标记开始远程录制
-        // 注意：isRemoteWakeUp 已在 handleRemoteCommandFromIntent 中根据当前状态正确设置
-        // 不要在这里覆盖，否则会导致用户在前台使用时也错误地返回后台
-        isRemoteRecording = true;
-
-        // 开始录制
-        boolean success = cameraManager.startRecording(remoteRecordingTimestamp);
-        if (success) {
-            AppLog.d(TAG, "Telegram 远程录制已开始");
-            isPreparingRecording = true;
-
-            // 启动前台服务保护
-            CameraForegroundService.start(this, "Telegram 远程录制", "正在录制 " + durationSeconds + " 秒视频...");
-            FloatingWindowService.sendRecordingStateChanged(this, true);
-            showPreparingIndicator();
-
-            // 设置自动停止
-            final long finalChatId = chatId;
-            autoStopRunnable = () -> {
-                AppLog.d(TAG, "Telegram " + durationSeconds + " 秒录制完成，正在停止...");
-                cameraManager.stopRecording(true);
-                CameraForegroundService.stop(this);
-                FloatingWindowService.sendRecordingStateChanged(this, false);
-                isPreparingRecording = false;
-                stopBlinkAnimation();
-                isRemoteRecording = false;
-
-                // 上传视频
-                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                    final boolean shouldResumeRecording = wasManualRecordingBeforeRemote;
-                    wasManualRecordingBeforeRemote = false;
-                    
-                    uploadTelegramVideos(finalChatId);
-                    
-                    // 恢复手动录制
-                    if (shouldResumeRecording) {
-                        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                            if (!isRemoteRecording && !cameraManager.isRecording()) {
-                                startRecording();
-                            }
-                        }, 500);
-                    }
-                }, 1000);
-            };
-
-            // 定时器延迟到首次数据写入后启动
-            pendingRemoteDurationSeconds = durationSeconds;
-            AppLog.d(TAG, "Telegram 录制定时器将在首次数据写入后启动，时长: " + durationSeconds + " 秒");
-        } else {
-            AppLog.e(TAG, "Telegram 远程录制启动失败");
-            isRemoteRecording = false;
-            if (wasManualRecordingBeforeRemote) {
-                wasManualRecordingBeforeRemote = false;
-                startRecording();
-            }
-            sendTelegramMessage(chatId, "❌ 录制启动失败");
-            returnToBackgroundIfRemoteWakeUp();
-        }
-    }
-
-    /**
-     * 启动 Telegram 远程拍照
-     * 参考 startRemotePhoto 方法实现
-     */
-    private void startRemotePhotoTelegram(long chatId) {
-        AppLog.d(TAG, "Telegram 远程拍照: chatId=" + chatId);
-        pendingTelegramChatId = chatId;
-        
-        // 检查摄像头管理器
-        if (cameraManager == null) {
-            AppLog.e(TAG, "摄像头管理器未初始化");
-            sendTelegramMessage(chatId, "❌ 摄像头未初始化");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 检查摄像头连接
-        if (!cameraManager.hasConnectedCameras()) {
-            AppLog.e(TAG, "没有可用的相机");
-            sendTelegramMessage(chatId, "❌ 没有可用的相机");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 注意：isRemoteWakeUp 已在 handleRemoteCommandFromIntent 中根据当前状态正确设置
-        // 不要在这里覆盖，否则会导致用户在前台使用时也错误地返回后台
-
-        // 生成时间戳
-        String timestamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
-                .format(new java.util.Date());
-        AppLog.d(TAG, "Telegram 拍照时间戳: " + timestamp);
-
-        // 执行拍照
-        cameraManager.takePicture(timestamp);
-        AppLog.d(TAG, "Telegram 远程拍照已执行");
-
-        // 等待拍照完成后上传
-        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-            uploadTelegramPhotos(chatId, timestamp);
-        }, 5000);
-    }
-
-    /**
-     * 上传 Telegram 视频
-     * 与钉钉保持一致：优先从临时目录查找，再查最终目录
-     */
-    private void uploadTelegramVideos(long chatId) {
-        if (telegramApiClient == null) {
-            AppLog.e(TAG, "Telegram API 客户端未初始化");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 检查时间戳
-        final String timestamp = remoteRecordingTimestamp;
-        if (timestamp == null || timestamp.isEmpty()) {
-            AppLog.e(TAG, "录制时间戳为空，无法查找视频文件");
-            sendTelegramMessage(chatId, "❌ 录制失败：时间戳丢失");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 【优化】优先从临时目录查找文件（与钉钉保持一致）
-        File tempDir = new File(getCacheDir(), FileTransferManager.TEMP_VIDEO_DIR);
-        File[] tempFiles = null;
-        if (tempDir.exists() && tempDir.isDirectory()) {
-            tempFiles = tempDir.listFiles((dir, name) -> 
-                name.endsWith(".mp4") && name.startsWith(timestamp + "_") && new File(dir, name).length() > 0
-            );
-        }
-
-        List<File> videoFiles;
-        if (tempFiles != null && tempFiles.length > 0) {
-            // 从临时目录找到文件
-            videoFiles = new ArrayList<>(Arrays.asList(tempFiles));
-            AppLog.d(TAG, "Telegram: 从临时目录找到 " + videoFiles.size() + " 个视频文件");
-        } else {
-            // 从最终目录查找
-            File videoDir = StorageHelper.getVideoDir(this);
-            if (videoDir == null || !videoDir.exists()) {
-                AppLog.e(TAG, "视频目录不存在");
-                sendTelegramMessage(chatId, "❌ 视频目录不存在");
-                returnToBackgroundIfRemoteWakeUp();
-                return;
-            }
-
-            File[] files = videoDir.listFiles((dir, name) -> 
-                    name.startsWith(timestamp) && name.endsWith(".mp4"));
-            
-            if (files == null || files.length == 0) {
-                AppLog.e(TAG, "未找到录制的视频文件，时间戳: " + timestamp);
-                sendTelegramMessage(chatId, "❌ 未找到录制的视频文件");
-                returnToBackgroundIfRemoteWakeUp();
-                return;
-            }
-            
-            videoFiles = new ArrayList<>(Arrays.asList(files));
-            AppLog.d(TAG, "Telegram: 从最终目录找到 " + videoFiles.size() + " 个视频文件");
-        }
-        AppLog.d(TAG, "找到 " + videoFiles.size() + " 个视频文件，开始上传到 Telegram");
-
-        TelegramVideoUploadService uploadService = new TelegramVideoUploadService(this, telegramApiClient);
-        uploadService.uploadVideos(videoFiles, chatId, new TelegramVideoUploadService.UploadCallback() {
-            @Override
-            public void onProgress(String message) {
-                AppLog.d(TAG, "Telegram 视频上传进度: " + message);
-            }
-
-            @Override
-            public void onSuccess(String message) {
-                AppLog.d(TAG, "Telegram 视频上传成功: " + message);
-                returnToBackgroundIfRemoteWakeUp();
-            }
-
-            @Override
-            public void onError(String error) {
-                AppLog.e(TAG, "Telegram 视频上传失败: " + error);
-                
-                // 如果是文件太大的错误，发送提示
-                if (error.contains("413") || error.toLowerCase().contains("too large") || 
-                    error.toLowerCase().contains("file is too big")) {
-                    sendTelegramMessage(chatId, "提示：Telegram Bot API 限制上传文件不能超过50MB，该文件大小已超出。");
-                }
-                
-                returnToBackgroundIfRemoteWakeUp();
-            }
-        });
-    }
-
-    /**
-     * 上传 Telegram 照片
-     */
-    private void uploadTelegramPhotos(long chatId, String timestamp) {
-        if (telegramApiClient == null) {
-            AppLog.e(TAG, "Telegram API 客户端未初始化");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 查找照片文件
-        File photoDir = StorageHelper.getPhotoDir(this);
-        if (photoDir == null || !photoDir.exists()) {
-            AppLog.e(TAG, "照片目录不存在");
-            sendTelegramMessage(chatId, "❌ 照片目录不存在");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        // 查找匹配时间戳的照片
-        File[] files = photoDir.listFiles((dir, name) -> 
-                name.startsWith(timestamp) && (name.endsWith(".jpg") || name.endsWith(".jpeg")));
-        
-        if (files == null || files.length == 0) {
-            AppLog.e(TAG, "未找到拍摄的照片，时间戳: " + timestamp);
-            sendTelegramMessage(chatId, "❌ 未找到拍摄的照片");
-            returnToBackgroundIfRemoteWakeUp();
-            return;
-        }
-
-        List<File> photoFiles = new ArrayList<>(Arrays.asList(files));
-        AppLog.d(TAG, "找到 " + photoFiles.size() + " 张照片，开始上传到 Telegram");
-
-        TelegramPhotoUploadService uploadService = new TelegramPhotoUploadService(this, telegramApiClient);
-        uploadService.uploadPhotos(photoFiles, chatId, new TelegramPhotoUploadService.UploadCallback() {
-            @Override
-            public void onProgress(String message) {
-                AppLog.d(TAG, "Telegram 照片上传进度: " + message);
-            }
-
-            @Override
-            public void onSuccess(String message) {
-                AppLog.d(TAG, "Telegram 照片上传成功: " + message);
-                returnToBackgroundIfRemoteWakeUp();
-            }
-
-            @Override
-            public void onError(String error) {
-                AppLog.e(TAG, "Telegram 照片上传失败: " + error);
-                returnToBackgroundIfRemoteWakeUp();
-            }
-        });
-    }
-
-    /**
-     * 发送 Telegram 消息（辅助方法）
-     */
-    private void sendTelegramMessage(long chatId, String message) {
-        if (telegramApiClient != null) {
-            new Thread(() -> {
-                try {
-                    telegramApiClient.sendMessage(chatId, message);
-                } catch (Exception e) {
-                    AppLog.e(TAG, "发送 Telegram 消息失败", e);
-                }
-            }).start();
         }
     }
 
