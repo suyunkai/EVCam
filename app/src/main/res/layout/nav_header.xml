@@ -71,9 +71,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:text="作者：@greenteacher46"
+            android:text="软件作者：@greenteacher46\n分支版本维护者：邪恶银渐层"
             android:textColor="@color/nav_header_text_secondary"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            android:lineSpacingExtra="2dp" />
     </LinearLayout>
 
     <!-- Version info -->

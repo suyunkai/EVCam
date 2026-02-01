@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="12dp"
+    android:background="?android:attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true">
+
+    <!-- 视频缩略图 - 车机优化：增大尺寸 -->
+    <ImageView
+        android:id="@+id/video_thumbnail"
+        android:layout_width="140dp"
+        android:layout_height="85dp"
+        android:scaleType="centerCrop"
+        android:background="#E0E0E0"
+        android:contentDescription="视频缩略图" />
+
+    <!-- 视频信息 -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:layout_marginStart="16dp"
+        android:layout_gravity="center_vertical">
+
+        <!-- 日期时间 - 车机优化：增大字体 -->
+        <TextView
+            android:id="@+id/video_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_primary"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:text="2026-01-31\n12:54" />
+
+        <!-- 文件大小 - 车机优化：增大字体 -->
+        <TextView
+            android:id="@+id/video_size"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_secondary"
+            android:textSize="18sp"
+            android:layout_marginTop="6dp"
+            android:text="69.94 MB" />
+    </LinearLayout>
+
+    <!-- 选中指示器（多选模式）- 车机优化：增大尺寸 -->
+    <CheckBox
+        android:id="@+id/checkbox_select"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:scaleX="1.5"
+        android:scaleY="1.5"
+        android:visibility="gone" />
+
+</LinearLayout>

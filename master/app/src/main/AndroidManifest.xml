@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 摄像头权限 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_LOGS" />
+    <!-- 录音权限（如果需要音频） -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- 存储权限 -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <!-- Android 13+ 媒体权限 -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Android 11+ 所有文件访问权限（用于访问U盘公共目录） -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+    <!-- 网络权限（用于钉钉远程查看） -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- 前台服务权限（Android 9+） -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- 前台服务类型：摄像头（Android 10+） -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <!-- 前台服务类型：数据同步（Android 10+，用于 Telegram 服务） -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- CPU唤醒锁（保持CPU运行，不亮屏，用于息屏状态下拍照/录制） -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- 悬浮窗权限（绕过后台启动Activity限制，需要用户手动授权） -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- 开机自启动权限 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- 请求电池优化白名单（阻止休眠的关键） -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- 蓝牙权限（用于监听蓝牙状态变化，车机启动会自动连蓝牙） -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- 声明使用摄像头功能 -->
+    <uses-feature android:name="android.hardware.camera" android:required="true" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
+        android:theme="@style/Theme.Cam">
+
+        <!-- 高优先级保活 Provider：在应用启动的最早阶段初始化服务 -->
+        <!-- initOrder="2147483647" 确保最先执行（参考保活效果好的应用） -->
+        <provider
+            android:name=".KeepAliveProvider"
+            android:authorities="${applicationId}.keepalive"
+            android:exported="false"
+            android:initOrder="2147483647" />
+
+        <!-- FileProvider for sharing video files -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 内置图片查看器 -->
+        <activity
+            android:name=".PhotoViewerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Cam.Fullscreen" />
+
+        <!-- 内置视频播放器 -->
+        <activity
+            android:name=".VideoPlayerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Cam.Fullscreen" />
+
+        <!-- 透明启动 Activity：用于开机自启动，完全无感知 -->
+        <activity
+            android:name=".TransparentBootActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Cam.Transparent"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity="" />
+
+        <!-- 前台服务：用于后台录制保护 -->
+        <service
+            android:name=".CameraForegroundService"
+            android:foregroundServiceType="camera"
+            android:exported="false" />
+
+        <!-- 悬浮窗服务：显示悬浮录制按钮 -->
+        <service
+            android:name=".FloatingWindowService"
+            android:exported="false" />
+
+        <!-- 无障碍服务：用于保活 -->
+        <service
+            android:name=".KeepAliveAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <!-- 开机自启动广播接收器 -->
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 保活广播接收器：监听多种系统事件确保服务运行 -->
+        <!-- 策略：广撒网，只要系统有任何动静就唤醒（参考 Macrodroid） -->
+        <!-- 注意：TIME_TICK 只能动态注册，这里注册其他可静态注册的广播 -->
+        <receiver
+            android:name=".KeepAliveReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter android:priority="1000">
+                <!-- ========== 屏幕相关（车机点火必亮屏） ========== -->
+                <!-- 屏幕亮起：点火必亮屏，这是车机上最稳的触发信号 -->
+                <action android:name="android.intent.action.SCREEN_ON" />
+                <!-- 屏幕关闭：熄火/息屏时触发 -->
+                <action android:name="android.intent.action.SCREEN_OFF" />
+                <!-- 用户解锁屏幕 -->
+                <action android:name="android.intent.action.USER_PRESENT" />
+                
+                <!-- ========== 电源相关（车机点火必通电） ========== -->
+                <!-- 电源接通：点火必通电，非常可靠的触发信号 -->
+                <action android:name="android.intent.action.ACTION_POWER_CONNECTED" />
+                <!-- 电源断开：熄火时触发 -->
+                <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED" />
+                <!-- 电池状态变化 -->
+                <action android:name="android.intent.action.BATTERY_CHANGED" />
+                <!-- 电量低 -->
+                <action android:name="android.intent.action.BATTERY_LOW" />
+                <!-- 电量恢复正常 -->
+                <action android:name="android.intent.action.BATTERY_OKAY" />
+                
+                <!-- ========== 蓝牙相关（车机启动会自动连手机蓝牙） ========== -->
+                <!-- 蓝牙状态改变：开/关蓝牙 -->
+                <action android:name="android.bluetooth.adapter.action.STATE_CHANGED" />
+                <!-- 蓝牙连接状态变化 -->
+                <action android:name="android.bluetooth.adapter.action.CONNECTION_STATE_CHANGED" />
+                <!-- 蓝牙设备连接 -->
+                <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
+                <!-- 蓝牙设备断开 -->
+                <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
+                
+                <!-- ========== USB/存储相关（插U盘触发） ========== -->
+                <!-- 存储挂载（插入U盘/SD卡） -->
+                <action android:name="android.intent.action.MEDIA_MOUNTED" />
+                <!-- 存储卸载 -->
+                <action android:name="android.intent.action.MEDIA_UNMOUNTED" />
+                <!-- 存储移除 -->
+                <action android:name="android.intent.action.MEDIA_REMOVED" />
+                <!-- 存储弹出 -->
+                <action android:name="android.intent.action.MEDIA_EJECT" />
+                <!-- USB设备连接 -->
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+                <!-- USB设备断开 -->
+                <action android:name="android.hardware.usb.action.USB_DEVICE_DETACHED" />
+                
+                <!-- ========== 网络相关 ========== -->
+                <!-- 网络状态变化 -->
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+                <!-- WiFi状态变化 -->
+                <action android:name="android.net.wifi.STATE_CHANGE" />
+                <!-- WiFi扫描结果 -->
+                <action android:name="android.net.wifi.SCAN_RESULTS" />
+                
+                <!-- ========== 音频相关 ========== -->
+                <!-- 耳机插拔 -->
+                <action android:name="android.intent.action.HEADSET_PLUG" />
+                <!-- 音频输出设备变化 -->
+                <action android:name="android.media.AUDIO_BECOMING_NOISY" />
+                
+                <!-- ========== 时间/时区相关 ========== -->
+                <!-- 时区变化 -->
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <!-- 时间设置变化 -->
+                <action android:name="android.intent.action.TIME_SET" />
+                <!-- 日期变化（跨天） -->
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                
+                <!-- ========== 系统配置相关 ========== -->
+                <!-- 语言/区域变化 -->
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+                <!-- 飞行模式切换 -->
+                <action android:name="android.intent.action.AIRPLANE_MODE" />
+                
+                <!-- ========== 应用相关 ========== -->
+                <!-- 应用安装 -->
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <!-- 应用更新 -->
+                <action android:name="android.intent.action.PACKAGE_REPLACED" />
+                <!-- 我的应用被替换（更新后重新激活） -->
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                
+                <!-- ========== 自定义保活广播 ========== -->
+                <action android:name="com.kooo.evcam.ACTION_KEEP_ALIVE" />
+            </intent-filter>
+            
+            <!-- 存储相关广播需要 data scheme -->
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.MEDIA_MOUNTED" />
+                <action android:name="android.intent.action.MEDIA_UNMOUNTED" />
+                <action android:name="android.intent.action.MEDIA_REMOVED" />
+                <action android:name="android.intent.action.MEDIA_EJECT" />
+                <data android:scheme="file" />
+            </intent-filter>
+            
+            <!-- 应用包相关广播需要 data scheme -->
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <action android:name="android.intent.action.PACKAGE_REPLACED" />
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>

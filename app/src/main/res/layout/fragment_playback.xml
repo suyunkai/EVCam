@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@color/page_background">
 
-    <!-- Toolbar -->
+    <!-- Toolbar - 车机优化：增大尺寸 -->
     <LinearLayout
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="8dp"
+        android:padding="12dp"
         android:gravity="center_vertical"
         android:background="@color/menu_background">
 
@@ -20,10 +21,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="☰"
-            android:textSize="18sp"
-            android:minWidth="48dp"
-            android:minHeight="48dp"
-            android:layout_marginEnd="8dp"
+            android:textSize="28sp"
+            android:minWidth="70dp"
+            android:minHeight="70dp"
+            android:layout_marginEnd="12dp"
             android:backgroundTint="@color/button_background"
             android:textColor="@color/button_text" />
 
@@ -34,7 +35,7 @@
             android:layout_weight="1"
             android:text="视频回看"
             android:textColor="@color/text_primary"
-            android:textSize="28sp"
+            android:textSize="36sp"
             android:textStyle="bold" />
 
         <Button
@@ -42,8 +43,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="刷新"
-            android:textSize="18sp"
-            android:minHeight="48dp"
+            android:textSize="24sp"
+            android:minHeight="70dp"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
             android:backgroundTint="@color/button_background"
             android:textColor="@color/button_text" />
 
@@ -52,9 +55,11 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="多选"
-            android:textSize="18sp"
-            android:minHeight="48dp"
-            android:layout_marginStart="8dp"
+            android:textSize="24sp"
+            android:minHeight="70dp"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:layout_marginStart="12dp"
             android:backgroundTint="@color/button_background"
             android:textColor="@color/button_text" />
 
@@ -63,21 +68,21 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="⌂"
-            android:textSize="22sp"
-            android:minWidth="48dp"
-            android:minHeight="48dp"
-            android:layout_marginStart="8dp"
+            android:textSize="32sp"
+            android:minWidth="70dp"
+            android:minHeight="70dp"
+            android:layout_marginStart="12dp"
             android:backgroundTint="@color/button_background"
             android:textColor="@color/button_text" />
     </LinearLayout>
 
-    <!-- Multi-select toolbar (hidden by default) -->
+    <!-- Multi-select toolbar (hidden by default) - 车机优化 -->
     <LinearLayout
         android:id="@+id/multi_select_toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="8dp"
+        android:padding="12dp"
         android:gravity="center_vertical"
         android:background="@color/menu_background"
         android:visibility="gone">
@@ -87,8 +92,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="全选"
-            android:textSize="16sp"
-            android:minHeight="48dp"
+            android:textSize="22sp"
+            android:minHeight="60dp"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
             android:backgroundTint="@color/button_background"
             android:textColor="@color/button_text" />
 
@@ -99,7 +106,7 @@
             android:layout_weight="1"
             android:text="已选择 0 项"
             android:textColor="@color/text_primary"
-            android:textSize="16sp"
+            android:textSize="22sp"
             android:gravity="center" />
 
         <Button
@@ -107,8 +114,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="删除"
-            android:textSize="16sp"
-            android:minHeight="48dp"
+            android:textSize="22sp"
+            android:minHeight="60dp"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
             android:backgroundTint="@android:color/holo_red_dark"
             android:textColor="@android:color/white" />
 
@@ -117,29 +126,155 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="取消"
-            android:textSize="16sp"
-            android:minHeight="48dp"
-            android:layout_marginStart="8dp"
+            android:textSize="22sp"
+            android:minHeight="60dp"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:layout_marginStart="12dp"
             android:backgroundTint="@color/button_background"
             android:textColor="@color/button_text" />
     </LinearLayout>
 
-    <!-- Video list -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/video_list"
+    <!-- Main content: Left list + Right 4-grid preview -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:padding="8dp" />
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
 
-    <!-- Empty state -->
-    <TextView
-        android:id="@+id/empty_text"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center"
-        android:text="暂无录制文件"
-        android:textColor="@color/text_secondary"
-        android:textSize="20sp"
-        android:visibility="gone" />
+        <!-- Left: Video list -->
+        <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="3"
+            android:background="#F5F5F5">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/video_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="4dp" />
+
+            <!-- Empty state -->
+            <TextView
+                android:id="@+id/empty_text"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="暂无录制文件"
+                android:textColor="@color/text_secondary"
+                android:textSize="18sp"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <!-- Right: Video Player -->
+        <FrameLayout
+            android:id="@+id/player_container"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="7"
+            android:background="#000000">
+
+            <!-- Video Player -->
+            <VideoView
+                android:id="@+id/video_player"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <!-- 放大按钮（右上角） -->
+            <Button
+                android:id="@+id/btn_fullscreen"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:layout_gravity="top|end"
+                android:layout_margin="16dp"
+                android:text="⛶"
+                android:textSize="24sp"
+                android:backgroundTint="#80000000"
+                android:textColor="#FFFFFF" />
+
+            <!-- Playback controls (底部控制栏) -->
+            <LinearLayout
+                android:id="@+id/playback_controls"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:orientation="vertical"
+                android:background="#DD000000"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp">
+
+                <!-- 进度条和时间 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="12dp">
+
+                    <TextView
+                        android:id="@+id/tv_current_time"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="00:00"
+                        android:textColor="#FFFFFF"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+
+                    <SeekBar
+                        android:id="@+id/seek_bar"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"
+                        android:minHeight="48dp"
+                        android:progressTint="#4FC3F7"
+                        android:thumbTint="#4FC3F7"
+                        android:secondaryProgressTint="#806FC3F7" />
+
+                    <TextView
+                        android:id="@+id/tv_duration"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="00:00"
+                        android:textColor="#FFFFFF"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- 控制按钮 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+
+                    <Button
+                        android:id="@+id/btn_play_pause"
+                        android:layout_width="wrap_content"
+                        android:layout_height="64dp"
+                        android:text="播放"
+                        android:textSize="22sp"
+                        android:minWidth="120dp"
+                        android:backgroundTint="#007AFF"
+                        android:textColor="#FFFFFF" />
+
+                    <Button
+                        android:id="@+id/btn_speed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="64dp"
+                        android:layout_marginStart="16dp"
+                        android:text="1.0x"
+                        android:textSize="22sp"
+                        android:minWidth="120dp"
+                        android:backgroundTint="#666666"
+                        android:textColor="#FFFFFF" />
+                </LinearLayout>
+            </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
 
 </LinearLayout>

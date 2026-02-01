@@ -38,6 +38,7 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
     private boolean isMultiSelectMode = false;
     private Set<Integer> selectedPositions = new HashSet<>();
     private OnItemSelectedListener itemSelectedListener;
+    private OnVideoClickListener videoClickListener;
 
     public interface OnVideoDeleteListener {
         void onVideoDeleted();
@@ -45,6 +46,10 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
 
     public interface OnItemSelectedListener {
         void onItemSelected(int position);
+    }
+    
+    public interface OnVideoClickListener {
+        void onVideoClick(File videoFile);
     }
 
     public VideoAdapter(Context context, List<File> videoFiles) {
@@ -66,6 +71,10 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
 
     public void setOnItemSelectedListener(OnItemSelectedListener listener) {
         this.itemSelectedListener = listener;
+    }
+    
+    public void setOnVideoClickListener(OnVideoClickListener listener) {
+        this.videoClickListener = listener;
     }
 
     @NonNull
@@ -118,9 +127,15 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
             holder.btnDelete.setEnabled(true);
 
             holder.btnPlay.setOnClickListener(v -> {
-                Intent intent = new Intent(context, VideoPlayerActivity.class);
-                intent.putExtra("video_path", videoFile.getAbsolutePath());
-                context.startActivity(intent);
+                // 在右侧播放器中播放，而不是启动新Activity
+                if (videoClickListener != null) {
+                    videoClickListener.onVideoClick(videoFile);
+                } else {
+                    // 兼容旧版本：如果没有设置监听器，则启动新Activity
+                    Intent intent = new Intent(context, VideoPlayerActivity.class);
+                    intent.putExtra("video_path", videoFile.getAbsolutePath());
+                    context.startActivity(intent);
+                }
             });
 
             holder.btnDelete.setOnClickListener(v -> {

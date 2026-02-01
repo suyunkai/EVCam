@@ -1,0 +1,60 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.Cam" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- 深灰色配色方案 (夜间模式) -->
+        <item name="colorPrimary">#424242</item>
+        <item name="colorPrimaryVariant">#2A2A2A</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#616161</item>
+        <item name="colorSecondaryVariant">#424242</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="android:colorBackground">#1A1A1A</item>
+        <item name="colorSurface">#2A2A2A</item>
+        <item name="colorOnSurface">#FFFFFF</item>
+        <item name="android:statusBarColor">#2A2A2A</item>
+        <item name="android:navigationBarColor">#000000</item>
+        <!-- 启动画面背景颜色（夜间模式使用夜间背景色） -->
+        <item name="android:windowBackground">@color/page_background</item>
+        <!-- Android 12+ 启动画面背景 -->
+        <item name="android:windowSplashScreenBackground">@color/page_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+    </style>
+
+    <!-- 导航菜单项文字样式 -->
+    <style name="NavigationMenuTextAppearance" parent="TextAppearance.AppCompat.Body1">
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">@color/nav_text_primary</item>
+        <item name="fontFamily">sans-serif-medium</item>
+    </style>
+
+    <!-- 导航视图样式 -->
+    <style name="NavigationViewStyle">
+        <item name="itemBackground">@drawable/nav_item_background</item>
+        <item name="itemIconTint">@color/nav_icon_tint</item>
+        <item name="itemTextColor">@color/nav_text_primary</item>
+        <item name="itemShapeFillColor">@android:color/transparent</item>
+        <item name="itemIconPadding">16dp</item>
+        <item name="itemHorizontalPadding">20dp</item>
+        <item name="android:paddingStart">8dp</item>
+        <item name="android:paddingEnd">8dp</item>
+    </style>
+
+    <!-- 导航分组标题样式 -->
+    <style name="NavigationSubheaderTextAppearance" parent="TextAppearance.AppCompat.Body2">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/nav_section_title</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.03</item>
+    </style>
+
+    <!-- 夜间模式对话框主题 -->
+    <style name="Theme.Cam.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <!-- 对话框背景 -->
+        <item name="colorSurface">#2A2A2A</item>
+        <!-- 标题和内容文字颜色 -->
+        <item name="colorOnSurface">#FFFFFF</item>
+        <!-- 按钮颜色 -->
+        <item name="colorPrimary">#64B5F6</item>
+    </style>
+</resources>

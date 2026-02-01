@@ -1,0 +1,246 @@
+/* pages/preview/preview.wxss */
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #000;
+}
+
+/* 顶部状态栏 */
+.header {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 30rpx;
+  background-color: rgba(0, 0, 0, 0.8);
+  padding-top: calc(20rpx + env(safe-area-inset-top));
+}
+
+.back-btn {
+  padding: 16rpx 24rpx;
+  color: #fff;
+  font-size: 36rpx;
+}
+
+.header-title {
+  flex: 1;
+  color: #fff;
+  font-size: 34rpx;
+  font-weight: bold;
+  text-align: center;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+}
+
+.header-status.online {
+  background-color: rgba(52, 168, 83, 0.3);
+  color: #4caf50;
+}
+
+.header-status.offline {
+  background-color: rgba(234, 67, 53, 0.3);
+  color: #f44336;
+}
+
+.status-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  margin-right: 8rpx;
+}
+
+.header-status.online .status-dot {
+  background-color: #4caf50;
+}
+
+.header-status.offline .status-dot {
+  background-color: #f44336;
+}
+
+/* 预览区域 */
+.preview-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background-color: #1a1a1a;
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+}
+
+/* 加载中 */
+.preview-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #999;
+}
+
+.loading-spinner {
+  width: 80rpx;
+  height: 80rpx;
+  border: 6rpx solid rgba(255, 255, 255, 0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20rpx;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.preview-loading text {
+  font-size: 28rpx;
+}
+
+/* 错误提示 */
+.preview-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.error-icon {
+  font-size: 100rpx;
+  margin-bottom: 20rpx;
+}
+
+.error-text {
+  color: #999;
+  font-size: 28rpx;
+  margin-bottom: 30rpx;
+}
+
+.retry-btn {
+  background-color: #1a73e8;
+  color: #fff;
+  font-size: 28rpx;
+  padding: 16rpx 60rpx;
+  border-radius: 8rpx;
+  border: none;
+}
+
+/* 预览覆盖层 */
+.preview-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 20rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+}
+
+.streaming-indicator {
+  display: flex;
+  align-items: center;
+  background-color: rgba(234, 67, 53, 0.9);
+  padding: 8rpx 20rpx;
+  border-radius: 8rpx;
+}
+
+.live-dot {
+  width: 16rpx;
+  height: 16rpx;
+  background-color: #fff;
+  border-radius: 50%;
+  margin-right: 10rpx;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.streaming-indicator text {
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: bold;
+}
+
+.update-time {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 24rpx;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 8rpx 16rpx;
+  border-radius: 8rpx;
+}
+
+/* 控制按钮 */
+.controls {
+  display: flex;
+  padding: 30rpx;
+  gap: 20rpx;
+  background-color: rgba(0, 0, 0, 0.8);
+  padding-bottom: calc(30rpx + env(safe-area-inset-bottom));
+}
+
+.control-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24rpx 20rpx;
+  border-radius: 12rpx;
+  border: none;
+  font-size: 26rpx;
+}
+
+.control-btn .btn-icon {
+  font-size: 40rpx;
+  margin-bottom: 8rpx;
+}
+
+.control-btn.start {
+  background-color: #4caf50;
+  color: #fff;
+}
+
+.control-btn.stop {
+  background-color: #f44336;
+  color: #fff;
+}
+
+.control-btn.refresh {
+  background-color: #333;
+  color: #fff;
+}
+
+/* 提示信息 */
+.tips {
+  padding: 20rpx;
+  text-align: center;
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.tips text {
+  color: #666;
+  font-size: 24rpx;
+}
+
+.device-id-tip {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 20rpx;
+  color: #999;
+}

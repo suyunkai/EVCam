@@ -318,11 +318,11 @@ public class StorageHelper {
             } else {
                 // 如果没有U盘，回退到内部存储
                 AppLog.w(TAG, "U盘不可用，回退到内部存储");
-                dir = new File(Environment.getExternalStoragePublicDirectory(parentDirType), dirName);
+                dir = getInternalStorageDir(context, dirName, parentDirType);
             }
         } else {
-            // 使用内部存储的公共目录
-            dir = new File(Environment.getExternalStoragePublicDirectory(parentDirType), dirName);
+            // 使用内部存储
+            dir = getInternalStorageDir(context, dirName, parentDirType);
         }
         
         // 确保目录存在
@@ -332,9 +332,42 @@ public class StorageHelper {
                 AppLog.d(TAG, "创建存储目录: " + dir.getAbsolutePath());
             } else {
                 AppLog.e(TAG, "创建存储目录失败: " + dir.getAbsolutePath());
+                // 如果创建失败（通常是权限问题），回退到应用专属目录
+                dir = new File(context.getExternalFilesDir(parentDirType), dirName);
+                if (!dir.exists()) {
+                    dir.mkdirs();
+                }
+                AppLog.w(TAG, "公共目录创建失败，回退到应用专属目录: " + dir.getAbsolutePath());
             }
         }
         
+        return dir;
+    }
+
+    /**
+     * 获取内部存储目录（考虑 Android 版本兼容性）
+     */
+    private static File getInternalStorageDir(Context context, String dirName, String parentDirType) {
+        File dir;
+        // Android 11+ 且没有全文件访问权限时，优先使用应用专属目录以确保可写
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            boolean hasManagePermission = false;
+            try {
+                hasManagePermission = Environment.isExternalStorageManager();
+            } catch (Exception e) {
+                // 忽略
+            }
+
+            if (!hasManagePermission) {
+                // 没有全文件访问权限，使用应用专属目录
+                dir = new File(context.getExternalFilesDir(parentDirType), dirName);
+                AppLog.d(TAG, "Android 11+ 无管理权限，使用应用专属目录: " + dir.getAbsolutePath());
+                return dir;
+            }
+        }
+        
+        // Android 10 及以下，或已有管理权限，使用公共目录
+        dir = new File(Environment.getExternalStoragePublicDirectory(parentDirType), dirName);
         return dir;
     }
     

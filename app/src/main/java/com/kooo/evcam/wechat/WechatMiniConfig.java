@@ -2,7 +2,9 @@ package com.kooo.evcam.wechat;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.Base64;
 
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 /**
@@ -11,6 +13,12 @@ import java.util.UUID;
  */
 public class WechatMiniConfig {
     private static final String PREF_NAME = "wechat_mini_config";
+    
+    // 默认凭证（Base64 + 简单混淆存储）
+    // 原始值会在运行时解密
+    private static final String DEFAULT_APP_ID_ENC = "d3gxZGY1MjZiNjMwNzhhOWU1";
+    private static final String DEFAULT_APP_SECRET_ENC = "N2I2ZmQ4MDFlNDIwMDQyODljYjgzMWM2Yjg1ZjUyZDk=";
+    private static final String DEFAULT_CLOUD_ENV_ENC = "Y2xvdWRiYXNlLTBndDJ0d2hwZGM1MTJjMzA=";
     
     // 设备标识
     private static final String KEY_DEVICE_ID = "device_id";
@@ -228,6 +236,59 @@ public class WechatMiniConfig {
                 .remove(KEY_APP_SECRET)
                 .remove(KEY_CLOUD_ENV)
                 .apply();
+    }
+    
+    /**
+     * 解密 Base64 编码的字符串
+     */
+    private String decryptValue(String encrypted) {
+        try {
+            byte[] decoded = Base64.decode(encrypted, Base64.DEFAULT);
+            return new String(decoded, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+    
+    /**
+     * 获取默认 App ID
+     */
+    public String getDefaultAppId() {
+        return decryptValue(DEFAULT_APP_ID_ENC);
+    }
+    
+    /**
+     * 获取默认 App Secret
+     */
+    public String getDefaultAppSecret() {
+        return decryptValue(DEFAULT_APP_SECRET_ENC);
+    }
+    
+    /**
+     * 获取默认云环境 ID
+     */
+    public String getDefaultCloudEnv() {
+        return decryptValue(DEFAULT_CLOUD_ENV_ENC);
+    }
+    
+    /**
+     * 应用默认凭证
+     */
+    public void applyDefaultCredentials() {
+        String appId = getDefaultAppId();
+        String appSecret = getDefaultAppSecret();
+        String cloudEnv = getDefaultCloudEnv();
+        saveCloudCredentials(appId, appSecret, cloudEnv);
+    }
+    
+    /**
+     * 检查是否有可用的默认凭证
+     */
+    public boolean hasDefaultCredentials() {
+        String appId = getDefaultAppId();
+        String appSecret = getDefaultAppSecret();
+        String cloudEnv = getDefaultCloudEnv();
+        return !appId.isEmpty() && !appSecret.isEmpty() && !cloudEnv.isEmpty();
     }
     
     // ==================== 自动启动配置 ====================

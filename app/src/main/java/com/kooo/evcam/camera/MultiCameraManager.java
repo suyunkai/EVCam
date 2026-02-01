@@ -560,6 +560,169 @@ public class MultiCameraManager {
 
         AppLog.d(TAG, "Cameras initialized");
     }
+    
+    /**
+     * 初始化领克07/08 5镜头交互模式
+     * 使用单个摄像头，同时显示完整画面和4个方向的裁切画面
+     * @param cameraId 摄像头ID
+     * @param mainView 主画面View（显示完整或选中的裁切）
+     * @param frontView 前方View（左上裁切）
+     * @param backView 后方View（右上裁切）
+     * @param leftView 左侧View（左下裁切）
+     * @param rightView 右侧View（右下裁切）
+     */
+    public void initLynkCo07PanoramicCamera(String cameraId, TextureView mainView,
+            TextureView frontView, TextureView backView, 
+            TextureView leftView, TextureView rightView) {
+        AppLog.d(TAG, "Initializing LynkCo07 panoramic camera: cameraId=" + cameraId);
+        
+        // 清空之前的摄像头实例
+        cameras.clear();
+        
+        if (cameraId != null && mainView != null) {
+            // 创建单个摄像头实例，使用主画面作为预览Surface
+            SingleCamera panoramicCamera = new SingleCamera(context, cameraId, mainView);
+            panoramicCamera.setCameraPosition("front");
+            panoramicCamera.setPrimaryInstance(true);
+            
+            // 读取配置
+            AppConfig appConfig = new AppConfig(context);
+            
+            // 配置鱼眼矫正
+            boolean fisheyeEnabled = appConfig.isFisheyeCorrectionEnabled();
+            int fisheyeStrength = appConfig.getFisheyeCorrectionRatio();
+            panoramicCamera.setFisheyeCorrection(fisheyeEnabled, fisheyeStrength);
+            
+            // 配置方向映射
+            String[] directions = new String[]{"front", "back", "left", "right"};
+            int[] rotations = new int[]{
+                appConfig.getPanoramicRotation("front"),
+                appConfig.getPanoramicRotation("back"),
+                appConfig.getPanoramicRotation("left"),
+                appConfig.getPanoramicRotation("right")
+            };
+            panoramicCamera.setPanoramicConfig(directions, rotations);
+            
+            // 设置四个角落的裁切视图
+            if (frontView != null || backView != null || leftView != null || rightView != null) {
+                TextureView[] additionalViews = new TextureView[]{frontView, backView, leftView, rightView};
+                float[][] additionalRegions = new float[][]{
+                    AppConfig.getPanoramicCropRegion("front"),
+                    AppConfig.getPanoramicCropRegion("back"),
+                    AppConfig.getPanoramicCropRegion("left"),
+                    AppConfig.getPanoramicCropRegion("right")
+                };
+                panoramicCamera.setAdditionalPanoramicViews(additionalViews, additionalRegions);
+            }
+            
+            // 启用优化的全景模式（主画面不裁切）
+            panoramicCamera.setPanoramicModeOptimized(true);
+            
+            cameras.put("front", panoramicCamera);
+            
+            AppLog.d(TAG, "LynkCo07 panoramic camera initialized: ID=" + cameraId);
+            AppLog.d(TAG, "  Fisheye correction: " + (fisheyeEnabled ? "enabled, strength=" + fisheyeStrength : "disabled"));
+        }
+        
+        // 设置摄像头回调
+        setupLynkCo07CameraCallback();
+        
+        // 初始化录制器
+        recorders.clear();
+        codecRecorders.clear();
+        // 注意：领克07 使用 Codec 录制模式，录制器在 startCodecRecording 中创建
+        
+        AppLog.d(TAG, "LynkCo07 panoramic camera setup complete");
+    }
+    
+    /**
+     * 设置领克07摄像头回调
+     */
+    private void setupLynkCo07CameraCallback() {
+        SingleCamera camera = cameras.get("front");
+        if (camera == null) return;
+        
+        camera.setCallback(new CameraCallback() {
+            @Override
+            public void onCameraOpened(String cameraId) {
+                AppLog.d(TAG, "LynkCo07 camera " + cameraId + " opened");
+                if (statusCallback != null) {
+                    statusCallback.onCameraStatusUpdate(cameraId, "已打开");
+                }
+            }
+
+            @Override
+            public void onCameraConfigured(String cameraId) {
+                AppLog.d(TAG, "LynkCo07 camera " + cameraId + " configured");
+                if (statusCallback != null) {
+                    statusCallback.onCameraStatusUpdate(cameraId, "预览已启动");
+                }
+                
+                // 获取预览尺寸
+                SingleCamera cam = cameras.get("front");
+                if (cam != null) {
+                    Size previewSize = cam.getPreviewSize();
+                    if (previewSize != null && previewSizeCallback != null) {
+                        previewSizeCallback.onPreviewSizeChosen("front", cameraId, previewSize);
+                    }
+                    
+                    // 启动全景帧更新（用于四角裁切视图）
+                    cam.startPanoramicFrameUpdate();
+                }
+                
+                // 处理会话配置完成
+                synchronized (sessionLock) {
+                    if (expectedSessionCount > 0) {
+                        cameraSessionReady.put("front", true);
+                        sessionConfiguredCount++;
+                        AppLog.d(TAG, "LynkCo07 session configured: " + sessionConfiguredCount + "/" + expectedSessionCount);
+                        
+                        if (sessionConfiguredCount >= expectedSessionCount) {
+                            final Runnable recordingTask = pendingRecordingStart;
+                            if (recordingTask != null) {
+                                AppLog.d(TAG, "LynkCo07 session ready, starting recording...");
+                                if (sessionTimeoutRunnable != null) {
+                                    mainHandler.removeCallbacks(sessionTimeoutRunnable);
+                                    sessionTimeoutRunnable = null;
+                                }
+                                pendingRecordingStart = null;
+                                mainHandler.postDelayed(recordingTask, 300);
+                            }
+                            sessionConfiguredCount = 0;
+                            expectedSessionCount = 0;
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void onCameraClosed(String cameraId) {
+                AppLog.d(TAG, "LynkCo07 camera " + cameraId + " closed");
+                if (statusCallback != null) {
+                    statusCallback.onCameraStatusUpdate(cameraId, "已关闭");
+                }
+                
+                // 停止全景帧更新
+                SingleCamera cam = cameras.get("front");
+                if (cam != null) {
+                    cam.stopPanoramicFrameUpdate();
+                }
+            }
+
+            @Override
+            public void onCameraError(String cameraId, int error) {
+                AppLog.e(TAG, "LynkCo07 camera " + cameraId + " error: " + error);
+                if (statusCallback != null) {
+                    statusCallback.onCameraStatusUpdate(cameraId, "错误: " + error);
+                }
+            }
+            
+            @Override
+            public void onPreviewSizeChosen(String cameraId, Size previewSize) {
+                AppLog.d(TAG, "LynkCo07 camera " + cameraId + " preview size: " + previewSize);
+            }
+        });
+    }
 
     /**
      * 获取错误信息描述

@@ -38,6 +38,7 @@ public class WechatMiniFragment extends Fragment implements WechatRemoteManager.
     private LinearLayout layoutQrCode;
     private LinearLayout layoutBoundInfo;
     private ImageView ivQrCode;
+    private ImageView ivMiniappHint;
     private TextView tvQrHint;
     private Button btnRefreshQr;
     private TextView tvBoundUser;
@@ -52,6 +53,7 @@ public class WechatMiniFragment extends Fragment implements WechatRemoteManager.
     private EditText etAppSecret;
     private EditText etCloudEnv;
     private Button btnSaveConfig;
+    private Button btnUseDefault;
     private TextView tvConfigStatus;
     
     // 服务控制
@@ -94,10 +96,14 @@ public class WechatMiniFragment extends Fragment implements WechatRemoteManager.
         layoutQrCode = view.findViewById(R.id.layout_qr_code);
         layoutBoundInfo = view.findViewById(R.id.layout_bound_info);
         ivQrCode = view.findViewById(R.id.iv_qr_code);
+        ivMiniappHint = view.findViewById(R.id.iv_miniapp_hint);
         tvQrHint = view.findViewById(R.id.tv_qr_hint);
         btnRefreshQr = view.findViewById(R.id.btn_refresh_qr);
         tvBoundUser = view.findViewById(R.id.tv_bound_user);
         btnUnbind = view.findViewById(R.id.btn_unbind);
+        
+        // 加载小程序提示图片
+        loadMiniappHintImage();
 
         // 设备信息
         tvDeviceId = view.findViewById(R.id.tv_device_id);
@@ -108,6 +114,7 @@ public class WechatMiniFragment extends Fragment implements WechatRemoteManager.
         etAppSecret = view.findViewById(R.id.et_app_secret);
         etCloudEnv = view.findViewById(R.id.et_cloud_env);
         btnSaveConfig = view.findViewById(R.id.btn_save_config);
+        btnUseDefault = view.findViewById(R.id.btn_use_default);
         tvConfigStatus = view.findViewById(R.id.tv_config_status);
         
         // 服务控制
@@ -164,6 +171,12 @@ public class WechatMiniFragment extends Fragment implements WechatRemoteManager.
             tvDeviceName.setVisibility(View.VISIBLE);
         }
         
+        // 如果当前配置为空，自动应用默认凭证
+        if (!config.isCloudConfigured() && config.hasDefaultCredentials()) {
+            config.applyDefaultCredentials();
+            AppLog.d(TAG, "自动应用默认凭证");
+        }
+        
         // 加载已保存的凭证到输入框
         if (etAppId != null) {
             etAppId.setText(config.getAppId());
@@ -192,6 +205,11 @@ public class WechatMiniFragment extends Fragment implements WechatRemoteManager.
         // 保存配置
         if (btnSaveConfig != null) {
             btnSaveConfig.setOnClickListener(v -> saveConfig());
+        }
+        
+        // 使用默认凭证
+        if (btnUseDefault != null) {
+            btnUseDefault.setOnClickListener(v -> applyDefaultCredentials());
         }
         
         // 自动启动开关
@@ -270,6 +288,42 @@ public class WechatMiniFragment extends Fragment implements WechatRemoteManager.
         updateConfigStatus();
         
         // 重启服务
+        restartService();
+    }
+    
+    /**
+     * 应用默认凭证
+     */
+    private void applyDefaultCredentials() {
+        if (!config.hasDefaultCredentials()) {
+            Toast.makeText(requireContext(), "没有可用的默认凭证", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // 获取默认凭证
+        String appId = config.getDefaultAppId();
+        String appSecret = config.getDefaultAppSecret();
+        String cloudEnv = config.getDefaultCloudEnv();
+        
+        // 填充到输入框
+        if (etAppId != null) {
+            etAppId.setText(appId);
+        }
+        if (etAppSecret != null) {
+            etAppSecret.setText(appSecret);
+        }
+        if (etCloudEnv != null) {
+            etCloudEnv.setText(cloudEnv);
+        }
+        
+        // 保存配置
+        config.applyDefaultCredentials();
+        Toast.makeText(requireContext(), "已应用默认凭证", Toast.LENGTH_SHORT).show();
+        
+        // 更新配置状态显示
+        updateConfigStatus();
+        
+        // 启动服务
         restartService();
     }
 
@@ -471,6 +525,22 @@ public class WechatMiniFragment extends Fragment implements WechatRemoteManager.
             updateServiceStatus(remoteManager.isRunning());
         }
         updateBindStatusUI();
+    }
+    
+    /**
+     * 加载小程序提示图片
+     */
+    private void loadMiniappHintImage() {
+        if (ivMiniappHint != null) {
+            try {
+                java.io.InputStream is = requireContext().getAssets().open("miniapp.png");
+                android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeStream(is);
+                ivMiniappHint.setImageBitmap(bitmap);
+                is.close();
+            } catch (Exception e) {
+                AppLog.e(TAG, "加载小程序提示图片失败", e);
+            }
+        }
     }
     
     @Override

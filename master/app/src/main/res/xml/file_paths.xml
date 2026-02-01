@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- DCIM directory for recorded videos -->
+    <external-path
+        name="videos"
+        path="DCIM/EVCam_Video/" />
+    <!-- DCIM directory for photos -->
+    <external-path
+        name="photos"
+        path="DCIM/EVCam_Photo/" />
+</paths>

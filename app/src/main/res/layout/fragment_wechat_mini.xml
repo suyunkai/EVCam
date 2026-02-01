@@ -21,9 +21,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="☰"
-            android:textSize="18sp"
-            android:minWidth="48dp"
-            android:minHeight="48dp"
+            android:textSize="32sp"
+            android:minWidth="70dp"
+            android:minHeight="70dp"
             android:layout_marginEnd="8dp"
             android:backgroundTint="@color/button_background"
             android:textColor="@color/button_text" />
@@ -34,7 +34,7 @@
             android:layout_weight="1"
             android:text="微信小程序"
             android:textColor="@color/text_primary"
-            android:textSize="20sp"
+            android:textSize="32sp"
             android:textStyle="bold" />
 
         <Button
@@ -42,9 +42,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="⌂"
-            android:textSize="22sp"
-            android:minWidth="48dp"
-            android:minHeight="48dp"
+            android:textSize="36sp"
+            android:minWidth="70dp"
+            android:minHeight="70dp"
             android:backgroundTint="@color/button_background"
             android:textColor="@color/button_text" />
     </LinearLayout>
@@ -83,7 +83,7 @@
                     android:layout_height="wrap_content"
                     android:text="未连接"
                     android:textColor="@color/text_primary"
-                    android:textSize="14sp"
+                    android:textSize="24sp"
                     android:layout_marginStart="8dp" />
             </LinearLayout>
 
@@ -101,7 +101,7 @@
                     android:layout_height="wrap_content"
                     android:text="云开发凭证"
                     android:textColor="@color/text_primary"
-                    android:textSize="16sp"
+                    android:textSize="26sp"
                     android:textStyle="bold"
                     android:layout_marginBottom="12dp" />
 
@@ -111,7 +111,7 @@
                     android:layout_height="wrap_content"
                     android:text="App ID"
                     android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
+                    android:textSize="20sp" />
 
                 <EditText
                     android:id="@+id/et_app_id"
@@ -120,7 +120,7 @@
                     android:hint="wx..."
                     android:textColor="@color/text_primary"
                     android:textColorHint="@color/text_hint"
-                    android:textSize="14sp"
+                    android:textSize="22sp"
                     android:inputType="text"
                     android:background="@color/input_background"
                     android:padding="10dp"
@@ -133,7 +133,7 @@
                     android:layout_height="wrap_content"
                     android:text="App Secret"
                     android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
+                    android:textSize="20sp" />
 
                 <EditText
                     android:id="@+id/et_app_secret"
@@ -142,7 +142,7 @@
                     android:hint="32位密钥"
                     android:textColor="@color/text_primary"
                     android:textColorHint="@color/text_hint"
-                    android:textSize="14sp"
+                    android:textSize="22sp"
                     android:inputType="textPassword"
                     android:background="@color/input_background"
                     android:padding="10dp"
@@ -155,7 +155,7 @@
                     android:layout_height="wrap_content"
                     android:text="云环境 ID"
                     android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
+                    android:textSize="20sp" />
 
                 <EditText
                     android:id="@+id/et_cloud_env"
@@ -164,14 +164,14 @@
                     android:hint="cloudbase-..."
                     android:textColor="@color/text_primary"
                     android:textColorHint="@color/text_hint"
-                    android:textSize="14sp"
+                    android:textSize="22sp"
                     android:inputType="text"
                     android:background="@color/input_background"
                     android:padding="10dp"
                     android:layout_marginTop="4dp"
                     android:layout_marginBottom="12dp" />
 
-                <!-- 配置状态和保存按钮 -->
+                <!-- 配置状态和按钮 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -185,14 +185,24 @@
                         android:layout_weight="1"
                         android:text="未配置"
                         android:textColor="@color/text_secondary"
-                        android:textSize="12sp" />
+                        android:textSize="20sp" />
+
+                    <Button
+                        android:id="@+id/btn_use_default"
+                        android:layout_width="wrap_content"
+                        android:layout_height="50dp"
+                        android:text="使用默认"
+                        android:textSize="16sp"
+                        android:layout_marginEnd="8dp"
+                        android:backgroundTint="#FF9800"
+                        android:textColor="@color/button_text" />
 
                     <Button
                         android:id="@+id/btn_save_config"
                         android:layout_width="wrap_content"
-                        android:layout_height="40dp"
+                        android:layout_height="50dp"
                         android:text="保存配置"
-                        android:textSize="14sp"
+                        android:textSize="16sp"
                         android:backgroundTint="@color/button_background"
                         android:textColor="@color/button_text" />
                 </LinearLayout>
@@ -226,7 +236,7 @@
                             android:layout_height="wrap_content"
                             android:text="自动启动服务"
                             android:textColor="@color/text_primary"
-                            android:textSize="14sp" />
+                            android:textSize="22sp" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -256,7 +266,7 @@
                         android:layout_height="wrap_content"
                         android:text="连接状态："
                         android:textColor="@color/text_secondary"
-                        android:textSize="14sp" />
+                        android:textSize="22sp" />
 
                     <TextView
                         android:id="@+id/tv_service_status"
@@ -264,7 +274,7 @@
                         android:layout_height="wrap_content"
                         android:text="未连接"
                         android:textColor="#FF5252"
-                        android:textSize="14sp" />
+                        android:textSize="22sp" />
                 </LinearLayout>
 
                 <!-- 启动/停止按钮 -->
@@ -276,10 +286,10 @@
                     <Button
                         android:id="@+id/btn_start_service"
                         android:layout_width="0dp"
-                        android:layout_height="44dp"
+                        android:layout_height="54dp"
                         android:layout_weight="1"
                         android:text="启动服务"
-                        android:textSize="14sp"
+                        android:textSize="16sp"
                         android:layout_marginEnd="8dp"
                         android:backgroundTint="@color/button_background"
                         android:textColor="@color/button_text" />
@@ -287,10 +297,10 @@
                     <Button
                         android:id="@+id/btn_stop_service"
                         android:layout_width="0dp"
-                        android:layout_height="44dp"
+                        android:layout_height="54dp"
                         android:layout_weight="1"
                         android:text="停止服务"
-                        android:textSize="14sp"
+                        android:textSize="16sp"
                         android:layout_marginStart="8dp"
                         android:backgroundTint="@color/button_background"
                         android:textColor="@color/button_text" />
@@ -342,6 +352,23 @@
                         android:textSize="12sp"
                         android:layout_marginTop="8dp" />
 
+                    <!-- 小程序图标提示 -->
+                    <ImageView
+                        android:id="@+id/iv_miniapp_hint"
+                        android:layout_width="120dp"
+                        android:layout_height="120dp"
+                        android:scaleType="fitCenter"
+                        android:layout_marginTop="16dp"
+                        android:contentDescription="扫描二维码打开小程序" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="扫描二维码打开小程序"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp"
+                        android:layout_marginTop="4dp" />
+
                     <Button
                         android:id="@+id/btn_refresh_qr"
                         android:layout_width="wrap_content"
@@ -377,7 +404,7 @@
                         android:layout_height="wrap_content"
                         android:text="用户：--"
                         android:textColor="@color/text_secondary"
-                        android:textSize="14sp"
+                        android:textSize="22sp"
                         android:layout_marginTop="8dp" />
 
                     <Button

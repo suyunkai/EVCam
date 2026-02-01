@@ -1,0 +1,257 @@
+/* pages/control/control.wxss */
+
+/* 命令提示覆盖层 */
+.command-tip-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.command-tip-card {
+  background-color: #fff;
+  border-radius: 24rpx;
+  padding: 50rpx 40rpx;
+  margin: 40rpx;
+  text-align: center;
+  max-width: 600rpx;
+}
+
+.tip-icon {
+  font-size: 100rpx;
+  margin-bottom: 30rpx;
+}
+
+.tip-message {
+  font-size: 32rpx;
+  color: #333;
+  line-height: 1.6;
+  margin-bottom: 20rpx;
+}
+
+.tip-countdown {
+  font-size: 48rpx;
+  font-weight: bold;
+  color: #1a73e8;
+  margin-bottom: 30rpx;
+}
+
+.tip-actions {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 30rpx;
+}
+
+.tip-btn {
+  flex: 1;
+  background-color: #1a73e8;
+  color: #fff;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  padding: 20rpx;
+  border: none;
+}
+
+.tip-btn.secondary {
+  background-color: #f5f5f5;
+  color: #666;
+}
+
+.status-card {
+  padding: 30rpx;
+}
+
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.status-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  font-size: 28rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 30rpx;
+}
+
+.status-indicator.online {
+  background-color: #e8f5e9;
+  color: #34a853;
+}
+
+.status-indicator.offline {
+  background-color: #ffebee;
+  color: #ea4335;
+}
+
+.status-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  margin-right: 10rpx;
+}
+
+.online .status-dot {
+  background-color: #34a853;
+}
+
+.offline .status-dot {
+  background-color: #ea4335;
+}
+
+.device-name {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 20rpx;
+}
+
+.status-info {
+  background-color: #f5f5f5;
+  padding: 20rpx;
+  border-radius: 8rpx;
+  font-size: 26rpx;
+  color: #666;
+  white-space: pre-wrap;
+  margin-bottom: 20rpx;
+}
+
+.refresh-btn {
+  background-color: #f5f5f5;
+  border: none;
+  font-size: 28rpx;
+  color: #666;
+  padding: 16rpx 0;
+}
+
+/* 控制网格 */
+.control-card {
+  padding: 30rpx;
+}
+
+.control-grid {
+  display: flex;
+  gap: 20rpx;
+}
+
+.control-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30rpx 20rpx;
+  border-radius: 16rpx;
+  background-color: #f5f5f5;
+}
+
+.control-item .emoji-icon {
+  font-size: 60rpx;
+  margin-bottom: 16rpx;
+}
+
+.control-item image {
+  width: 80rpx;
+  height: 80rpx;
+  margin-bottom: 16rpx;
+}
+
+.control-item text {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.control-item .duration-text {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
+.control-item.preview {
+  background-color: #e8f5e9;
+}
+
+.control-item.record {
+  background-color: #ffebee;
+}
+
+.control-item.photo {
+  background-color: #e3f2fd;
+}
+
+.control-item.status {
+  background-color: #fff3e0;
+}
+
+/* 时长选择 */
+.duration-picker {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx;
+  background-color: #f5f5f5;
+  border-radius: 8rpx;
+}
+
+.picker-arrow {
+  color: #999;
+  font-size: 24rpx;
+}
+
+/* 高级控制 */
+.advanced-controls {
+  margin-bottom: 20rpx;
+}
+
+.start-btn {
+  background-color: #34a853;
+}
+
+.stop-btn {
+  background-color: #ea4335;
+}
+
+.control-tip {
+  text-align: center;
+  color: #999;
+}
+
+/* 离线提示 */
+.offline-card {
+  text-align: center;
+  padding: 60rpx 30rpx;
+}
+
+.offline-icon {
+  width: 160rpx;
+  height: 160rpx;
+  margin-bottom: 30rpx;
+  opacity: 0.5;
+}
+
+.offline-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #999;
+  margin-bottom: 16rpx;
+}
+
+.offline-desc {
+  font-size: 28rpx;
+  color: #bbb;
+  margin-bottom: 40rpx;
+}

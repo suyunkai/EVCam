@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">电车记录仪</string>
+    <string name="accessibility_service_description">保活服务：用于提高应用后台运行稳定性，确保远程控制功能正常工作。\n\n本服务不会监控或操作任何用户界面，不会收集任何隐私信息，仅用于保持应用进程活跃。</string>
+</resources>

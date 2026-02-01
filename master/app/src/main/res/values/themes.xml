@@ -1,0 +1,82 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.Cam" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- 深灰色配色方案 -->
+        <item name="colorPrimary">#424242</item>
+        <item name="colorPrimaryVariant">#2A2A2A</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#616161</item>
+        <item name="colorSecondaryVariant">#424242</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="android:colorBackground">#1A1A1A</item>
+        <item name="colorSurface">#2A2A2A</item>
+        <item name="colorOnSurface">#FFFFFF</item>
+        <item name="android:statusBarColor">#2A2A2A</item>
+        <item name="android:navigationBarColor">#000000</item>
+        <!-- 启动画面背景颜色（偏蓝色） -->
+        <item name="android:windowBackground">@color/page_background</item>
+        <!-- Android 12+ 启动画面背景 -->
+        <item name="android:windowSplashScreenBackground">@color/page_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+    </style>
+
+    <style name="Theme.Cam" parent="Base.Theme.Cam" />
+
+    <!-- 全屏播放器主题 -->
+    <style name="Theme.Cam.Fullscreen" parent="Theme.Cam">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:colorBackground">@android:color/black</item>
+    </style>
+
+    <!-- 完全透明主题（用于开机自启动） -->
+    <style name="Theme.Cam.Transparent" parent="Theme.Cam">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
+
+    <!-- 导航菜单项文字样式 -->
+    <style name="NavigationMenuTextAppearance" parent="TextAppearance.AppCompat.Body1">
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">@color/nav_text_primary</item>
+        <item name="fontFamily">sans-serif-medium</item>
+    </style>
+
+    <!-- 导航视图样式 -->
+    <style name="NavigationViewStyle">
+        <item name="itemBackground">@drawable/nav_item_background</item>
+        <item name="itemIconTint">@color/nav_icon_tint</item>
+        <item name="itemTextColor">@color/nav_text_primary</item>
+        <item name="itemShapeFillColor">@android:color/transparent</item>
+        <item name="itemIconPadding">16dp</item>
+        <item name="itemHorizontalPadding">20dp</item>
+        <item name="android:paddingStart">8dp</item>
+        <item name="android:paddingEnd">8dp</item>
+    </style>
+
+    <!-- 导航分组标题样式 -->
+    <style name="NavigationSubheaderTextAppearance" parent="TextAppearance.AppCompat.Body2">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/nav_section_title</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.03</item>
+    </style>
+
+    <!-- 日间模式对话框主题 -->
+    <style name="Theme.Cam.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <!-- 对话框背景 -->
+        <item name="colorSurface">#FFFFFF</item>
+        <!-- 标题和内容文字颜色 -->
+        <item name="colorOnSurface">#1A1A1A</item>
+        <!-- 按钮颜色 -->
+        <item name="colorPrimary">#1976D2</item>
+    </style>
+</resources>

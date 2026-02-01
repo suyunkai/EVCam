@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 背景 -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/button_background" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+    <!-- 下拉箭头 -->
+    <item
+        android:gravity="center_vertical|end"
+        android:right="12dp">
+        <rotate
+            android:fromDegrees="135"
+            android:toDegrees="135"
+            android:pivotX="50%"
+            android:pivotY="50%">
+            <shape android:shape="rectangle">
+                <size
+                    android:width="8dp"
+                    android:height="8dp" />
+                <solid android:color="@color/button_text" />
+            </shape>
+        </rotate>
+    </item>
+</layer-list>

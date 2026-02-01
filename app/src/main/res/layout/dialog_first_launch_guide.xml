@@ -146,7 +146,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="本软件作者 @greenteacher46，当前版本免费开源，如遇收费售卖等商业行为，请告知作者。"
+            android:text="本软件系@greenteacher46大佬的EVCam项目由小红书@邪恶银渐层制作的23-25款领克07、08车型的分支版本，如果您认为该软件对您有用，欢迎您赞赏大佬和我～谢谢您！"
             android:textSize="20sp"
             android:textColor="@color/dialog_guide_secondary"
             android:lineSpacingExtra="3dp"
@@ -164,15 +164,63 @@
             android:gravity="center"
             android:layout_marginBottom="12dp" />
 
-        <!-- 二维码图片（尺寸在代码中根据屏幕密度动态设置） -->
-        <ImageView
-            android:id="@+id/iv_qrcode"
-            android:layout_width="wrap_content"
+        <!-- 二维码容器 - 垂直排列 -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:scaleType="fitCenter"
-            android:contentDescription="打赏二维码"
-            android:layout_marginBottom="20dp" />
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginBottom="20dp">
+
+            <!-- 原作者二维码 -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginBottom="16dp">
+
+                <ImageView
+                    android:id="@+id/iv_qrcode"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="原作者打赏二维码" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="软件作者@greenteacher46大佬的赞赏码"
+                    android:textSize="16sp"
+                    android:textColor="@color/dialog_guide_secondary"
+                    android:gravity="center"
+                    android:layout_marginTop="8dp" />
+            </LinearLayout>
+
+            <!-- 分支版本维护者二维码 -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <ImageView
+                    android:id="@+id/iv_qrcode_branch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="分支维护者打赏二维码" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="分支版本维护者@邪恶银渐层的赞赏码"
+                    android:textSize="16sp"
+                    android:textColor="@color/dialog_guide_secondary"
+                    android:gravity="center"
+                    android:layout_marginTop="8dp" />
+            </LinearLayout>
+        </LinearLayout>
 
         <!-- 确认按钮 -->
         <TextView

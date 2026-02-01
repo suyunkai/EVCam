@@ -5,9 +5,16 @@ import com.kooo.evcam.AppConfig;
 import com.kooo.evcam.AppLog;
 import com.kooo.evcam.StorageHelper;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.ImageFormat;
+import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
+import android.os.Looper;
+import android.view.View;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
@@ -91,6 +98,37 @@ public class SingleCamera {
     private final Object reconnectLock = new Object();  // 重连锁
     private boolean isPrimaryInstance = true;  // 是否是主实例（用于多实例共享同一个cameraId时，只有主实例负责重连）
 
+    // ==================== 全景裁切相关变量 ====================
+    private static final int PANORAMIC_FRAME_INTERVAL_MS = 33;  // 全景帧更新间隔（约30fps）
+    private float[] panoramicCropRegion = null;  // 全景裁切区域 [x, y, width, height] 归一化坐标
+    private boolean isPanoramicMode = false;  // 是否是全景模式
+    private boolean isPanoramicModeOptimized = false;  // 是否是优化的全景模式
+    private TextureView[] additionalTextureViews = null;  // 额外的 TextureView（用于显示其他方向）
+    private float[][] additionalCropRegions = null;  // 额外的裁切区域
+    private View.OnLayoutChangeListener panoramicLayoutListener = null;  // 布局变化监听器
+    private int lastTextureViewWidth = 0;  // 上次 TextureView 宽度
+    private int lastTextureViewHeight = 0;  // 上次 TextureView 高度
+    private String[] panoramicDirections = null;  // 全景方向配置
+    private int[] panoramicRotations = null;  // 全景旋转角度配置
+    
+    // ==================== 鱼眼矫正相关变量 ====================
+    private boolean fisheyeCorrectionEnabled = false;  // 是否启用鱼眼矫正
+    private int fisheyeStrength = 50;  // 鱼眼矫正强度 (0-100)
+    
+    // ==================== 全景帧更新相关变量 ====================
+    private Handler mainHandler = null;  // 主线程 Handler
+    private HandlerThread panoramicFrameThread = null;  // 全景帧处理线程
+    private Handler panoramicFrameHandler = null;  // 全景帧处理 Handler
+    private Runnable panoramicFrameRunnable = null;  // 全景帧更新任务
+    private volatile boolean panoramicFrameUpdateRunning = false;  // 全景帧更新是否运行中
+    private Paint drawPaint = null;  // 绘制画笔
+    private Bitmap[] frameBuffers = new Bitmap[2];  // 双缓冲
+    private int currentBufferIndex = 0;  // 当前缓冲索引
+    private final Object bufferLock = new Object();  // 缓冲锁
+    private int[] cachedCropParams = null;  // 缓存的裁切参数
+    private int cachedFullWidth = 0;  // 缓存的完整宽度
+    private int cachedFullHeight = 0;  // 缓存的完整高度
+
     public SingleCamera(Context context, String cameraId, TextureView textureView) {
         this.context = context;
         this.cameraId = cameraId;
@@ -145,6 +183,572 @@ public class SingleCamera {
      */
     public boolean isPrimaryInstance() {
         return isPrimaryInstance;
+    }
+
+    // ==================== 全景裁切相关方法 ====================
+    
+    /**
+     * 设置全景裁切区域
+     * @param cropRegion 裁切区域 [x, y, width, height] 归一化坐标 (0.0-1.0)
+     */
+    public void setPanoramicCropRegion(float[] cropRegion) {
+        this.panoramicCropRegion = cropRegion;
+        if (!isPanoramicModeOptimized) {
+            this.isPanoramicMode = (cropRegion != null);
+        }
+        
+        if (cropRegion != null) {
+            AppLog.d(TAG, "Camera " + cameraId + " (" + cameraPosition + ") panoramic crop region set to: x=" + 
+                    cropRegion[0] + ", y=" + cropRegion[1] + ", w=" + cropRegion[2] + ", h=" + cropRegion[3]);
+            
+            // 添加布局变化监听器
+            if (textureView != null && panoramicLayoutListener == null) {
+                panoramicLayoutListener = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+                    int newWidth = right - left;
+                    int newHeight = bottom - top;
+                    if ((newWidth != lastTextureViewWidth || newHeight != lastTextureViewHeight) 
+                            && newWidth > 0 && newHeight > 0 && previewSize != null) {
+                        AppLog.d(TAG, "Camera " + cameraId + " TextureView size changed: " + 
+                                lastTextureViewWidth + "x" + lastTextureViewHeight + " -> " + newWidth + "x" + newHeight);
+                        lastTextureViewWidth = newWidth;
+                        lastTextureViewHeight = newHeight;
+                        textureView.post(this::applyPanoramicCropTransform);
+                    }
+                };
+                textureView.addOnLayoutChangeListener(panoramicLayoutListener);
+                AppLog.d(TAG, "Camera " + cameraId + " added panoramic layout listener");
+            }
+            
+            // 如果 TextureView 已可用且 previewSize 已设置，立即应用裁切变换
+            if (textureView != null && textureView.isAvailable() && previewSize != null) {
+                applyPanoramicCropTransform();
+            }
+        } else {
+            AppLog.d(TAG, "Camera " + cameraId + " (" + cameraPosition + ") panoramic crop region cleared");
+            // 重置变换
+            if (textureView != null) {
+                textureView.post(() -> {
+                    textureView.setTransform(new Matrix());
+                    AppLog.d(TAG, "Camera " + cameraId + " reset transform to identity");
+                });
+            }
+            // 移除布局监听器
+            if (!isPanoramicModeOptimized && textureView != null && panoramicLayoutListener != null) {
+                textureView.removeOnLayoutChangeListener(panoramicLayoutListener);
+                panoramicLayoutListener = null;
+            }
+        }
+    }
+    
+    /**
+     * 获取全景裁切区域
+     */
+    public float[] getPanoramicCropRegion() {
+        return panoramicCropRegion;
+    }
+    
+    /**
+     * 是否是全景模式
+     */
+    public boolean isPanoramicMode() {
+        return isPanoramicMode;
+    }
+    
+    /**
+     * 设置优化的全景模式
+     */
+    public void setPanoramicModeOptimized(boolean optimized) {
+        this.isPanoramicModeOptimized = optimized;
+        this.isPanoramicMode = optimized;
+        AppLog.d(TAG, "Camera " + cameraId + " panoramic mode optimized: " + optimized);
+    }
+    
+    /**
+     * 是否是优化的全景模式
+     */
+    public boolean isPanoramicModeOptimized() {
+        return isPanoramicModeOptimized;
+    }
+    
+    /**
+     * 设置额外的全景视图
+     * @param views 额外的 TextureView 数组
+     * @param regions 对应的裁切区域数组
+     */
+    public void setAdditionalPanoramicViews(TextureView[] views, float[][] regions) {
+        this.additionalTextureViews = views;
+        this.additionalCropRegions = regions;
+        if (views != null) {
+            AppLog.d(TAG, "Camera " + cameraId + " set " + views.length + " additional panoramic views");
+        }
+    }
+    
+    /**
+     * 设置全景配置
+     * @param directions 方向数组 (front/back/left/right)
+     * @param rotations 旋转角度数组
+     */
+    public void setPanoramicConfig(String[] directions, int[] rotations) {
+        this.panoramicDirections = directions;
+        this.panoramicRotations = rotations;
+        AppLog.d(TAG, "Camera " + cameraId + " set panoramic config");
+    }
+    
+    /**
+     * 应用全景裁切变换到 TextureView
+     */
+    private void applyPanoramicCropTransform() {
+        if (textureView == null || panoramicCropRegion == null || previewSize == null) {
+            return;
+        }
+        applyPanoramicCropTransformToView(textureView, panoramicCropRegion, cameraPosition);
+    }
+    
+    /**
+     * 应用全景裁切变换到指定的 TextureView
+     */
+    private void applyPanoramicCropTransformToView(final TextureView view, final float[] cropRegion, final String position) {
+        if (view == null || cropRegion == null || previewSize == null) {
+            return;
+        }
+        
+        view.post(() -> {
+            int viewWidth = view.getWidth();
+            int viewHeight = view.getHeight();
+            
+            if (viewWidth == 0 || viewHeight == 0) {
+                AppLog.d(TAG, position + " TextureView size is 0, delaying crop transform");
+                view.postDelayed(() -> applyPanoramicCropTransformToView(view, cropRegion, position), 100);
+                return;
+            }
+            
+            int previewWidth = previewSize.getWidth();
+            int previewHeight = previewSize.getHeight();
+            
+            // 计算裁切区域像素坐标
+            float cropX = cropRegion[0] * previewWidth;
+            float cropY = cropRegion[1] * previewHeight;
+            float cropW = cropRegion[2] * previewWidth;
+            float cropH = cropRegion[3] * previewHeight;
+            
+            // 计算缩放和平移
+            Matrix matrix = new Matrix();
+            float scaleX = viewWidth / cropW;
+            float scaleY = viewHeight / cropH;
+            float translateX = -cropX * scaleX;
+            float translateY = -cropY * scaleY;
+            
+            matrix.setScale(scaleX, scaleY);
+            matrix.postTranslate(translateX, translateY);
+            
+            view.setTransform(matrix);
+            
+            AppLog.d(TAG, position + " applied panoramic crop: view=" + viewWidth + "x" + viewHeight +
+                    ", preview=" + previewWidth + "x" + previewHeight +
+                    ", cropRegion=[" + cropRegion[0] + "," + cropRegion[1] + "," + cropRegion[2] + "," + cropRegion[3] + "]" +
+                    ", scaleX=" + String.format("%.3f", scaleX) + ", scaleY=" + String.format("%.3f", scaleY));
+        });
+    }
+    
+    // ==================== 鱼眼矫正相关方法 ====================
+    
+    /**
+     * 设置鱼眼矫正
+     * @param enabled 是否启用
+     * @param strength 矫正强度 (0-100)
+     */
+    public void setFisheyeCorrection(boolean enabled, int strength) {
+        this.fisheyeCorrectionEnabled = enabled;
+        this.fisheyeStrength = strength;
+        AppLog.d(TAG, "Camera " + cameraId + " fisheye correction: " + 
+                (enabled ? "enabled, strength=" + strength : "disabled"));
+    }
+    
+    /**
+     * 是否启用了鱼眼矫正
+     */
+    public boolean isFisheyeCorrectionEnabled() {
+        return fisheyeCorrectionEnabled;
+    }
+    
+    /**
+     * 获取鱼眼矫正强度
+     */
+    public int getFisheyeStrength() {
+        return fisheyeStrength;
+    }
+    
+    /**
+     * 应用鱼眼矫正到位图
+     * 使用桶形畸变校正算法
+     * @param bitmap 输入位图
+     * @return 矫正后的位图
+     */
+    private Bitmap applyFisheyeCorrection(Bitmap bitmap) {
+        if (bitmap == null || fisheyeStrength == 0) {
+            return bitmap;
+        }
+        
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        
+        // 创建输出位图
+        Bitmap outputBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        
+        // 获取像素数据
+        int totalPixels = width * height;
+        int[] inputPixels = new int[totalPixels];
+        bitmap.getPixels(inputPixels, 0, width, 0, 0, width, height);
+        int[] outputPixels = new int[totalPixels];
+        
+        // 计算中心点和半径
+        float centerX = width / 2.0f;
+        float centerY = height / 2.0f;
+        float radius = Math.min(centerX, centerY);
+        
+        // 畸变系数（负值表示桶形畸变校正）
+        float k = -(fisheyeStrength / 200.0f);  // 强度范围：-0.5 到 0
+        
+        // 对每个像素进行反向映射
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                // 归一化坐标
+                float nx = (x - centerX) / radius;
+                float ny = (y - centerY) / radius;
+                
+                // 计算到中心的距离
+                float r = (float) Math.sqrt(nx * nx + ny * ny);
+                
+                if (r == 0) {
+                    // 中心点直接复制
+                    outputPixels[y * width + x] = inputPixels[y * width + x];
+                } else {
+                    // 应用桶形畸变校正
+                    // 公式: r_corrected = r * (1 + k * r^2)
+                    float rCorrected = r * (1.0f + k * r * r);
+                    
+                    // 计算源坐标
+                    float srcNx = (nx * rCorrected) / r;
+                    float srcNy = (ny * rCorrected) / r;
+                    int srcX = (int) (srcNx * radius + centerX);
+                    int srcY = (int) (srcNy * radius + centerY);
+                    
+                    // 边界检查并采样
+                    if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
+                        outputPixels[y * width + x] = inputPixels[srcY * width + srcX];
+                    } else {
+                        outputPixels[y * width + x] = 0;  // 透明或黑色
+                    }
+                }
+            }
+        }
+        
+        // 设置输出像素
+        outputBitmap.setPixels(outputPixels, 0, width, 0, 0, width, height);
+        
+        return outputBitmap;
+    }
+    
+    /**
+     * 旋转位图
+     * @param bitmap 输入位图
+     * @param degrees 旋转角度
+     * @return 旋转后的位图
+     */
+    private Bitmap rotateBitmap(Bitmap bitmap, int degrees) {
+        if (degrees == 0 || bitmap == null) {
+            return bitmap;
+        }
+        
+        Matrix matrix = new Matrix();
+        matrix.postRotate(degrees);
+        
+        try {
+            return Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+        } catch (Exception e) {
+            AppLog.e(TAG, "Failed to rotate bitmap: " + e.getMessage());
+            return bitmap;
+        }
+    }
+    
+    // ==================== 全景帧更新相关方法 ====================
+    
+    /**
+     * 启动全景帧更新
+     * 用于将全景摄像头画面裁切后分发到多个 TextureView
+     */
+    public void startPanoramicFrameUpdate() {
+        if (!isPanoramicMode || additionalTextureViews == null || additionalCropRegions == null 
+                || panoramicFrameUpdateRunning) {
+            return;
+        }
+        
+        panoramicFrameUpdateRunning = true;
+        
+        // 初始化画笔
+        if (drawPaint == null) {
+            drawPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
+            drawPaint.setDither(false);
+        }
+        
+        // 主线程 Handler
+        mainHandler = new Handler(Looper.getMainLooper());
+        
+        // 创建全景帧处理线程
+        panoramicFrameThread = new HandlerThread("PanoramicFrame", Thread.NORM_PRIORITY - 2);
+        panoramicFrameThread.start();
+        panoramicFrameHandler = new Handler(panoramicFrameThread.getLooper());
+        
+        // 创建帧更新任务
+        panoramicFrameRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!panoramicFrameUpdateRunning || textureView == null) {
+                    return;
+                }
+                
+                long startTime = System.nanoTime();
+                
+                try {
+                    processPanoramicFrame();
+                } catch (Exception e) {
+                    AppLog.e(TAG, "Panoramic frame error: " + e.getMessage());
+                }
+                
+                // 计算下次执行时间
+                if (panoramicFrameUpdateRunning && panoramicFrameHandler != null) {
+                    long elapsed = (System.nanoTime() - startTime) / 1000000;  // 转换为毫秒
+                    long delay = Math.max(1, PANORAMIC_FRAME_INTERVAL_MS - elapsed);
+                    panoramicFrameHandler.postDelayed(this, delay);
+                }
+            }
+        };
+        
+        // 延迟 300ms 后开始
+        panoramicFrameHandler.postDelayed(panoramicFrameRunnable, 300);
+        
+        AppLog.d(TAG, "Camera " + cameraId + " started panoramic frame update");
+    }
+    
+    /**
+     * 停止全景帧更新
+     */
+    public void stopPanoramicFrameUpdate() {
+        panoramicFrameUpdateRunning = false;
+        
+        if (panoramicFrameHandler != null && panoramicFrameRunnable != null) {
+            panoramicFrameHandler.removeCallbacks(panoramicFrameRunnable);
+        }
+        
+        if (panoramicFrameThread != null) {
+            panoramicFrameThread.quitSafely();
+            try {
+                panoramicFrameThread.join(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            panoramicFrameThread = null;
+        }
+        
+        panoramicFrameHandler = null;
+        panoramicFrameRunnable = null;
+        
+        // 释放位图缓冲
+        synchronized (bufferLock) {
+            for (int i = 0; i < frameBuffers.length; i++) {
+                if (frameBuffers[i] != null && !frameBuffers[i].isRecycled()) {
+                    frameBuffers[i].recycle();
+                }
+                frameBuffers[i] = null;
+            }
+        }
+        
+        AppLog.d(TAG, "Camera " + cameraId + " stopped panoramic frame update");
+    }
+    
+    /**
+     * 处理全景帧
+     */
+    private void processPanoramicFrame() {
+        if (textureView == null || !textureView.isAvailable()) {
+            return;
+        }
+        
+        final Bitmap fullFrame;
+        
+        synchronized (bufferLock) {
+            // 使用双缓冲获取位图
+            int bufferIndex = currentBufferIndex;
+            Bitmap buffer = frameBuffers[bufferIndex];
+            
+            if (buffer == null || buffer.isRecycled()) {
+                fullFrame = textureView.getBitmap();
+            } else {
+                fullFrame = textureView.getBitmap(buffer);
+            }
+            
+            if (fullFrame == null) {
+                return;
+            }
+            
+            frameBuffers[bufferIndex] = fullFrame;
+            currentBufferIndex = (bufferIndex + 1) % 2;
+            
+            // 更新缓存的裁切参数
+            int width = fullFrame.getWidth();
+            int height = fullFrame.getHeight();
+            if (width != cachedFullWidth || height != cachedFullHeight) {
+                updateCachedCropParams(width, height);
+                cachedFullWidth = width;
+                cachedFullHeight = height;
+            }
+        }
+        
+        // 在主线程中更新各个 TextureView
+        mainHandler.post(() -> {
+            if (!panoramicFrameUpdateRunning) {
+                return;
+            }
+            
+            for (int i = 0; i < additionalTextureViews.length; i++) {
+                TextureView targetView = additionalTextureViews[i];
+                float[] cropRegion = additionalCropRegions[i];
+                
+                if (targetView == null || !targetView.isAvailable() || cropRegion == null) {
+                    continue;
+                }
+                
+                Canvas canvas = targetView.lockCanvas();
+                if (canvas == null) {
+                    continue;
+                }
+                
+                try {
+                    drawFrameToCanvas(canvas, fullFrame, i, targetView.getWidth(), targetView.getHeight());
+                } finally {
+                    targetView.unlockCanvasAndPost(canvas);
+                }
+            }
+        });
+    }
+    
+    /**
+     * 将帧绘制到 Canvas
+     */
+    private void drawFrameToCanvas(Canvas canvas, Bitmap fullFrame, int viewIndex, int viewWidth, int viewHeight) {
+        if (cachedCropParams == null || viewIndex >= additionalCropRegions.length) {
+            return;
+        }
+        
+        float[] cropRegion = additionalCropRegions[viewIndex];
+        if (cropRegion == null) {
+            return;
+        }
+        
+        int fullWidth = fullFrame.getWidth();
+        int fullHeight = fullFrame.getHeight();
+        
+        // 计算裁切区域像素坐标
+        int cropX = (int) (cropRegion[0] * fullWidth);
+        int cropY = (int) (cropRegion[1] * fullHeight);
+        int cropW = (int) (cropRegion[2] * fullWidth);
+        int cropH = (int) (cropRegion[3] * fullHeight);
+        
+        // 添加调试日志（只记录第一个视图的信息）
+        if (viewIndex == 0) {
+            android.util.Log.d("SingleCamera", "小窗口[" + viewIndex + "] - 原图:" + fullWidth + "x" + fullHeight + 
+                    ", 裁切:[" + cropX + "," + cropY + "," + cropW + "," + cropH + "]" +
+                    ", 目标:" + viewWidth + "x" + viewHeight);
+        }
+        
+        // 边界检查
+        cropX = Math.max(0, Math.min(cropX, fullWidth - 1));
+        cropY = Math.max(0, Math.min(cropY, fullHeight - 1));
+        cropW = Math.max(1, Math.min(cropW, fullWidth - cropX));
+        cropH = Math.max(1, Math.min(cropH, fullHeight - cropY));
+        
+        // 裁切位图
+        Bitmap croppedBitmap;
+        try {
+            croppedBitmap = Bitmap.createBitmap(fullFrame, cropX, cropY, cropW, cropH);
+        } catch (Exception e) {
+            AppLog.e(TAG, "Failed to crop bitmap: " + e.getMessage());
+            return;
+        }
+        
+        // 应用鱼眼矫正
+        if (fisheyeCorrectionEnabled && fisheyeStrength > 0) {
+            Bitmap correctedBitmap = applyFisheyeCorrection(croppedBitmap);
+            if (correctedBitmap != croppedBitmap) {
+                croppedBitmap.recycle();
+                croppedBitmap = correctedBitmap;
+            }
+        }
+        
+        // 应用旋转
+        if (panoramicRotations != null && viewIndex < panoramicRotations.length) {
+            int rotation = panoramicRotations[viewIndex];
+            if (rotation != 0) {
+                Bitmap rotatedBitmap = rotateBitmap(croppedBitmap, rotation);
+                if (rotatedBitmap != croppedBitmap) {
+                    croppedBitmap.recycle();
+                    croppedBitmap = rotatedBitmap;
+                }
+            }
+        }
+        
+        // 清除 Canvas 并绘制背景
+        canvas.drawColor(android.graphics.Color.BLACK);
+        
+        // 计算保持宽高比的绘制区域（居中显示，填满Canvas）
+        float bitmapAspect = (float) croppedBitmap.getWidth() / croppedBitmap.getHeight();
+        float viewAspect = (float) viewWidth / viewHeight;
+        
+        RectF destRect;
+        if (bitmapAspect > viewAspect) {
+            // 位图更宽，以宽度为准
+            int scaledHeight = (int) (viewWidth / bitmapAspect);
+            int top = (viewHeight - scaledHeight) / 2;
+            destRect = new RectF(0, top, viewWidth, top + scaledHeight);
+        } else {
+            // 位图更高，以高度为准
+            int scaledWidth = (int) (viewHeight * bitmapAspect);
+            int left = (viewWidth - scaledWidth) / 2;
+            destRect = new RectF(left, 0, left + scaledWidth, viewHeight);
+        }
+        
+        canvas.drawBitmap(croppedBitmap, null, destRect, drawPaint);
+        
+        // 记录第一个视图的绘制信息
+        if (viewIndex == 0) {
+            android.util.Log.d("SingleCamera", "小窗口[0] 绘制 - 位图:" + croppedBitmap.getWidth() + "x" + croppedBitmap.getHeight() + 
+                    ", destRect:" + destRect.toString());
+        }
+        
+        // 回收临时位图
+        croppedBitmap.recycle();
+    }
+    
+    /**
+     * 更新缓存的裁切参数
+     */
+    private void updateCachedCropParams(int fullWidth, int fullHeight) {
+        if (additionalCropRegions == null) {
+            return;
+        }
+        
+        int count = additionalCropRegions.length;
+        cachedCropParams = new int[count * 4];
+        
+        for (int i = 0; i < count; i++) {
+            float[] region = additionalCropRegions[i];
+            if (region != null) {
+                cachedCropParams[i * 4] = (int) (region[0] * fullWidth);
+                cachedCropParams[i * 4 + 1] = (int) (region[1] * fullHeight);
+                cachedCropParams[i * 4 + 2] = (int) (region[2] * fullWidth);
+                cachedCropParams[i * 4 + 3] = (int) (region[3] * fullHeight);
+            }
+        }
     }
 
     /**
@@ -1148,6 +1752,7 @@ public class SingleCamera {
      * 重新创建会话（用于开始/停止录制时）
      */
     public void recreateSession() {
+        AppLog.d(TAG, "Camera " + cameraId + " recreateSession() called, recordSurface=" + (recordSurface != null));
         if (cameraDevice != null) {
             if (captureSession != null) {
                 try {
@@ -1162,11 +1767,15 @@ public class SingleCamera {
             // 20ms 足够让系统完成清理
             if (backgroundHandler != null) {
                 backgroundHandler.postDelayed(() -> {
+                    AppLog.d(TAG, "Camera " + cameraId + " calling createCameraPreviewSession() after delay");
                     createCameraPreviewSession();
                 }, 20);
             } else {
+                AppLog.d(TAG, "Camera " + cameraId + " calling createCameraPreviewSession() immediately");
                 createCameraPreviewSession();
             }
+        } else {
+            AppLog.e(TAG, "Camera " + cameraId + " recreateSession() failed: cameraDevice is null");
         }
     }
 
@@ -1378,6 +1987,17 @@ public class SingleCamera {
         if (!isPrimaryInstance) {
             AppLog.d(TAG, "Camera " + cameraId + " (" + cameraPosition + ") is SECONDARY instance, skipping closeCamera");
             return;
+        }
+        
+        // 停止全景帧更新（如果正在运行）
+        if (panoramicFrameUpdateRunning) {
+            stopPanoramicFrameUpdate();
+        }
+        
+        // 移除全景布局监听器
+        if (textureView != null && panoramicLayoutListener != null) {
+            textureView.removeOnLayoutChangeListener(panoramicLayoutListener);
+            panoramicLayoutListener = null;
         }
         
         synchronized (reconnectLock) {

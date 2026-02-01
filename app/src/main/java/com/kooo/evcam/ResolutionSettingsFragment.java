@@ -260,7 +260,14 @@ public class ResolutionSettingsFragment extends Fragment {
 
         // 构建分辨率选项列表
         resolutionOptions.clear();
-        resolutionOptions.add("默认 (1280×800)");
+        // 根据车型显示不同的默认分辨率
+        String defaultResolutionLabel;
+        if (appConfig != null && AppConfig.CAR_MODEL_LYNKCO_07.equals(appConfig.getCarModel())) {
+            defaultResolutionLabel = "默认 (2560×1600)";
+        } else {
+            defaultResolutionLabel = "默认 (1280×800)";
+        }
+        resolutionOptions.add(defaultResolutionLabel);
 
         // 收集所有摄像头支持的分辨率（去重）
         Set<String> allResolutions = new LinkedHashSet<>();
@@ -315,7 +322,12 @@ public class ResolutionSettingsFragment extends Fragment {
                 String newResolution;
                 if (position == 0) {
                     newResolution = AppConfig.RESOLUTION_DEFAULT;
-                    resolutionDescText.setText("默认：优先匹配 1280×800，否则选择最接近的分辨率");
+                    // 根据车型显示不同的默认分辨率描述
+                    if (appConfig != null && AppConfig.CAR_MODEL_LYNKCO_07.equals(appConfig.getCarModel())) {
+                        resolutionDescText.setText("默认：优先匹配 2560×1600，否则选择最接近的分辨率");
+                    } else {
+                        resolutionDescText.setText("默认：优先匹配 1280×800，否则选择最接近的分辨率");
+                    }
                 } else {
                     newResolution = resolutionOptions.get(position);
                     resolutionDescText.setText("将优先匹配 " + newResolution + "，如果摄像头不支持则选择最接近的");
@@ -521,9 +533,16 @@ public class ResolutionSettingsFragment extends Fragment {
             return;
         }
 
-        // 获取目标分辨率
-        int width = 1280;
-        int height = 800;
+        // 获取目标分辨率（根据车型使用不同的默认值）
+        int width;
+        int height;
+        if (appConfig != null && AppConfig.CAR_MODEL_LYNKCO_07.equals(appConfig.getCarModel())) {
+            width = 2560;
+            height = 1600;
+        } else {
+            width = 1280;
+            height = 800;
+        }
         if (!AppConfig.RESOLUTION_DEFAULT.equals(selectedResolution)) {
             int[] parsed = AppConfig.parseResolution(selectedResolution);
             if (parsed != null) {
@@ -596,7 +615,13 @@ public class ResolutionSettingsFragment extends Fragment {
         int actualFps = appConfig.getActualFrameRate(standardFps);
         
         sb.append("【当前配置】\n");
-        sb.append("目标分辨率: ").append(AppConfig.RESOLUTION_DEFAULT.equals(targetRes) ? "默认 (1280×800)" : targetRes).append("\n");
+        String defaultResDisplay;
+        if (appConfig != null && AppConfig.CAR_MODEL_LYNKCO_07.equals(appConfig.getCarModel())) {
+            defaultResDisplay = "默认 (2560×1600)";
+        } else {
+            defaultResDisplay = "默认 (1280×800)";
+        }
+        sb.append("目标分辨率: ").append(AppConfig.RESOLUTION_DEFAULT.equals(targetRes) ? defaultResDisplay : targetRes).append("\n");
         sb.append("码率等级: ").append(bitrateLevel).append("\n");
         sb.append("帧率等级: ").append(framerateLevel).append(" (").append(actualFps).append("fps)");
 
@@ -652,8 +677,14 @@ public class ResolutionSettingsFragment extends Fragment {
         String oldResolution = appConfig.getTargetResolution();
         appConfig.setTargetResolution(selectedResolution);
         
+        String defaultResName;
+        if (AppConfig.CAR_MODEL_LYNKCO_07.equals(appConfig.getCarModel())) {
+            defaultResName = "默认 (2560×1600)";
+        } else {
+            defaultResName = "默认 (1280×800)";
+        }
         String resolutionName = AppConfig.RESOLUTION_DEFAULT.equals(selectedResolution) 
-                ? "默认 (1280×800)" 
+                ? defaultResName 
                 : selectedResolution;
         
         Toast.makeText(getContext(), "分辨率已设置为: " + resolutionName + "\n重启应用后生效", Toast.LENGTH_SHORT).show();

@@ -1,0 +1,73 @@
+<!--pages/files/files.wxml-->
+<view class="container">
+  <!-- 标签切换 -->
+  <view class="tabs">
+    <view class="tab {{currentTab === 'photo' ? 'active' : ''}}" bindtap="switchTab" data-tab="photo">
+      <text>照片</text>
+    </view>
+    <view class="tab {{currentTab === 'video' ? 'active' : ''}}" bindtap="switchTab" data-tab="video">
+      <text>视频</text>
+    </view>
+  </view>
+
+  <!-- 文件列表 -->
+  <view class="file-list" wx:if="{{files.length > 0}}">
+    <view class="file-item {{!item.isUploaded ? 'not-uploaded' : ''}}" wx:for="{{files}}" wx:key="_id" bindtap="previewFile" data-file="{{item}}">
+      <!-- 缩略图 -->
+      <view class="file-thumb">
+        <image wx:if="{{item.thumbUrl || item.tempFileURL}}" src="{{item.thumbUrl || item.tempFileURL}}" mode="aspectFill"></image>
+        <view wx:else class="file-placeholder">
+          <text>{{currentTab === 'video' ? '🎬' : '📷'}}</text>
+        </view>
+        <view class="video-duration" wx:if="{{currentTab === 'video' && item.duration}}">
+          {{item.duration}}
+        </view>
+        <view class="video-icon" wx:if="{{currentTab === 'video' && item.isUploaded}}">
+          <text>▶</text>
+        </view>
+        <!-- 未上传标记 -->
+        <view class="device-badge" wx:if="{{!item.isUploaded}}">
+          <text>设备</text>
+        </view>
+      </view>
+      
+      <!-- 文件信息 -->
+      <view class="file-info">
+        <view class="file-name">{{item.fileName || '未命名文件'}}</view>
+        <view class="file-meta">
+          <text class="file-time">{{item.createTimeStr || '未知时间'}}</text>
+          <text class="file-size" wx:if="{{item.fileSizeStr}}">{{item.fileSizeStr}}</text>
+        </view>
+        <view class="file-status" wx:if="{{!item.isUploaded}}">
+          <text class="status-text">保存在设备上</text>
+        </view>
+      </view>
+      
+      <!-- 操作按钮 -->
+      <view class="file-actions" catchtap="deleteFile" data-file="{{item}}">
+        <view class="delete-icon">×</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{!loading && files.length === 0}}">
+    <view class="empty-icon-wrapper">
+      <text class="empty-icon-text">{{currentTab === 'video' ? '🎬' : '📷'}}</text>
+    </view>
+    <view class="empty-text">暂无{{currentTab === 'video' ? '视频' : '照片'}}文件</view>
+    <view class="empty-tip">远程录像或拍照后，文件信息会显示在这里</view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text>加载中...</text>
+  </view>
+
+  <!-- 加载更多提示 -->
+  <view class="load-more" wx:if="{{!loading && files.length > 0}}">
+    <text wx:if="{{hasMore}}">上拉加载更多</text>
+    <text wx:else>没有更多了</text>
+  </view>
+</view>

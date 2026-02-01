@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/page_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- 标题栏（包含菜单按钮和主页按钮） -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="24dp"
+            android:background="@color/menu_background"
+            android:padding="8dp">
+
+            <Button
+                android:id="@+id/btn_menu"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="☰"
+                android:textSize="18sp"
+                android:minWidth="48dp"
+                android:minHeight="48dp"
+                android:layout_marginEnd="12dp"
+                android:backgroundTint="@color/button_background"
+                android:textColor="@color/button_text" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Telegram Bot 配置"
+                android:textColor="@color/text_primary"
+                android:textSize="28sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btn_home"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⌂"
+                android:textSize="22sp"
+                android:minWidth="48dp"
+                android:minHeight="48dp"
+                android:backgroundTint="@color/button_background"
+                android:textColor="@color/button_text" />
+        </LinearLayout>
+
+        <!-- Bot Token -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Bot Token"
+            android:textColor="@color/text_secondary"
+            android:textSize="18sp"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@color/card_background"
+            android:layout_marginBottom="16dp">
+
+            <EditText
+                android:id="@+id/et_bot_token"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="请输入 Bot Token（从 @BotFather 获取）"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_secondary"
+                android:textSize="16sp"
+                android:background="@android:color/transparent"
+                android:padding="16dp"
+                android:minHeight="56dp"
+                android:inputType="textPassword" />
+
+            <ImageButton
+                android:id="@+id/btn_toggle_token_visibility"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_visibility"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="切换密码可见性"
+                android:tint="@color/text_primary"
+                android:layout_marginEnd="8dp" />
+        </LinearLayout>
+
+        <!-- 允许的 Chat ID -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="允许的 Chat ID（可选）"
+            android:textColor="@color/text_secondary"
+            android:textSize="18sp"
+            android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/et_allowed_chat_ids"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="限制可使用的 Chat ID（逗号分隔，留空则允许所有）"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_secondary"
+            android:textSize="16sp"
+            android:background="@color/card_background"
+            android:padding="16dp"
+            android:minHeight="56dp"
+            android:layout_marginBottom="16dp" />
+
+        <!-- API 反向代理地址（可选） -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="API 反向代理地址（可选）"
+            android:textColor="@color/text_secondary"
+            android:textSize="18sp"
+            android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/et_api_host"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="国内可访问的方向代理地址（留空默认官方Api）"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_secondary"
+            android:textSize="16sp"
+            android:background="@color/card_background"
+            android:padding="16dp"
+            android:minHeight="56dp"
+            android:inputType="textUri"
+            android:layout_marginBottom="24dp" />
+
+        <!-- 保存按钮 -->
+        <Button
+            android:id="@+id/btn_save_config"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="保存配置"
+            android:textSize="20sp"
+            android:minHeight="56dp"
+            android:layout_marginBottom="16dp"
+            android:backgroundTint="@color/button_background"
+            android:textColor="@color/button_text" />
+
+        <!-- 自动启动开关 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp"
+            android:padding="12dp"
+            android:background="@color/card_background">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="自动启动服务"
+                    android:textColor="@color/text_primary"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="应用启动时自动连接 Telegram Bot"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="16sp"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/switch_auto_start"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp" />
+        </LinearLayout>
+
+        <!-- 连接状态 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="连接状态："
+                android:textColor="@color/text_secondary"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/tv_connection_status"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="未连接"
+                android:textColor="#FF6666"
+                android:textSize="18sp"
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
+
+        <!-- 启动/停止服务按钮 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_start_service"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="启动服务"
+                android:textSize="20sp"
+                android:minHeight="56dp"
+                android:layout_marginEnd="8dp"
+                android:backgroundTint="@color/button_background"
+                android:textColor="@color/button_text" />
+
+            <Button
+                android:id="@+id/btn_stop_service"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="停止服务"
+                android:textSize="20sp"
+                android:minHeight="56dp"
+                android:enabled="false"
+                android:layout_marginStart="8dp"
+                android:backgroundTint="@color/button_background"
+                android:textColor="@color/button_text" />
+        </LinearLayout>
+
+        <!-- 使用说明 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="使用说明"
+            android:textColor="@color/text_primary"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:id="@+id/tv_help_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="1. 在 Telegram 中找到 @BotFather\n2. 发送 /newbot 创建新机器人\n3. 获取 Bot Token 并填入上方\n4. 保存配置并启动服务\n5. 向机器人发送指令：\n   • /record 或 录制 - 录制60秒视频\n   • /record 30 - 录制30秒视频\n   • /photo 或 拍照 - 拍摄照片\n   • /help - 查看帮助\n6. 设备将自动执行并上传到 Telegram"
+            android:textColor="@color/text_secondary"
+            android:textSize="16sp"
+            android:lineSpacingExtra="6dp" />
+
+    </LinearLayout>
+
+</ScrollView>

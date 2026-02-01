@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp"
+    android:height="64dp"
+    android:viewportWidth="64"
+    android:viewportHeight="64">
+    <!-- Modern camera/dash cam logo -->
+    <!-- Outer circle background -->
+    <path
+        android:fillColor="@color/nav_logo_background"
+        android:pathData="M32,4C16.536,4 4,16.536 4,32s12.536,28 28,28 28,-12.536 28,-28S47.464,4 32,4z" />
+    <!-- Inner camera body -->
+    <path
+        android:fillColor="@color/nav_logo_foreground"
+        android:pathData="M44,24H36L34,22H30L28,24H20c-1.1,0 -2,0.9 -2,2v16c0,1.1 0.9,2 2,2h24c1.1,0 2,-0.9 2,-2V26c0,-1.1 -0.9,-2 -2,-2z" />
+    <!-- Camera lens -->
+    <path
+        android:fillColor="@color/nav_logo_accent"
+        android:pathData="M32,28c-3.87,0 -7,3.13 -7,7s3.13,7 7,7 7,-3.13 7,-7 -3.13,-7 -7,-7zM32,39c-2.21,0 -4,-1.79 -4,-4s1.79,-4 4,-4 4,1.79 4,4 -1.79,4 -4,4z" />
+    <!-- Lens reflection highlight -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.4"
+        android:pathData="M30,33.5c0,0.83 0.67,1.5 1.5,1.5s1.5,-0.67 1.5,-1.5 -0.67,-1.5 -1.5,-1.5 -1.5,0.67 -1.5,1.5z" />
+</vector>

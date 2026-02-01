@@ -119,6 +119,7 @@ public class VideoPlayerActivity extends AppCompatActivity {
      */
     private void loadVideo(File videoFile) {
         try {
+            // 直接使用 Uri.fromFile（配合 requestLegacyExternalStorage）
             Uri videoUri = Uri.fromFile(videoFile);
             videoView.setVideoURI(videoUri);
 

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 夜间模式配色 -->
+    <color name="menu_background">#FF20272E</color>
+    <color name="button_background">#FF060809</color>
+    <color name="button_accent">#FF5B9BD5</color>
+    <color name="button_text">#FFFFFFFF</color>
+    <color name="page_background">#FF20272E</color>
+    <color name="card_background">#FF060809</color>
+    <color name="text_primary">#FFFFFFFF</color>
+    <color name="text_secondary">#FF888888</color>
+    <color name="text_hint">#FF666666</color>
+    <color name="input_background">#FF2A3038</color>
+    <color name="nav_header_background">#FF20272E</color>
+
+    <!-- 导航菜单配色 - 夜间模式（与主界面一致） -->
+    <color name="nav_background">#FF060809</color>
+    <color name="nav_header_gradient_start">#FF151A1E</color>
+    <color name="nav_header_gradient_center">#FF1A2026</color>
+    <color name="nav_header_gradient_end">#FF20272E</color>
+    <color name="nav_header_text">#FFFFFFFF</color>
+    <color name="nav_header_text_secondary">#FFCCCCCC</color>
+    <color name="nav_item_selected_background">#20FFFFFF</color>
+    <color name="nav_item_pressed_background">#10FFFFFF</color>
+    <color name="nav_ripple_color">#30FFFFFF</color>
+    <color name="nav_divider_color">#1AFFFFFF</color>
+    <color name="nav_icon_background">#15FFFFFF</color>
+    <color name="nav_icon_tint">#FFAAAAAA</color>
+    <color name="nav_icon_tint_selected">#FFFFFFFF</color>
+    <color name="nav_text_primary">#FFFFFFFF</color>
+    <color name="nav_text_secondary">#FFAAAAAA</color>
+    <color name="nav_logo_background">#FF616161</color>
+    <color name="nav_logo_foreground">#FFFFFFFF</color>
+    <color name="nav_logo_accent">#FF616161</color>
+    <color name="nav_section_title">#FF888888</color>
+    <color name="nav_version_text">#FF666666</color>
+
+    <!-- 多选模式选中背景 - 夜间模式 -->
+    <color name="item_selected_background">#40FFFFFF</color>
+
+    <!-- 使用提示对话框配色 - 夜间模式 -->
+    <color name="dialog_guide_background">#2A2A2A</color>
+    <color name="dialog_guide_title">#FFFFFF</color>
+    <color name="dialog_guide_content">#E0E0E0</color>
+    <color name="dialog_guide_accent">#64B5F6</color>
+    <color name="dialog_guide_secondary">#AAAAAA</color>
+    <color name="dialog_guide_divider">#424242</color>
+    <color name="dialog_guide_button_bg">#64B5F6</color>
+    <color name="dialog_guide_button_text">#000000</color>
+    <color name="dialog_guide_button_ripple">#30FFFFFF</color>
+</resources>

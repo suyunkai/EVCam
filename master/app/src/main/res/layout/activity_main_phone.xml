@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawer_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <!-- Main content container -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- 手机2摄像头录制界面 -->
+        <LinearLayout
+            android:id="@+id/main"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:background="@color/menu_background">
+
+            <!-- 按钮区域（顶部） -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="8dp"
+                android:gravity="center">
+
+                <Button
+                    android:id="@+id/btn_menu"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:layout_margin="4dp"
+                    android:text="☰"
+                    android:textSize="24sp"
+                    android:backgroundTint="@color/button_background"
+                    android:textColor="@color/button_text"
+                    android:elevation="4dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    app:cornerRadius="12dp" />
+
+                <Button
+                    android:id="@+id/btn_start_record"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:layout_margin="4dp"
+                    android:text="○"
+                    android:textSize="32sp"
+                    android:backgroundTint="@color/button_background"
+                    android:textColor="#FF0000"
+                    android:elevation="4dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    app:cornerRadius="12dp" />
+
+                <Button
+                    android:id="@+id/btn_take_photo"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:layout_margin="4dp"
+                    android:text="◉"
+                    android:textSize="24sp"
+                    android:backgroundTint="@color/button_background"
+                    android:textColor="@color/button_text"
+                    android:elevation="4dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    app:cornerRadius="12dp" />
+
+                <Button
+                    android:id="@+id/btn_exit"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:layout_margin="4dp"
+                    android:text="✕"
+                    android:textSize="24sp"
+                    android:backgroundTint="@color/button_background"
+                    android:textColor="@color/button_text"
+                    android:elevation="4dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    app:cornerRadius="12dp" />
+
+            </LinearLayout>
+
+            <!-- 摄像头预览区域（上下排列，使用ConstraintLayout实现自适应比例） -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/camera_container"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:paddingBottom="8dp">
+
+                <!-- 前摄像头 - 比例由代码根据分辨率动态设置 -->
+                <FrameLayout
+                    android:id="@+id/frame_front"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toTopOf="@+id/frame_back"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintWidth_percent="0.65"
+                    app:layout_constraintDimensionRatio="3:4"
+                    app:layout_constraintVertical_chainStyle="packed"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="4dp">
+
+                    <com.kooo.evcam.AutoFitTextureView
+                        android:id="@+id/texture_front"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="center" />
+
+                    <TextView
+                        android:id="@+id/label_front"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_gravity="top|start"
+                        android:layout_marginStart="8dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/camera_label_background"
+                        android:gravity="center"
+                        android:text="前"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp" />
+                </FrameLayout>
+
+                <!-- 后摄像头 - 比例由代码根据分辨率动态设置 -->
+                <FrameLayout
+                    android:id="@+id/frame_back"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    app:layout_constraintTop_toBottomOf="@+id/frame_front"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintWidth_percent="0.65"
+                    app:layout_constraintDimensionRatio="3:4"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="8dp">
+
+                    <com.kooo.evcam.AutoFitTextureView
+                        android:id="@+id/texture_back"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="center" />
+
+                    <TextView
+                        android:id="@+id/label_back"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_gravity="top|start"
+                        android:layout_marginStart="8dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/camera_label_background"
+                        android:gravity="center"
+                        android:text="后"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp" />
+                </FrameLayout>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </LinearLayout>
+
+        <!-- 录制状态显示（右上角） -->
+        <TextView
+            android:id="@+id/tv_recording_stats"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="15dp"
+            android:layout_marginEnd="16dp"
+            android:background="@drawable/camera_label_background"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:text="00:00 / 1"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:visibility="gone" />
+
+        <!-- Fragment container for playback -->
+        <FrameLayout
+            android:id="@+id/fragment_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+    </FrameLayout>
+
+    <!-- Navigation drawer - Modern styled -->
+    <com.google.android.material.navigation.NavigationView
+        android:id="@+id/nav_view"
+        android:layout_width="280dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:fitsSystemWindows="false"
+        android:background="@color/nav_background"
+        android:elevation="8dp"
+        app:headerLayout="@layout/nav_header"
+        app:menu="@menu/navigation_menu"
+        app:itemTextAppearance="@style/NavigationMenuTextAppearance"
+        app:subheaderTextAppearance="@style/NavigationSubheaderTextAppearance"
+        app:itemBackground="@drawable/nav_item_background"
+        app:itemIconTint="@color/nav_icon_color_selector"
+        app:itemTextColor="@color/nav_text_color_selector"
+        app:itemIconSize="24dp"
+        app:itemIconPadding="16dp"
+        app:itemHorizontalPadding="16dp"
+        app:itemVerticalPadding="16dp"
+        app:dividerInsetStart="16dp"
+        app:dividerInsetEnd="16dp"
+        app:subheaderInsetStart="16dp" />
+
+</androidx.drawerlayout.widget.DrawerLayout>

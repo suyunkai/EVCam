@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 主要功能区 -->
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_recording"
+            android:icon="@drawable/ic_nav_recording"
+            android:title="录制界面" />
+        <item
+            android:id="@+id/nav_playback"
+            android:icon="@drawable/ic_nav_playback"
+            android:title="视频回看" />
+        <item
+            android:id="@+id/nav_photo_playback"
+            android:icon="@drawable/ic_nav_photo"
+            android:title="图片回看" />
+    </group>
+
+    <!-- 远程查看功能区 -->
+    <item android:title="远程查看">
+        <menu>
+            <item
+                android:id="@+id/nav_remote_view"
+                android:icon="@drawable/ic_nav_dingtalk"
+                android:checkable="true"
+                android:title="钉钉远程" />
+            <item
+                android:id="@+id/nav_telegram"
+                android:icon="@drawable/ic_nav_telegram"
+                android:checkable="true"
+                android:title="电报远程" />
+            <item
+                android:id="@+id/nav_feishu"
+                android:icon="@drawable/ic_nav_feishu"
+                android:checkable="true"
+                android:title="飞书远程" />
+            <item
+                android:id="@+id/nav_wechat_mini"
+                android:icon="@drawable/ic_nav_wechat"
+                android:checkable="true"
+                android:title="微信小程序" />
+        </menu>
+    </item>
+
+    <!-- 设置区 -->
+    <item android:title="系统">
+        <menu>
+            <item
+                android:id="@+id/nav_settings"
+                android:icon="@drawable/ic_nav_settings"
+                android:checkable="true"
+                android:title="软件设置" />
+        </menu>
+    </item>
+
+</menu>

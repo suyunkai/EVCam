@@ -83,8 +83,16 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
     }
 
     private AutoFitTextureView textureFront, textureBack, textureLeft, textureRight;
+    private AutoFitTextureView textureMain;  // 领克07专用：中间主画面
     private Button btnStartRecord, btnExit, btnTakePhoto;
     private MultiCameraManager cameraManager;
+    
+    // ==================== 领克07 5镜头交互相关 ====================
+    private boolean isLynkCo07Layout = false;  // 是否使用领克07专用布局
+    private String currentMainViewType = "full";  // 当前主画面类型：full/front/back/left/right
+    private TextView labelMain;  // 主画面标签
+    private View previewTopLeftContainer, previewTopRightContainer;
+    private View previewBottomLeftContainer, previewBottomRightContainer;
     private ImageAdjustManager imageAdjustManager;  // 亮度/降噪调节管理器
     private ImageAdjustFloatingWindow imageAdjustFloatingWindow;  // 亮度/降噪调节悬浮窗
     private int textureReadyCount = 0;  // 记录准备好的TextureView数量
@@ -347,8 +355,8 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
         AppLog.d(TAG, "StatusInfoProvider 已注册");
 
         // 如果启用了微信小程序自动启动，启动微信小程序服务
-        if (wechatMiniConfig.isServerConfigured() && wechatMiniConfig.isAutoStart()) {
-            startWechatMiniService();
+        if (wechatMiniConfig.isCloudConfigured() && wechatMiniConfig.isAutoStart()) {
+            wechatRemoteManager.startService();
         }
 
         // 启动定时保活任务（车机必需，始终开启）
@@ -819,12 +827,13 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
 
         String carModel = appConfig.getCarModel();
         
-        // 领克07/08：横屏四摄像头布局（默认车型）
+        // 领克07/08：5镜头交互布局（1个主画面 + 4个裁切画面）
         if (AppConfig.CAR_MODEL_LYNKCO_07.equals(carModel)) {
-            layoutId = R.layout.activity_main;
-            configuredCameraCount = 4;
-            requiredTextureCount = 4;
-            AppLog.d(TAG, "使用领克07/08配置：横屏四摄像头布局（全景模式=" + appConfig.isPanoramaModeEnabled() + "，鱼眼矫正=" + appConfig.isFisheyeCorrectionEnabled() + "，矫正比例=" + appConfig.getFisheyeCorrectionRatio() + "%）");
+            layoutId = R.layout.activity_main_lynkco07;
+            configuredCameraCount = 1;  // 实际只有1个物理摄像头
+            requiredTextureCount = 5;   // 需要5个TextureView
+            isLynkCo07Layout = true;
+            AppLog.d(TAG, "使用领克07/08配置：5镜头交互布局（全景模式=" + appConfig.isPanoramaModeEnabled() + "，鱼眼矫正=" + appConfig.isFisheyeCorrectionEnabled() + "，矫正比例=" + appConfig.getFisheyeCorrectionRatio() + "%）");
         }
         // 银河E5-多按钮：横屏布局，左侧按钮列表
         else if (AppConfig.CAR_MODEL_E5_MULTI.equals(carModel)) {
@@ -853,6 +862,13 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
             configuredCameraCount = 2;
             requiredTextureCount = 2;
             AppLog.d(TAG, "使用手机配置：自适应2摄像头布局");
+        }
+        // 领克08加包：2摄像头布局（0=AVM环视+6=座舱，1/2/4/5无输出且设备maxOpen=2）
+        else if (AppConfig.CAR_MODEL_LYNKCO_08_PLUS.equals(carModel)) {
+            configuredCameraCount = 2;
+            requiredTextureCount = 2;
+            layoutId = R.layout.activity_main_2cam;
+            AppLog.d(TAG, "使用领克08加包配置：2摄像头布局（前=0环视，后=6座舱）");
         }
         // 自定义车型：根据配置选择布局
         else if (appConfig.isCustomCarModel()) {
@@ -962,6 +978,11 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
         textureLeft = findViewById(R.id.texture_left);  // 1摄和2摄布局中为null
         textureRight = findViewById(R.id.texture_right);  // 1摄和2摄布局中为null
         
+        // 领克07专用：初始化5镜头交互界面
+        if (isLynkCo07Layout) {
+            initLynkCo07Views();
+        }
+        
         btnStartRecord = findViewById(R.id.btn_start_record);
         btnExit = findViewById(R.id.btn_exit);
         btnTakePhoto = findViewById(R.id.btn_take_photo);
@@ -1057,17 +1078,38 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
         };
 
         // 根据配置的摄像头数量设置监听器
-        if (textureFront != null) {
-            textureFront.setSurfaceTextureListener(surfaceTextureListener);
-        }
-        if (textureBack != null && configuredCameraCount >= 2) {
-            textureBack.setSurfaceTextureListener(surfaceTextureListener);
-        }
-        if (textureLeft != null && configuredCameraCount >= 4) {
-            textureLeft.setSurfaceTextureListener(surfaceTextureListener);
-        }
-        if (textureRight != null && configuredCameraCount >= 4) {
-            textureRight.setSurfaceTextureListener(surfaceTextureListener);
+        // 领克07特殊处理：需要为所有5个TextureView设置监听器
+        if (isLynkCo07Layout) {
+            // 领克07：5个TextureView都需要监听器
+            if (textureMain != null) {
+                textureMain.setSurfaceTextureListener(surfaceTextureListener);
+            }
+            if (textureFront != null) {
+                textureFront.setSurfaceTextureListener(surfaceTextureListener);
+            }
+            if (textureBack != null) {
+                textureBack.setSurfaceTextureListener(surfaceTextureListener);
+            }
+            if (textureLeft != null) {
+                textureLeft.setSurfaceTextureListener(surfaceTextureListener);
+            }
+            if (textureRight != null) {
+                textureRight.setSurfaceTextureListener(surfaceTextureListener);
+            }
+        } else {
+            // 其他车型：根据摄像头数量设置
+            if (textureFront != null) {
+                textureFront.setSurfaceTextureListener(surfaceTextureListener);
+            }
+            if (textureBack != null && configuredCameraCount >= 2) {
+                textureBack.setSurfaceTextureListener(surfaceTextureListener);
+            }
+            if (textureLeft != null && configuredCameraCount >= 4) {
+                textureLeft.setSurfaceTextureListener(surfaceTextureListener);
+            }
+            if (textureRight != null && configuredCameraCount >= 4) {
+                textureRight.setSurfaceTextureListener(surfaceTextureListener);
+            }
         }
     }
     
@@ -1519,7 +1561,9 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
 
         // 加载二维码图片
         android.widget.ImageView ivQrcode = dialog.findViewById(R.id.iv_qrcode);
+        android.widget.ImageView ivQrcodeBranch = dialog.findViewById(R.id.iv_qrcode_branch);
         loadQrcodeImage(ivQrcode);
+        loadBranchQrcodeImage(ivQrcodeBranch);
 
         // 设置确认按钮点击事件
         dialog.findViewById(R.id.btn_confirm).setOnClickListener(v -> dialog.dismiss());
@@ -1593,6 +1637,65 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
                 }
             } catch (Exception e) {
                 AppLog.e(TAG, "加载二维码图片失败: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    /**
+     * 加载分支版本维护者打赏二维码图片（从assets加载）
+     */
+    private void loadBranchQrcodeImage(android.widget.ImageView imageView) {
+        if (imageView == null) {
+            AppLog.e(TAG, "ImageView is null, cannot load branch qrcode");
+            return;
+        }
+        
+        // 根据屏幕密度动态设置二维码尺寸
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        float density = dm.density;
+        int screenWidthPx = dm.widthPixels;
+        
+        // 计算二维码尺寸（像素）- 使用与原二维码相同的尺寸
+        int qrcodeSizePx;
+        if (density <= 1.0f) {
+            qrcodeSizePx = (int) (screenWidthPx * 0.25f);
+        } else if (density <= 1.5f) {
+            qrcodeSizePx = (int) (screenWidthPx * 0.22f);
+        } else if (density <= 2.0f) {
+            qrcodeSizePx = (int) (screenWidthPx * 0.20f);
+        } else {
+            qrcodeSizePx = (int) (screenWidthPx * 0.18f);
+        }
+        
+        AppLog.d(TAG, "设置分支二维码尺寸: " + qrcodeSizePx + "px");
+        
+        // 设置ImageView尺寸
+        android.view.ViewGroup.LayoutParams params = imageView.getLayoutParams();
+        if (params == null) {
+            params = new android.view.ViewGroup.LayoutParams(qrcodeSizePx, qrcodeSizePx);
+        } else {
+            params.width = qrcodeSizePx;
+            params.height = qrcodeSizePx;
+        }
+        imageView.setLayoutParams(params);
+        
+        // 从assets目录加载图片
+        new Thread(() -> {
+            try {
+                AppLog.d(TAG, "开始加载分支维护者二维码图片...");
+                java.io.InputStream is = getAssets().open("donatee.jpg");
+                final android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeStream(is);
+                is.close();
+                
+                // 在主线程更新UI
+                if (bitmap != null) {
+                    AppLog.d(TAG, "分支维护者二维码图片加载成功，尺寸: " + bitmap.getWidth() + "x" + bitmap.getHeight());
+                    runOnUiThread(() -> imageView.setImageBitmap(bitmap));
+                } else {
+                    AppLog.e(TAG, "分支维护者二维码图片解码失败");
+                }
+            } catch (Exception e) {
+                AppLog.e(TAG, "加载分支维护者二维码图片失败", e);
             }
         }).start();
     }
@@ -1894,7 +1997,7 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
         FragmentManager fragmentManager = getSupportFragmentManager();
         FragmentTransaction transaction = fragmentManager.beginTransaction();
         transaction.replace(R.id.fragment_container, new SettingsFragment());
-        transaction.commit();
+        transaction.commitAllowingStateLoss();  // 使用 commitAllowingStateLoss 避免崩溃
     }
 
 
@@ -1942,7 +2045,32 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
             AppLog.d(TAG, "Camera already initialized, skipping");
             return;
         }
-
+        
+        // 领克07/08专用：第一次启动摄像头预览时延迟5秒，给摄像头启动时间
+        if (appConfig != null && appConfig.isFirstCameraPreview()) {
+            AppLog.d(TAG, "领克07/08车型首次启动摄像头预览，延迟5秒等待摄像头启动...");
+            Toast.makeText(this, "正在初始化摄像头，请稍候...", Toast.LENGTH_LONG).show();
+            
+            // 标记首次预览已完成
+            appConfig.setFirstCameraPreviewCompleted();
+            
+            // 延迟5秒后执行实际初始化
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                AppLog.d(TAG, "延迟完成，开始初始化摄像头");
+                Toast.makeText(this, "开始启动摄像头预览", Toast.LENGTH_SHORT).show();
+                initCameraInternal();
+            }, 5000);
+            return;
+        }
+        
+        // 非首次启动或非领克07/08车型，直接初始化
+        initCameraInternal();
+    }
+    
+    /**
+     * 实际执行摄像头初始化的内部方法
+     */
+    private void initCameraInternal() {
         cameraManager = new MultiCameraManager(this);
         cameraManager.setMaxOpenCameras(configuredCameraCount);
         
@@ -2214,6 +2342,28 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
                         }
                         AppLog.d(TAG, "  Hardware Level: " + hwLevelStr);
 
+                        // 领克08加包/哨兵排查：逻辑摄像头、物理子ID、能力标记
+                        if (android.os.Build.VERSION.SDK_INT >= 28) {
+                            try {
+                                java.util.Set<String> physicalIds = characteristics.getPhysicalCameraIds();
+                                if (physicalIds != null && !physicalIds.isEmpty()) {
+                                    AppLog.d(TAG, "  PhysicalCameraIds: " + physicalIds + " (逻辑摄像头，可用 OutputConfiguration.setPhysicalCameraId 获取单路)");
+                                }
+                            } catch (Exception e) { /* API 28+ */ }
+                            // LOGICAL_MULTI_CAMERA 表示支持从逻辑摄像头拉取物理子流
+                            try {
+                                int[] caps = characteristics.get(android.hardware.camera2.CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES);
+                                if (caps != null) {
+                                    for (int c : caps) {
+                                        if (c == android.hardware.camera2.CameraMetadata.REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA) {
+                                            AppLog.d(TAG, "  Capability: LOGICAL_MULTI_CAMERA (支持物理子摄像头流)");
+                                            break;
+                                        }
+                                    }
+                                }
+                            } catch (Exception e) { /* ignore */ }
+                        }
+
                     } catch (Exception e) {
                         AppLog.e(TAG, "  Error getting characteristics for camera " + id + ": " + e.getMessage());
                     }
@@ -2223,14 +2373,17 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
 
                 // 根据车型配置初始化摄像头
                 String carModel = appConfig.getCarModel();
-                if (AppConfig.CAR_MODEL_L7.equals(carModel) || AppConfig.CAR_MODEL_L7_MULTI.equals(carModel)) {
+                if (AppConfig.CAR_MODEL_LYNKCO_07.equals(carModel)) {
+                    // 领克07/08：单摄像头模式
+                    initCamerasForLynkCo07(cameraIds);
+                } else if (AppConfig.CAR_MODEL_L7.equals(carModel) || AppConfig.CAR_MODEL_L7_MULTI.equals(carModel)) {
                     // 银河L6/L7 / L7-多按钮：使用固定映射
                     initCamerasForL7(cameraIds);
                 } else if (AppConfig.CAR_MODEL_PHONE.equals(carModel)) {
                     // 手机模式：2摄像头（前+后）
                     initCamerasForPhone(cameraIds);
-                } else if (appConfig.isCustomCarModel()) {
-                    // 自定义车型：使用用户配置的摄像头映射
+                } else if (AppConfig.CAR_MODEL_LYNKCO_08_PLUS.equals(carModel) || appConfig.isCustomCarModel()) {
+                    // 领克08加包 / 自定义车型：使用配置的摄像头映射（领克08加包会从 getCameraId 获取避开 camera0 的默认值）
                     initCamerasForCustomModel(cameraIds);
                 } else {
                     // 银河E5：使用固定映射
@@ -2296,6 +2449,358 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
                     cameraIds[0], textureLeft,
                     cameraIds[0], textureRight
             );
+        } else {
+            Toast.makeText(this, "没有可用的摄像头", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    // ==================== 领克07 5镜头交互方法 ====================
+    
+    /**
+     * 初始化领克07专用的5镜头交互界面
+     */
+    private void initLynkCo07Views() {
+        // 获取主画面TextureView
+        textureMain = findViewById(R.id.texture_main);
+        labelMain = findViewById(R.id.label_main);
+        
+        // 获取四个角落的容器（用于点击事件）
+        previewTopLeftContainer = findViewById(R.id.preview_top_left_container);
+        previewTopRightContainer = findViewById(R.id.preview_top_right_container);
+        previewBottomLeftContainer = findViewById(R.id.preview_bottom_left_container);
+        previewBottomRightContainer = findViewById(R.id.preview_bottom_right_container);
+        
+        // 设置点击事件：点击小画面切换到主画面
+        if (previewTopLeftContainer != null) {
+            previewTopLeftContainer.setOnClickListener(v -> switchMainPreview("front"));
+        }
+        if (previewTopRightContainer != null) {
+            previewTopRightContainer.setOnClickListener(v -> switchMainPreview("back"));
+        }
+        if (previewBottomLeftContainer != null) {
+            previewBottomLeftContainer.setOnClickListener(v -> switchMainPreview("left"));
+        }
+        if (previewBottomRightContainer != null) {
+            previewBottomRightContainer.setOnClickListener(v -> switchMainPreview("right"));
+        }
+        
+        // 点击主画面切换回完整视图
+        View mainPreviewContainer = findViewById(R.id.main_preview_container);
+        if (mainPreviewContainer != null) {
+            mainPreviewContainer.setOnClickListener(v -> {
+                if (!"full".equals(currentMainViewType)) {
+                    switchMainPreview("full");
+                }
+            });
+        }
+        
+        AppLog.d(TAG, "领克07 5镜头交互界面初始化完成");
+    }
+    
+    /**
+     * 切换主画面显示的内容
+     * @param targetType 目标类型：full（完整）/ front / back / left / right
+     */
+    private void switchMainPreview(String targetType) {
+        if (targetType.equals(currentMainViewType)) {
+            return;  // 已经是当前类型，无需切换
+        }
+        
+        AppLog.d(TAG, "切换主画面: " + currentMainViewType + " -> " + targetType);
+        
+        // 获取目标位置的裁切区域
+        float[] targetCropRegion = null;
+        String targetLabel = "完整";
+        View targetContainer = null;
+        AutoFitTextureView targetTextureView = null;
+        
+        switch (targetType) {
+            case "front":
+                targetCropRegion = AppConfig.getPanoramicCropRegion("front");
+                targetLabel = appConfig.getCameraName("front");
+                targetContainer = previewTopLeftContainer;
+                targetTextureView = textureFront;
+                break;
+            case "back":
+                targetCropRegion = AppConfig.getPanoramicCropRegion("back");
+                targetLabel = appConfig.getCameraName("back");
+                targetContainer = previewTopRightContainer;
+                targetTextureView = textureBack;
+                break;
+            case "left":
+                targetCropRegion = AppConfig.getPanoramicCropRegion("left");
+                targetLabel = appConfig.getCameraName("left");
+                targetContainer = previewBottomLeftContainer;
+                targetTextureView = textureLeft;
+                break;
+            case "right":
+                targetCropRegion = AppConfig.getPanoramicCropRegion("right");
+                targetLabel = appConfig.getCameraName("right");
+                targetContainer = previewBottomRightContainer;
+                targetTextureView = textureRight;
+                break;
+            case "full":
+            default:
+                targetCropRegion = null;  // 完整画面，无裁切
+                targetLabel = "完整";
+                break;
+        }
+        
+        // 更新主画面：使用变换矩阵裁切
+        if (textureMain != null) {
+            if (targetCropRegion != null) {
+                // 应用裁切变换到主画面
+                applySimpleCrop(textureMain, targetCropRegion, targetType);
+            } else {
+                // 显示完整画面（清除变换）
+                textureMain.setTransform(new android.graphics.Matrix());
+                AppLog.d(TAG, "主画面：显示完整");
+            }
+        }
+        
+        // 如果之前主画面显示的是裁切视角，需要将完整画面移到那个位置
+        if (!"full".equals(currentMainViewType) && targetTextureView != null) {
+            // 将原来主画面显示的内容（裁切视角）保持不变
+            // 将完整画面移到被点击的位置
+            View previousContainer = getContainerForType(currentMainViewType);
+            if (previousContainer != null && cameraManager != null) {
+                SingleCamera camera = cameraManager.getCamera("front");
+                if (camera != null) {
+                    // 在被点击的位置显示完整画面
+                    AutoFitTextureView previousTextureView = getTextureViewForType(currentMainViewType);
+                    if (previousTextureView != null) {
+                        previousTextureView.setTransform(new android.graphics.Matrix());
+                    }
+                }
+            }
+        }
+        
+        // 更新标签
+        if (labelMain != null) {
+            labelMain.setText(targetLabel);
+        }
+        
+        // 更新当前状态
+        currentMainViewType = targetType;
+        
+        // 更新边框高亮（可选：高亮当前选中的小画面）
+        updatePreviewBorderHighlight(targetType);
+    }
+    
+    /**
+     * 根据类型获取对应的容器
+     */
+    private View getContainerForType(String type) {
+        switch (type) {
+            case "front": return previewTopLeftContainer;
+            case "back": return previewTopRightContainer;
+            case "left": return previewBottomLeftContainer;
+            case "right": return previewBottomRightContainer;
+            default: return null;
+        }
+    }
+    
+    /**
+     * 根据类型获取对应的TextureView
+     */
+    private AutoFitTextureView getTextureViewForType(String type) {
+        switch (type) {
+            case "front": return textureFront;
+            case "back": return textureBack;
+            case "left": return textureLeft;
+            case "right": return textureRight;
+            default: return null;
+        }
+    }
+    
+    /**
+     * 应用全景裁切变换到 TextureView
+     * @param view 目标 TextureView
+     * @param cropRegion 裁切区域 [x, y, width, height] 归一化坐标
+     */
+    /**
+     * 简单的裁切变换（直接按比例裁切和放大）
+     */
+    private void applySimpleCrop(TextureView view, float[] cropRegion, String direction) {
+        if (view == null || cropRegion == null) {
+            android.util.Log.w("MainActivity", "applySimpleCrop: view 或 cropRegion 为 null");
+            return;
+        }
+        
+        if (!view.isAvailable()) {
+            android.util.Log.w("MainActivity", "applySimpleCrop: TextureView 不可用");
+            return;
+        }
+        
+        // 裁切区域（归一化坐标）
+        float cropX = cropRegion[0];
+        float cropY = cropRegion[1];
+        float cropW = cropRegion[2];
+        float cropH = cropRegion[3];
+        
+        int viewWidth = view.getWidth();
+        int viewHeight = view.getHeight();
+        
+        android.util.Log.d("MainActivity", direction + " 裁切前 - 视图尺寸:" + viewWidth + "x" + viewHeight + 
+                ", 裁切区域:[" + cropX + "," + cropY + "," + cropW + "," + cropH + "]");
+        
+        if (viewWidth == 0 || viewHeight == 0) {
+            android.util.Log.w("MainActivity", "视图尺寸为0，延迟应用变换");
+            // 延迟100ms后重试
+            view.post(() -> applySimpleCrop(view, cropRegion, direction));
+            return;
+        }
+        
+        // 创建变换矩阵
+        android.graphics.Matrix matrix = new android.graphics.Matrix();
+        
+        // 放大2倍（因为只显示50%的区域）
+        float scale = 2.0f;
+        matrix.setScale(scale, scale);
+        
+        // 平移到目标区域
+        float translateX = -cropX * viewWidth * scale;
+        float translateY = -cropY * viewHeight * scale;
+        matrix.postTranslate(translateX, translateY);
+        
+        android.util.Log.d("MainActivity", direction + " 裁切应用 - 缩放:" + scale + 
+                ", 平移:[" + translateX + "," + translateY + "]");
+        
+        view.setTransform(matrix);
+    }
+    
+    private void applyPanoramicTransform(TextureView view, float[] cropRegion, String direction) {
+        if (view == null || cropRegion == null || !view.isAvailable()) {
+            return;
+        }
+        
+        int viewWidth = view.getWidth();
+        int viewHeight = view.getHeight();
+        if (viewWidth == 0 || viewHeight == 0) {
+            return;
+        }
+        
+        // 裁切区域（归一化坐标：x, y, width, height）
+        float cropX = cropRegion[0];
+        float cropY = cropRegion[1];
+        float cropW = cropRegion[2];
+        float cropH = cropRegion[3];
+        
+        // 获取实际的预览尺寸
+        SingleCamera camera = cameraManager != null ? cameraManager.getCamera("front") : null;
+        int previewWidth = 2560;
+        int previewHeight = 1600;
+        if (camera != null && camera.getPreviewSize() != null) {
+            previewWidth = camera.getPreviewSize().getWidth();
+            previewHeight = camera.getPreviewSize().getHeight();
+            android.util.Log.d("MainActivity", "实际预览尺寸: " + previewWidth + "x" + previewHeight);
+        } else {
+            android.util.Log.w("MainActivity", "无法获取预览尺寸，使用默认值 2560x1600");
+        }
+        
+        android.util.Log.d("MainActivity", direction + " 变换 - 裁切:[" + cropX + "," + cropY + "," + cropW + "," + cropH + "], 视图:" + viewWidth + "x" + viewHeight);
+        
+        // 最简单的变换：固定缩放 + 平移
+        android.graphics.Matrix matrix = new android.graphics.Matrix();
+        
+        // 固定缩放比例 2.0（所有象限都是 0.5，需要放大2倍）
+        float scale = 2.0f;
+        matrix.setScale(scale, scale);
+        
+        // 简单平移：将裁切区域移到左上角
+        float translateX = -cropX * previewWidth * scale;
+        float translateY = -cropY * previewHeight * scale;
+        matrix.postTranslate(translateX, translateY);
+        
+        android.util.Log.d("MainActivity", direction + " 变换应用 - 缩放:" + scale + ", 平移:[" + translateX + "," + translateY + "]");
+        
+        view.setTransform(matrix);
+    }
+
+    /**
+     * 更新预览边框高亮状态
+     */
+    private void updatePreviewBorderHighlight(String selectedType) {
+        // 重置所有边框为默认状态
+        if (previewTopLeftContainer != null) {
+            previewTopLeftContainer.setBackgroundResource(
+                "front".equals(selectedType) ? R.drawable.preview_border_selected : R.drawable.preview_border);
+        }
+        if (previewTopRightContainer != null) {
+            previewTopRightContainer.setBackgroundResource(
+                "back".equals(selectedType) ? R.drawable.preview_border_selected : R.drawable.preview_border);
+        }
+        if (previewBottomLeftContainer != null) {
+            previewBottomLeftContainer.setBackgroundResource(
+                "left".equals(selectedType) ? R.drawable.preview_border_selected : R.drawable.preview_border);
+        }
+        if (previewBottomRightContainer != null) {
+            previewBottomRightContainer.setBackgroundResource(
+                "right".equals(selectedType) ? R.drawable.preview_border_selected : R.drawable.preview_border);
+        }
+    }
+    
+    /**
+     * 领克07/08车型：5镜头交互模式
+     * 中间显示完整画面，四角显示裁切画面（前/后/左/右）
+     * 点击小画面可切换到主画面显示
+     */
+    private void initCamerasForLynkCo07(String[] cameraIds) {
+        // 强制禁用鱼眼矫正
+        boolean fisheyeEnabled = false;
+        int fisheyeRatio = 0;
+        
+        String frontId = appConfig.getCameraId("front");
+        
+        // 验证摄像头ID有效性
+        boolean validId = false;
+        for (String id : cameraIds) {
+            if (id.equals(frontId)) {
+                validId = true;
+                break;
+            }
+        }
+        
+        if (!validId && cameraIds.length > 0) {
+            frontId = cameraIds[0];
+            AppLog.w(TAG, "领克07配置的摄像头ID无效，使用默认摄像头: " + frontId);
+        }
+        
+        if (frontId == null) {
+            Toast.makeText(this, "没有可用的摄像头", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        AppLog.d(TAG, "领克07 5镜头模式初始化：摄像头ID=" + frontId + 
+                ", 鱼眼矫正=" + (fisheyeEnabled ? "启用(" + fisheyeRatio + "%)" : "禁用"));
+        
+        if (isLynkCo07Layout && textureMain != null) {
+            // 5镜头交互模式：使用全景摄像头初始化
+            // textureMain 显示完整画面
+            // textureFront/Back/Left/Right 显示四个方向的裁切画面
+            cameraManager.initLynkCo07PanoramicCamera(
+                    frontId, 
+                    textureMain,           // 主画面（完整）
+                    textureFront,          // 左上（前）
+                    textureBack,           // 右上（后）
+                    textureLeft,           // 左下（左）
+                    textureRight           // 右下（右）
+            );
+            
+            // 初始状态：主画面显示完整，四角显示裁切
+            currentMainViewType = "full";
+            if (labelMain != null) {
+                labelMain.setText("完整");
+            }
+        } else if (textureFront != null) {
+            // 回退：普通单摄像头模式
+            cameraManager.initCameras(
+                    frontId, textureFront,
+                    null, null,
+                    null, null,
+                    null, null
+            );
+            AppLog.d(TAG, "领克07回退到普通模式：摄像头ID=" + frontId);
         } else {
             Toast.makeText(this, "没有可用的摄像头", Toast.LENGTH_SHORT).show();
         }
@@ -3624,183 +4129,10 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
     // ==================== 微信小程序远程控制相关方法 ====================
 
     /**
-     * 启动微信小程序远程控制服务
-     */
-    public void startWechatMiniService() {
-        if (!wechatMiniConfig.isServerConfigured()) {
-            Toast.makeText(this, "请先配置服务器地址", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (wechatMiniStreamManager != null && wechatMiniStreamManager.isRunning()) {
-            AppLog.d(TAG, "微信小程序服务已在运行");
-            return;
-        }
-
-        AppLog.d(TAG, "正在启动微信小程序服务...");
-
-        // 创建 API 客户端
-        wechatMiniApiClient = new WechatMiniApiClient(wechatMiniConfig);
-
-        // 创建连接回调
-        WechatMiniStreamManager.ConnectionCallback connectionCallback = new WechatMiniStreamManager.ConnectionCallback() {
-            @Override
-            public void onConnected() {
-                runOnUiThread(() -> {
-                    AppLog.d(TAG, "微信小程序服务已连接");
-                    Toast.makeText(MainActivity.this, "微信小程序服务已连接", Toast.LENGTH_SHORT).show();
-                    updateWechatMiniFragmentUI();
-                });
-            }
-
-            @Override
-            public void onDisconnected() {
-                runOnUiThread(() -> {
-                    AppLog.d(TAG, "微信小程序服务已断开");
-                    updateWechatMiniFragmentUI();
-                });
-            }
-
-            @Override
-            public void onError(String error) {
-                runOnUiThread(() -> {
-                    AppLog.e(TAG, "微信小程序服务连接失败: " + error);
-                    Toast.makeText(MainActivity.this, "连接失败: " + error, Toast.LENGTH_LONG).show();
-                    updateWechatMiniFragmentUI();
-                });
-            }
-
-            @Override
-            public void onBindStatusChanged(boolean bound, String userNickname) {
-                runOnUiThread(() -> {
-                    if (bound) {
-                        AppLog.d(TAG, "微信用户已绑定: " + userNickname);
-                        Toast.makeText(MainActivity.this, "设备已与「" + userNickname + "」绑定", Toast.LENGTH_SHORT).show();
-                    } else {
-                        AppLog.d(TAG, "微信用户已解绑");
-                        Toast.makeText(MainActivity.this, "设备已解绑", Toast.LENGTH_SHORT).show();
-                    }
-                    updateWechatMiniFragmentBindStatus(bound, userNickname);
-                });
-            }
-        };
-
-        // 创建指令回调
-        WechatMiniStreamManager.CommandCallback commandCallback = new WechatMiniStreamManager.CommandCallback() {
-            @Override
-            public void onRecordCommand(String commandId, int durationSeconds) {
-                startWechatRemoteRecording(commandId, durationSeconds);
-            }
-
-            @Override
-            public void onPhotoCommand(String commandId) {
-                startWechatRemotePhoto(commandId);
-            }
-
-            @Override
-            public String getStatusInfo() {
-                return buildStatusInfo();
-            }
-
-            @Override
-            public String onStartRecordingCommand() {
-                return handleStartRecordingCommand();
-            }
-
-            @Override
-            public String onStopRecordingCommand() {
-                return handleStopRecordingCommand();
-            }
-        };
-
-        // 创建并启动 WebSocket 管理器（启用自动重连）
-        wechatMiniStreamManager = new WechatMiniStreamManager(this, wechatMiniConfig, wechatMiniApiClient, connectionCallback);
-        wechatMiniStreamManager.start(commandCallback, true);
-    }
-
-    /**
-     * 停止微信小程序远程控制服务
-     */
-    public void stopWechatMiniService() {
-        if (wechatMiniStreamManager != null) {
-            AppLog.d(TAG, "正在停止微信小程序服务...");
-            wechatMiniStreamManager.stop();
-            wechatMiniStreamManager = null;
-            wechatMiniApiClient = null;
-            Toast.makeText(this, "微信小程序服务已停止", Toast.LENGTH_SHORT).show();
-            updateWechatMiniFragmentUI();
-        }
-    }
-
-    /**
-     * 获取微信小程序服务运行状态
-     */
-    public boolean isWechatMiniServiceRunning() {
-        return wechatMiniStreamManager != null && wechatMiniStreamManager.isRunning();
-    }
-
-    /**
-     * 微信小程序远程录制
-     */
-    private void startWechatRemoteRecording(String commandId, int durationSeconds) {
-        this.wechatCommandId = commandId;
-        AppLog.d(TAG, "微信小程序远程录制: commandId=" + commandId + ", duration=" + durationSeconds);
-        
-        // 复用钉钉的录制逻辑，但使用微信小程序的上传方式
-        // 这里直接调用启动远程录制的方法
-        startRemoteRecording(null, null, null, durationSeconds);
-    }
-
-    /**
-     * 微信小程序远程拍照
-     */
-    private void startWechatRemotePhoto(String commandId) {
-        this.wechatCommandId = commandId;
-        AppLog.d(TAG, "微信小程序远程拍照: commandId=" + commandId);
-        
-        // 复用钉钉的拍照逻辑
-        startRemotePhoto(null, null, null);
-    }
-
-    /**
-     * 更新微信小程序 Fragment UI（连接状态）
-     */
-    private void updateWechatMiniFragmentUI() {
-        Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.fragment_container);
-        if (fragment instanceof WechatMiniFragment) {
-            ((WechatMiniFragment) fragment).updateServiceStatus();
-        }
-    }
-
-    /**
-     * 更新微信小程序 Fragment 绑定状态
-     */
-    private void updateWechatMiniFragmentBindStatus(boolean bound, String userNickname) {
-        Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.fragment_container);
-        if (fragment instanceof WechatMiniFragment) {
-            ((WechatMiniFragment) fragment).updateBindStatus(bound, userNickname);
-        }
-    }
-
-    /**
      * 获取微信小程序配置
      */
     public WechatMiniConfig getWechatMiniConfig() {
         return wechatMiniConfig;
-    }
-
-    /**
-     * 获取微信小程序流管理器
-     */
-    public WechatMiniStreamManager getWechatMiniStreamManager() {
-        return wechatMiniStreamManager;
-    }
-
-    /**
-     * 获取微信小程序 API 客户端
-     */
-    public WechatMiniApiClient getWechatMiniApiClient() {
-        return wechatMiniApiClient;
     }
 
     // ==================== 微信小程序远程控制方法结束 ====================

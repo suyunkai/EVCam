@@ -13,6 +13,7 @@ public class AppConfig {
     
     // 配置项键名
     private static final String KEY_FIRST_LAUNCH = "first_launch";  // 首次启动标记
+    private static final String KEY_FIRST_CAMERA_PREVIEW = "first_camera_preview";  // 首次启动摄像头预览标记（领克07/08专用）
     private static final String KEY_DEVICE_NICKNAME = "device_nickname";  // 设备识别名称（用于日志上传）
     private static final String KEY_AUTO_START_ON_BOOT = "auto_start_on_boot";  // 开机自启动
     private static final String KEY_AUTO_START_RECORDING = "auto_start_recording";  // 启动自动录制
@@ -134,6 +135,7 @@ public class AppConfig {
     
     // 分辨率常量
     public static final String RESOLUTION_DEFAULT = "default";  // 默认（优先1280x800）
+    public static final String RESOLUTION_2560X1600 = "2560x1600";  // 领克07/08默认分辨率
     
     // 码率配置相关键名
     private static final String KEY_BITRATE_LEVEL = "bitrate_level";  // 码率等级
@@ -169,6 +171,7 @@ public class AppConfig {
     
     // 车型常量
     public static final String CAR_MODEL_LYNKCO_07 = "lynkco_07";  // 领克07/08（默认车型）
+    public static final String CAR_MODEL_LYNKCO_08_PLUS = "lynkco_08_plus";  // 领克08加包（4物理摄像头，避开camera0 AVM合成）
     public static final String CAR_MODEL_GALAXY_E5 = "galaxy_e5";  // 银河E5
     public static final String CAR_MODEL_E5_MULTI = "galaxy_e5_multi";  // 银河E5-多按钮
     public static final String CAR_MODEL_L7 = "galaxy_l7";  // 银河L6/L7
@@ -178,6 +181,23 @@ public class AppConfig {
     
     // 全景摄像头模式配置
     private static final String KEY_PANORAMA_MODE_ENABLED = "panorama_mode_enabled";  // 全景摄像头模式开关
+    private static final String KEY_PANORAMIC_CAMERA_ID = "panoramic_camera_id";  // 全景摄像头ID
+    private static final String KEY_PANORAMIC_MAPPING_TOP_LEFT = "panoramic_mapping_top_left";  // 左上区域映射
+    private static final String KEY_PANORAMIC_MAPPING_TOP_RIGHT = "panoramic_mapping_top_right";  // 右上区域映射
+    private static final String KEY_PANORAMIC_MAPPING_BOTTOM_LEFT = "panoramic_mapping_bottom_left";  // 左下区域映射
+    private static final String KEY_PANORAMIC_MAPPING_BOTTOM_RIGHT = "panoramic_mapping_bottom_right";  // 右下区域映射
+    private static final String KEY_PANORAMIC_ROTATION_FRONT = "panoramic_rotation_front";  // 前方向旋转角度
+    private static final String KEY_PANORAMIC_ROTATION_BACK = "panoramic_rotation_back";  // 后方向旋转角度
+    private static final String KEY_PANORAMIC_ROTATION_LEFT = "panoramic_rotation_left";  // 左方向旋转角度
+    private static final String KEY_PANORAMIC_ROTATION_RIGHT = "panoramic_rotation_right";  // 右方向旋转角度
+    private static final String KEY_PANORAMIC_FISHEYE_CORRECTION = "panoramic_fisheye_correction";  // 全景模式鱼眼校正开关
+    private static final String KEY_PANORAMIC_FISHEYE_STRENGTH = "panoramic_fisheye_strength";  // 全景模式鱼眼校正强度
+    private static final String KEY_PANORAMIC_LAYOUT_MODE = "panoramic_layout_mode";  // 全景布局模式
+    
+    // 全景布局模式常量
+    public static final String PANORAMIC_LAYOUT_GRID = "grid";  // 网格布局（2x2）
+    public static final String PANORAMIC_LAYOUT_HORIZONTAL = "horizontal";  // 水平布局
+    public static final String PANORAMIC_LAYOUT_VERTICAL = "vertical";  // 垂直布局
     
     // 鱼眼矫正配置
     private static final String KEY_FISHEYE_CORRECTION_ENABLED = "fisheye_correction_enabled";  // 鱼眼矫正开关
@@ -205,6 +225,26 @@ public class AppConfig {
     public void setFirstLaunchCompleted() {
         prefs.edit().putBoolean(KEY_FIRST_LAUNCH, false).apply();
         AppLog.d(TAG, "首次启动标记已设置为完成");
+    }
+    
+    /**
+     * 检查是否为首次启动摄像头预览（领克07/08专用）
+     * @return true 表示首次启动摄像头预览
+     */
+    public boolean isFirstCameraPreview() {
+        // 仅对领克07/08车型有效
+        if (!CAR_MODEL_LYNKCO_07.equals(getCarModel())) {
+            return false;
+        }
+        return prefs.getBoolean(KEY_FIRST_CAMERA_PREVIEW, true);
+    }
+    
+    /**
+     * 标记首次启动摄像头预览已完成（领克07/08专用）
+     */
+    public void setFirstCameraPreviewCompleted() {
+        prefs.edit().putBoolean(KEY_FIRST_CAMERA_PREVIEW, false).apply();
+        AppLog.d(TAG, "首次启动摄像头预览标记已设置为完成");
     }
     
     // ==================== 设备识别名称相关方法 ====================
@@ -360,9 +400,12 @@ public class AppConfig {
             // 强制使用 MediaRecorder 模式
             return false;
         } else {
-            // 自动模式：L6/L7 及 L7-多按钮 车型使用 Codec 模式
+            // 自动模式：领克07/L6/L7 及 L7-多按钮 车型使用 Codec 模式
+            // 领克07 使用全景摄像头模式，不支持 MediaRecorder 直接录制
             String carModel = getCarModel();
-            return CAR_MODEL_L7.equals(carModel) || CAR_MODEL_L7_MULTI.equals(carModel);
+            return CAR_MODEL_LYNKCO_07.equals(carModel) || 
+                   CAR_MODEL_L7.equals(carModel) || 
+                   CAR_MODEL_L7_MULTI.equals(carModel);
         }
     }
     
@@ -387,10 +430,12 @@ public class AppConfig {
     
     /**
      * 获取目标分辨率
-     * @return 分辨率字符串，默认为 "default"
+     * @return 分辨率字符串，领克07/08默认为 "2560x1600"，其他车型默认为 "default"
      */
     public String getTargetResolution() {
-        return prefs.getString(KEY_TARGET_RESOLUTION, RESOLUTION_DEFAULT);
+        // 领克07/08车型默认使用 2560x1600 分辨率
+        String defaultResolution = CAR_MODEL_LYNKCO_07.equals(getCarModel()) ? RESOLUTION_2560X1600 : RESOLUTION_DEFAULT;
+        return prefs.getString(KEY_TARGET_RESOLUTION, defaultResolution);
     }
     
     /**
@@ -644,11 +689,14 @@ public class AppConfig {
             case CAR_MODEL_PHONE:
                 return 2;  // 手机：2摄
             case CAR_MODEL_LYNKCO_07:
+                return 1;  // 领克07：1摄（单前置摄像头）
+            case CAR_MODEL_LYNKCO_08_PLUS:
+                return 2;  // 领克08加包：2摄（仅0和6有输出，1/2/4/5无画面；设备maxOpen=2）
             case CAR_MODEL_GALAXY_E5:
             case CAR_MODEL_E5_MULTI:
             case CAR_MODEL_L7:
             case CAR_MODEL_L7_MULTI:
-                return 4;  // 领克07/银河E5/L7：4摄
+                return 4;  // 银河E5/L7：4摄
             case CAR_MODEL_CUSTOM:
             default:
                 // 自定义车型使用用户设置的数量
@@ -712,11 +760,44 @@ public class AppConfig {
     /**
      * 获取摄像头编号
      * @param position 位置（front/back/left/right）
-     * @return 摄像头编号，默认为 -1 表示自动检测
+     * @return 摄像头编号，默认根据车型设置
      */
     public String getCameraId(String position) {
         String key;
         String defaultValue;
+        String carModel = getCarModel();
+        
+        // 领克07：只有一个摄像头，编号为0
+        if (CAR_MODEL_LYNKCO_07.equals(carModel)) {
+            switch (position) {
+                case "front":
+                    key = KEY_CAMERA_FRONT_ID;
+                    defaultValue = "0";  // 领克07：唯一摄像头编号0
+                    break;
+                default:
+                    return "-1";  // 领克07只有一个摄像头
+            }
+            return prefs.getString(key, defaultValue);
+        }
+        
+        // 领克08加包：1/2/4/5无输出，设备仅支持2路同时打开，使用0(AVM环视)+6(座舱)
+        if (CAR_MODEL_LYNKCO_08_PLUS.equals(carModel)) {
+            switch (position) {
+                case "front":
+                    key = KEY_CAMERA_FRONT_ID;
+                    defaultValue = "0";  // AVM环视（有画面）
+                    break;
+                case "back":
+                    key = KEY_CAMERA_BACK_ID;
+                    defaultValue = "6";  // 座舱摄像头
+                    break;
+                default:
+                    return "-1";  // 仅2摄
+            }
+            return prefs.getString(key, defaultValue);
+        }
+        
+        // 其他车型（银河E5等）使用4摄配置
         switch (position) {
             case "front":
                 key = KEY_CAMERA_FRONT_ID;
@@ -1599,8 +1680,8 @@ public class AppConfig {
      * @return true 表示启用全景摄像头模式
      */
     public boolean isPanoramaModeEnabled() {
-        // 领克07/08车型默认开启全景摄像头模式
-        boolean defaultValue = CAR_MODEL_LYNKCO_07.equals(getCarModel());
+        // 领克07单摄像头不需要全景模式，其他多摄车型可以开启
+        boolean defaultValue = false;
         return prefs.getBoolean(KEY_PANORAMA_MODE_ENABLED, defaultValue);
     }
     
@@ -1620,8 +1701,8 @@ public class AppConfig {
      * @return true 表示启用鱼眼矫正
      */
     public boolean isFisheyeCorrectionEnabled() {
-        // 领克07/08车型默认开启鱼眼矫正
-        boolean defaultValue = CAR_MODEL_LYNKCO_07.equals(getCarModel());
+        // 领克07单摄像头不需要鱼眼矫正，其他多摄车型可以开启
+        boolean defaultValue = false;
         return prefs.getBoolean(KEY_FISHEYE_CORRECTION_ENABLED, defaultValue);
     }
     
@@ -1651,5 +1732,258 @@ public class AppConfig {
      */
     public float getFisheyeCorrectionRatioFloat() {
         return getFisheyeCorrectionRatio() / 100f;
+    }
+    
+    // ==================== 全景模式详细配置方法 ====================
+    
+    /**
+     * 设置全景摄像头ID
+     * @param cameraId 摄像头ID
+     */
+    public void setPanoramicCameraId(String cameraId) {
+        prefs.edit().putString(KEY_PANORAMIC_CAMERA_ID, cameraId).apply();
+        AppLog.d(TAG, "全景摄像头ID设置: " + cameraId);
+    }
+    
+    /**
+     * 获取全景摄像头ID
+     * @return 摄像头ID，默认为"0"
+     */
+    public String getPanoramicCameraId() {
+        return prefs.getString(KEY_PANORAMIC_CAMERA_ID, "0");
+    }
+    
+    /**
+     * 设置全景模式区域映射
+     * @param region 区域（top_left/top_right/bottom_left/bottom_right）
+     * @param direction 方向（front/back/left/right）
+     */
+    public void setPanoramicMapping(String region, String direction) {
+        String key;
+        switch (region) {
+            case "top_left":
+                key = KEY_PANORAMIC_MAPPING_TOP_LEFT;
+                break;
+            case "top_right":
+                key = KEY_PANORAMIC_MAPPING_TOP_RIGHT;
+                break;
+            case "bottom_left":
+                key = KEY_PANORAMIC_MAPPING_BOTTOM_LEFT;
+                break;
+            case "bottom_right":
+                key = KEY_PANORAMIC_MAPPING_BOTTOM_RIGHT;
+                break;
+            default:
+                return;
+        }
+        prefs.edit().putString(key, direction).apply();
+        AppLog.d(TAG, "全景映射设置: " + region + " -> " + direction);
+    }
+    
+    /**
+     * 获取全景模式区域映射
+     * @param region 区域（top_left/top_right/bottom_left/bottom_right）
+     * @return 方向（front/back/left/right）
+     */
+    public String getPanoramicMapping(String region) {
+        String key;
+        String defaultValue;
+        switch (region) {
+            case "top_left":
+                key = KEY_PANORAMIC_MAPPING_TOP_LEFT;
+                defaultValue = "front";
+                break;
+            case "top_right":
+                key = KEY_PANORAMIC_MAPPING_TOP_RIGHT;
+                defaultValue = "back";
+                break;
+            case "bottom_left":
+                key = KEY_PANORAMIC_MAPPING_BOTTOM_LEFT;
+                defaultValue = "left";
+                break;
+            case "bottom_right":
+                key = KEY_PANORAMIC_MAPPING_BOTTOM_RIGHT;
+                defaultValue = "right";
+                break;
+            default:
+                return "front";
+        }
+        return prefs.getString(key, defaultValue);
+    }
+    
+    /**
+     * 根据区域获取全景裁切区域（静态方法）
+     * @param region 区域（top_left/top_right/bottom_left/bottom_right）
+     * @return 裁切区域 [x, y, width, height] 归一化坐标
+     */
+    public static float[] getPanoramicCropRegionByRegion(String region) {
+        switch (region) {
+            case "top_left":
+                return new float[]{0.0f, 0.0f, 0.5f, 0.5f};
+            case "top_right":
+                return new float[]{0.5f, 0.0f, 0.5f, 0.5f};
+            case "bottom_left":
+                return new float[]{0.0f, 0.5f, 0.5f, 0.5f};
+            case "bottom_right":
+                return new float[]{0.5f, 0.5f, 0.5f, 0.5f};
+            default:
+                return new float[]{0.0f, 0.0f, 1.0f, 1.0f};
+        }
+    }
+    
+    /**
+     * 根据方向获取全景裁切区域（静态方法）
+     * @param direction 方向（front/back/left/right）
+     * @return 裁切区域 [x, y, width, height] 归一化坐标
+     */
+    public static float[] getPanoramicCropRegion(String direction) {
+        switch (direction) {
+            case "front":
+                return new float[]{0.0f, 0.0f, 0.5f, 0.5f};
+            case "back":
+                return new float[]{0.5f, 0.0f, 0.5f, 0.5f};
+            case "left":
+                return new float[]{0.0f, 0.5f, 0.5f, 0.5f};
+            case "right":
+                return new float[]{0.5f, 0.5f, 0.5f, 0.5f};
+            default:
+                return new float[]{0.0f, 0.0f, 1.0f, 1.0f};
+        }
+    }
+    
+    /**
+     * 获取方向对应的裁切区域
+     * @param direction 方向（front/back/left/right）
+     * @return 裁切区域
+     */
+    public float[] getPanoramicCropRegionForPosition(String direction) {
+        return getPanoramicCropRegionByRegion(getPanoramicRegionForDirection(direction));
+    }
+    
+    /**
+     * 根据方向获取对应的区域
+     * @param direction 方向（front/back/left/right）
+     * @return 区域（top_left/top_right/bottom_left/bottom_right）
+     */
+    private String getPanoramicRegionForDirection(String direction) {
+        String[] regions = {"top_left", "top_right", "bottom_left", "bottom_right"};
+        for (String region : regions) {
+            if (direction.equals(getPanoramicMapping(region))) {
+                return region;
+            }
+        }
+        // 默认映射
+        switch (direction) {
+            case "front": return "top_left";
+            case "back": return "top_right";
+            case "left": return "bottom_left";
+            case "right": return "bottom_right";
+            default: return "top_left";
+        }
+    }
+    
+    /**
+     * 设置全景模式方向旋转角度
+     * @param direction 方向（front/back/left/right）
+     * @param rotation 旋转角度（0/90/180/270）
+     */
+    public void setPanoramicRotation(String direction, int rotation) {
+        String key;
+        switch (direction) {
+            case "front":
+                key = KEY_PANORAMIC_ROTATION_FRONT;
+                break;
+            case "back":
+                key = KEY_PANORAMIC_ROTATION_BACK;
+                break;
+            case "left":
+                key = KEY_PANORAMIC_ROTATION_LEFT;
+                break;
+            case "right":
+                key = KEY_PANORAMIC_ROTATION_RIGHT;
+                break;
+            default:
+                return;
+        }
+        prefs.edit().putInt(key, rotation).apply();
+        AppLog.d(TAG, "全景旋转设置: " + direction + " -> " + rotation + "°");
+    }
+    
+    /**
+     * 获取全景模式方向旋转角度
+     * @param direction 方向（front/back/left/right）
+     * @return 旋转角度，默认为0
+     */
+    public int getPanoramicRotation(String direction) {
+        String key;
+        switch (direction) {
+            case "front":
+                key = KEY_PANORAMIC_ROTATION_FRONT;
+                break;
+            case "back":
+                key = KEY_PANORAMIC_ROTATION_BACK;
+                break;
+            case "left":
+                key = KEY_PANORAMIC_ROTATION_LEFT;
+                break;
+            case "right":
+                key = KEY_PANORAMIC_ROTATION_RIGHT;
+                break;
+            default:
+                return 0;
+        }
+        return prefs.getInt(key, 0);
+    }
+    
+    /**
+     * 设置全景模式鱼眼校正开关
+     * @param enabled true 表示启用
+     */
+    public void setPanoramicFisheyeCorrection(boolean enabled) {
+        prefs.edit().putBoolean(KEY_PANORAMIC_FISHEYE_CORRECTION, enabled).apply();
+        AppLog.d(TAG, "全景鱼眼校正: " + (enabled ? "启用" : "禁用"));
+    }
+    
+    /**
+     * 获取全景模式鱼眼校正开关状态
+     * @return true 表示启用
+     */
+    public boolean isPanoramicFisheyeCorrectionEnabled() {
+        return prefs.getBoolean(KEY_PANORAMIC_FISHEYE_CORRECTION, false);
+    }
+    
+    /**
+     * 设置全景模式鱼眼校正强度
+     * @param strength 强度（0-100）
+     */
+    public void setPanoramicFisheyeStrength(int strength) {
+        strength = Math.max(0, Math.min(100, strength));
+        prefs.edit().putInt(KEY_PANORAMIC_FISHEYE_STRENGTH, strength).apply();
+        AppLog.d(TAG, "全景鱼眼校正强度: " + strength);
+    }
+    
+    /**
+     * 获取全景模式鱼眼校正强度
+     * @return 强度（0-100），默认50
+     */
+    public int getPanoramicFisheyeStrength() {
+        return prefs.getInt(KEY_PANORAMIC_FISHEYE_STRENGTH, 50);
+    }
+    
+    /**
+     * 设置全景布局模式
+     * @param mode 布局模式（grid/horizontal/vertical）
+     */
+    public void setPanoramicLayoutMode(String mode) {
+        prefs.edit().putString(KEY_PANORAMIC_LAYOUT_MODE, mode).apply();
+        AppLog.d(TAG, "全景布局模式: " + mode);
+    }
+    
+    /**
+     * 获取全景布局模式
+     * @return 布局模式，默认为grid
+     */
+    public String getPanoramicLayoutMode() {
+        return prefs.getString(KEY_PANORAMIC_LAYOUT_MODE, PANORAMIC_LAYOUT_GRID);
     }
 }
