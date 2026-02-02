@@ -22,6 +22,20 @@
 
 该应用支持吉利银河系列车型（银河E5、银河L6/L7等），理论上其它龙鹰一号无高阶智驾车型也可通用，同时支持手机端预览。支持同时从最多 **4 个摄像头**进行视频录制与拍照，支持通过**钉钉机器人**或**微信小程序**远程发送录制、拍照、实时预览指令进行远程监看。
 
+下载地址：
+**[⚡️点我下载最新版本]([https://github.com/huiyadanli/RevokeMsgPatcher/releases/download/2.1/RevokeMsgPatcher.v2.1.zip](https://github.com/suyunkai/EVCam/releases))** |
+[☁备用下载-蓝奏云]([https://wwmy.lanzouq.com/b0fot7dpe](https://wwaxl.lanzoum.com/b018844c0j))  密码:7cf1
+[☁备用下载-百度云]( https://pan.baidu.com/s/1AzUl3XzfhxPdXtPJIrKl-g?pwd=caua提取码: caua ) 
+
+说明文档地址：
+https://docs.qq.com/aio/DT0RLekd6bEJDeUNn?p=FgO7EleKjQ4Cl3d4Y5CXTD
+
+## 📷截图
+![图片](https://docimg9.docs.qq.com/image/AgAABeEQpi7pOngUSghD3KAig1iKeLnD.png?w=1937&h=1159)
+![图片](https://docimg1.docs.qq.com/image/AgAABeEQpi4NP5Oc64RLuZAU2PQ5DfRf.png?w=2236&h=1192)
+![Uploading image.png…]()
+
+
 ### ✨ 核心特性
 
 - 🎨 **仿FlymeAuto官方UI** - 仿照FlymeAuto官方界面设计，沉浸式状态栏，美观且符合车机使用习惯
