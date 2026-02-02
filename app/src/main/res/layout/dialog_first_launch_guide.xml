@@ -146,7 +146,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="本软件作者 @greenteacher46，当前版本免费开源，如遇收费售卖等商业行为，请告知作者。"
+            android:text="本软件作者 @greenteacher46（四十六），当前版本免费开源，如遇收费售卖等商业行为，请告知作者。"
             android:textSize="20sp"
             android:textColor="@color/dialog_guide_secondary"
             android:lineSpacingExtra="3dp"
