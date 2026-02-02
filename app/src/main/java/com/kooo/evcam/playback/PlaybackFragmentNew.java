@@ -224,6 +224,17 @@ public class PlaybackFragmentNew extends Fragment {
             public void onError(String message) {
                 // 错误处理
             }
+
+            @Override
+            public void onSingleVideoPrepared() {
+                // 单路视频准备好后显示画面（防止闪烁旧画面）
+                if (getActivity() == null) return;
+                getActivity().runOnUiThread(() -> {
+                    if (videoSingle != null) {
+                        videoSingle.setVisibility(View.VISIBLE);
+                    }
+                });
+            }
         });
     }
 
@@ -354,12 +365,45 @@ public class PlaybackFragmentNew extends Fragment {
         isSingleMode = true;
         currentSinglePosition = position;
         
-        multiViewLayout.setVisibility(View.GONE);
-        singleViewLayout.setVisibility(View.VISIBLE);
+        // 先在后台加载视频，延迟后再切换界面显示（防止闪烁旧画面或黑屏）
         labelSingle.setText(label);
         btnViewMode.setText(label + "摄");
         
+        // 确保 videoSingle 可见（在切换布局之前）
+        if (videoSingle != null) {
+            videoSingle.setVisibility(View.VISIBLE);
+        }
+        
+        // 先加载视频（此时 singleViewLayout 还是 GONE，用户看不到）
         playerManager.setSingleMode(true, position);
+        
+        // 延迟切换界面，等视频加载完成后再显示（带动画）
+        if (multiViewLayout != null) {
+            multiViewLayout.postDelayed(() -> {
+                if (isSingleMode) {
+                    // 设置初始状态：稍微缩小 + 透明
+                    singleViewLayout.setAlpha(0f);
+                    singleViewLayout.setScaleX(0.95f);
+                    singleViewLayout.setScaleY(0.95f);
+                    singleViewLayout.setVisibility(View.VISIBLE);
+                    
+                    // 淡入 + 放大到正常大小
+                    singleViewLayout.animate()
+                            .alpha(1f)
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .setDuration(200)
+                            .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                            .setListener(new android.animation.AnimatorListenerAdapter() {
+                                @Override
+                                public void onAnimationEnd(android.animation.Animator animation) {
+                                    multiViewLayout.setVisibility(View.GONE);
+                                }
+                            })
+                            .start();
+                }
+            }, 200);
+        }
     }
 
     /**
@@ -367,12 +411,34 @@ public class PlaybackFragmentNew extends Fragment {
      */
     private void switchToMultiMode() {
         isSingleMode = false;
-        
-        multiViewLayout.setVisibility(View.VISIBLE);
-        singleViewLayout.setVisibility(View.GONE);
         btnViewMode.setText("多路");
         
         playerManager.setSingleMode(false, null);
+        
+        // 设置初始状态：稍微缩小 + 透明
+        multiViewLayout.setAlpha(0f);
+        multiViewLayout.setScaleX(0.95f);
+        multiViewLayout.setScaleY(0.95f);
+        multiViewLayout.setVisibility(View.VISIBLE);
+        
+        // 淡入 + 放大到正常大小
+        multiViewLayout.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(200)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                .setListener(new android.animation.AnimatorListenerAdapter() {
+                    @Override
+                    public void onAnimationEnd(android.animation.Animator animation) {
+                        singleViewLayout.setVisibility(View.GONE);
+                        // 重置 singleViewLayout 的状态，以便下次使用
+                        singleViewLayout.setAlpha(1f);
+                        singleViewLayout.setScaleX(1f);
+                        singleViewLayout.setScaleY(1f);
+                    }
+                })
+                .start();
     }
 
     /**

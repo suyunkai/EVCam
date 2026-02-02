@@ -65,6 +65,8 @@ public class MultiVideoPlayerManager {
         void onPlaybackStateChanged(boolean isPlaying);
         void onCompletion();
         void onError(String message);
+        /** 单路视频准备好时回调（用于控制 UI 显示） */
+        default void onSingleVideoPrepared() {}
     }
 
     public MultiVideoPlayerManager(Context context) {
@@ -455,8 +457,10 @@ public class MultiVideoPlayerManager {
                 // 将源视频的内容显示到单路VideoView
                 loadSingleModeVideo(savedPosition, wasPlaying);
             } else {
-                // 切换回多路：先暂停单路视频
-                if (videoSingle != null) videoSingle.pause();
+                // 切换回多路：暂停单路视频
+                if (videoSingle != null) {
+                    videoSingle.pause();
+                }
                 // 直接 seek 到保存的位置
                 seekTo(savedPosition);
                 if (wasPlaying) {
@@ -492,6 +496,12 @@ public class MultiVideoPlayerManager {
                     setMediaPlayerSpeed(mp, currentSpeed);
                     // 视频准备好后再 seek 和播放
                     mp.seekTo(seekPosition);
+                    
+                    // 通知 UI 单路视频已准备好（可以显示画面了）
+                    if (playbackListener != null) {
+                        playbackListener.onSingleVideoPrepared();
+                    }
+                    
                     if (autoPlay) {
                         mp.start();
                         isPlaying = true;
