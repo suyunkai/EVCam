@@ -172,6 +172,7 @@ public class AppConfig {
     public static final String CAR_MODEL_E5_MULTI = "galaxy_e5_multi";  // 银河E5-多按钮
     public static final String CAR_MODEL_L7 = "galaxy_l7";  // 银河L6/L7
     public static final String CAR_MODEL_L7_MULTI = "galaxy_l7_multi";  // 银河L7-多按钮
+    public static final String CAR_MODEL_L7_FLOATING = "galaxy_l7_floating";  // 银河L7-浮动
     public static final String CAR_MODEL_PHONE = "phone";  // 手机
     public static final String CAR_MODEL_LYNK0708 = "lynk_0708";  // 领克07/08
     public static final String CAR_MODEL_CUSTOM = "custom";  // 自定义车型
@@ -353,9 +354,9 @@ public class AppConfig {
             // 强制使用 MediaRecorder 模式
             return false;
         } else {
-            // 自动模式：L6/L7 及 L7-多按钮 车型使用 Codec 模式
+            // 自动模式：L6/L7 及 L7-多按钮 及 L7-浮动 车型使用 Codec 模式
             String carModel = getCarModel();
-            return CAR_MODEL_L7.equals(carModel) || CAR_MODEL_L7_MULTI.equals(carModel);
+            return CAR_MODEL_L7.equals(carModel) || CAR_MODEL_L7_MULTI.equals(carModel) || CAR_MODEL_L7_FLOATING.equals(carModel);
         }
     }
     
@@ -642,6 +643,7 @@ public class AppConfig {
             case CAR_MODEL_E5_MULTI:
             case CAR_MODEL_L7:
             case CAR_MODEL_L7_MULTI:
+            case CAR_MODEL_L7_FLOATING:
                 return 4;  // 银河E5/L7：4摄
             case CAR_MODEL_CUSTOM:
             default:

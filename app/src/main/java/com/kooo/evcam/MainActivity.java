@@ -17,6 +17,7 @@ import android.view.SubMenu;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -189,6 +190,12 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
     
     // 远程命令分发器（重构后的统一入口）
     private RemoteCommandDispatcher remoteCommandDispatcher;
+
+    // 浮动摄像头管理器（用于 L7-浮动 布局）
+    private FloatingCameraManager floatingCameraManager;
+
+    // 当前选中的预设编号 (0=无, 1-3=预设编号)
+    private int currentPresetNumber = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -897,6 +904,13 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
             requiredTextureCount = 4;
             AppLog.d(TAG, "使用银河L7-多按钮配置：竖屏四宫格+顶部快捷按钮布局");
         }
+        // 银河L7-浮动：浮动摄像头布局（可拖动、隐藏、放大）
+        else if (AppConfig.CAR_MODEL_L7_FLOATING.equals(carModel)) {
+            layoutId = R.layout.activity_main_l7_floating;
+            configuredCameraCount = 4;
+            requiredTextureCount = 4;
+            AppLog.d(TAG, "使用银河L7-浮动配置：浮动摄像头布局");
+        }
         // 手机：自适应2摄像头布局
         else if (AppConfig.CAR_MODEL_PHONE.equals(carModel)) {
             layoutId = R.layout.activity_main_phone;
@@ -1029,6 +1043,11 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
         
         // 更新摄像头标签（如果是自定义车型）
         updateCameraLabels();
+
+        // 初始化浮动摄像头功能（仅在 L7-浮动 布局中）
+        if (AppConfig.CAR_MODEL_L7_FLOATING.equals(appConfig.getCarModel())) {
+            setupFloatingCameras();
+        }
 
         // 菜单按钮点击事件（部分布局可能没有此按钮）
         View btnMenu = findViewById(R.id.btn_menu);
@@ -1165,7 +1184,205 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
             label.setVisibility(View.VISIBLE);
         }
     }
-    
+
+    /**
+     * 初始化浮动摄像头功能（仅用于 L7-浮动 布局）
+     */
+    private void setupFloatingCameras() {
+        if (floatingCameraManager == null) {
+            floatingCameraManager = new FloatingCameraManager(this);
+        }
+
+        // 获取摄像头 FrameLayout
+        FrameLayout frameFront = findViewById(R.id.frame_front);
+        FrameLayout frameBack = findViewById(R.id.frame_back);
+        FrameLayout frameLeft = findViewById(R.id.frame_left);
+        FrameLayout frameRight = findViewById(R.id.frame_right);
+
+        // 初始化每个摄像头的浮动功能
+        if (frameFront != null) {
+            floatingCameraManager.setupFloatingCamera(frameFront, "front", false);
+            AppLog.d(TAG, "Initialized floating camera: front");
+        }
+        if (frameBack != null) {
+            floatingCameraManager.setupFloatingCamera(frameBack, "back", false);
+            AppLog.d(TAG, "Initialized floating camera: back");
+        }
+        if (frameLeft != null) {
+            floatingCameraManager.setupFloatingCamera(frameLeft, "left", true);
+            AppLog.d(TAG, "Initialized floating camera: left");
+        }
+        if (frameRight != null) {
+            floatingCameraManager.setupFloatingCamera(frameRight, "right", true);
+            AppLog.d(TAG, "Initialized floating camera: right");
+        }
+
+        // 设置"显示全部"按钮
+        Button btnShowAll = findViewById(R.id.btn_show_all_cameras);
+        if (btnShowAll != null) {
+            btnShowAll.setOnClickListener(v -> {
+                floatingCameraManager.showAllCameras(frameFront, frameBack, frameLeft, frameRight);
+                Toast.makeText(this, "已显示全部摄像头", Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        // 设置"重置布局"按钮
+        Button btnReset = findViewById(R.id.btn_reset_layout);
+        if (btnReset != null) {
+            btnReset.setOnClickListener(v -> {
+                new android.app.AlertDialog.Builder(this)
+                    .setTitle("重置布局")
+                    .setMessage("确定要重置所有摄像头的位置、大小和可见性吗？")
+                    .setPositiveButton("确定", (dialog, which) -> {
+                        floatingCameraManager.resetAllCameras();
+                        currentPresetNumber = 0;  // 清除选中状态
+                        updatePresetButtonStates();
+                        Toast.makeText(this, "布局已重置，请重启应用", Toast.LENGTH_LONG).show();
+                        // 延迟后重启应用
+                        new android.os.Handler().postDelayed(() -> {
+                            recreate();
+                        }, 1500);
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
+            });
+        }
+
+        // 设置预设按钮
+        setupPresetButtons(frameFront, frameBack, frameLeft, frameRight);
+
+        // 恢复上次选中的预设
+        restoreLastPreset();
+    }
+
+    /**
+     * 设置预设按钮
+     */
+    private void setupPresetButtons(FrameLayout frameFront, FrameLayout frameBack,
+                                    FrameLayout frameLeft, FrameLayout frameRight) {
+        // 预设1按钮
+        Button btnPreset1 = findViewById(R.id.btn_preset_1);
+        if (btnPreset1 != null) {
+            btnPreset1.setOnClickListener(v -> loadPreset(1, frameFront, frameBack, frameLeft, frameRight));
+        }
+
+        // 预设2按钮
+        Button btnPreset2 = findViewById(R.id.btn_preset_2);
+        if (btnPreset2 != null) {
+            btnPreset2.setOnClickListener(v -> loadPreset(2, frameFront, frameBack, frameLeft, frameRight));
+        }
+
+        // 预设3按钮
+        Button btnPreset3 = findViewById(R.id.btn_preset_3);
+        if (btnPreset3 != null) {
+            btnPreset3.setOnClickListener(v -> loadPreset(3, frameFront, frameBack, frameLeft, frameRight));
+        }
+
+        // 保存按钮
+        Button btnSave = findViewById(R.id.btn_save_preset);
+        if (btnSave != null) {
+            btnSave.setOnClickListener(v -> saveCurrentPreset(frameFront, frameBack, frameLeft, frameRight));
+        }
+
+        // 初始化按钮状态
+        updatePresetButtonStates();
+    }
+
+    /**
+     * 加载预设布局（直接加载，无确认）
+     */
+    private void loadPreset(int presetNumber, FrameLayout frameFront, FrameLayout frameBack,
+                           FrameLayout frameLeft, FrameLayout frameRight) {
+        boolean success = floatingCameraManager.loadLayoutPreset(presetNumber,
+            frameFront, frameBack, frameLeft, frameRight);
+
+        if (success) {
+            currentPresetNumber = presetNumber;
+            updatePresetButtonStates();
+            saveLastPreset(presetNumber);
+            Toast.makeText(this, "已加载预设 " + presetNumber, Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "预设 " + presetNumber + " 为空", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * 保存到当前选中的预设
+     */
+    private void saveCurrentPreset(FrameLayout frameFront, FrameLayout frameBack,
+                                   FrameLayout frameLeft, FrameLayout frameRight) {
+        if (currentPresetNumber == 0) {
+            // 如果没有选中预设，弹出选择对话框
+            String[] options = {"预设 1", "预设 2", "预设 3"};
+            new android.app.AlertDialog.Builder(this)
+                .setTitle("保存到哪个预设？")
+                .setItems(options, (dialog, which) -> {
+                    int presetNumber = which + 1;
+                    doSavePreset(presetNumber, frameFront, frameBack, frameLeft, frameRight);
+                })
+                .setNegativeButton("取消", null)
+                .show();
+        } else {
+            // 保存到当前选中的预设
+            doSavePreset(currentPresetNumber, frameFront, frameBack, frameLeft, frameRight);
+        }
+    }
+
+    /**
+     * 执行保存预设
+     */
+    private void doSavePreset(int presetNumber, FrameLayout frameFront, FrameLayout frameBack,
+                             FrameLayout frameLeft, FrameLayout frameRight) {
+        floatingCameraManager.saveLayoutPreset(presetNumber,
+            frameFront, frameBack, frameLeft, frameRight);
+        currentPresetNumber = presetNumber;
+        updatePresetButtonStates();
+        saveLastPreset(presetNumber);
+        Toast.makeText(this, "已保存到预设 " + presetNumber, Toast.LENGTH_SHORT).show();
+    }
+
+    /**
+     * 更新预设按钮的高亮状态
+     */
+    private void updatePresetButtonStates() {
+        Button btnPreset1 = findViewById(R.id.btn_preset_1);
+        Button btnPreset2 = findViewById(R.id.btn_preset_2);
+        Button btnPreset3 = findViewById(R.id.btn_preset_3);
+
+        // Flyme Auto 风格：未选中 #3A3A3C (深灰)，选中 #007AFF (蓝色高亮)
+        if (btnPreset1 != null) {
+            btnPreset1.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                currentPresetNumber == 1 ? 0xFF007AFF : 0xFF3A3A3C));
+        }
+        if (btnPreset2 != null) {
+            btnPreset2.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                currentPresetNumber == 2 ? 0xFF007AFF : 0xFF3A3A3C));
+        }
+        if (btnPreset3 != null) {
+            btnPreset3.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                currentPresetNumber == 3 ? 0xFF007AFF : 0xFF3A3A3C));
+        }
+    }
+
+    /**
+     * 保存上次选中的预设编号
+     */
+    private void saveLastPreset(int presetNumber) {
+        getSharedPreferences("floating_camera_prefs", MODE_PRIVATE)
+            .edit()
+            .putInt("last_preset", presetNumber)
+            .apply();
+    }
+
+    /**
+     * 恢复上次选中的预设编号（仅恢复高亮状态，不加载布局）
+     */
+    private void restoreLastPreset() {
+        currentPresetNumber = getSharedPreferences("floating_camera_prefs", MODE_PRIVATE)
+            .getInt("last_preset", 0);
+        updatePresetButtonStates();
+    }
+
     /**
      * 初始化录制状态显示
      */
@@ -2202,9 +2419,9 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
                             textureView.setAspectRatio(previewSize.getWidth(), previewSize.getHeight());
                             
                             // 根据车型和摄像头数量决定显示模式
-                            // L7车型（包括L7-多按钮）和1摄/2摄模式：使用适应模式，完整显示画面
+                            // L7车型（包括L7-多按钮、L7-浮动）和1摄/2摄模式：使用适应模式，完整显示画面
                             // E5的4摄模式：启用填满模式，避免黑边
-                            boolean isL7Layout = AppConfig.CAR_MODEL_L7.equals(carModel) || AppConfig.CAR_MODEL_L7_MULTI.equals(carModel);
+                            boolean isL7Layout = AppConfig.CAR_MODEL_L7.equals(carModel) || AppConfig.CAR_MODEL_L7_MULTI.equals(carModel) || AppConfig.CAR_MODEL_L7_FLOATING.equals(carModel);
                             boolean useFillMode = configuredCameraCount >= 4 && !isL7Layout;
                             
                             if (useFillMode) {
@@ -2330,8 +2547,8 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
 
                 // 根据车型配置初始化摄像头
                 String carModel = appConfig.getCarModel();
-                if (AppConfig.CAR_MODEL_L7.equals(carModel) || AppConfig.CAR_MODEL_L7_MULTI.equals(carModel)) {
-                    // 银河L6/L7 / L7-多按钮：使用固定映射
+                if (AppConfig.CAR_MODEL_L7.equals(carModel) || AppConfig.CAR_MODEL_L7_MULTI.equals(carModel) || AppConfig.CAR_MODEL_L7_FLOATING.equals(carModel)) {
+                    // 银河L6/L7 / L7-多按钮 / L7-浮动：使用固定映射
                     initCamerasForL7(cameraIds);
                 } else if (AppConfig.CAR_MODEL_PHONE.equals(carModel)) {
                     // 手机模式：2摄像头（前+后）
@@ -3090,8 +3307,8 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
                 // 发送录制状态广播（通知悬浮窗）
                 FloatingWindowService.sendRecordingStateChanged(this, true);
 
-                // L7-多按钮布局：更新录制按钮文字为"停止"
-                if (AppConfig.CAR_MODEL_L7_MULTI.equals(appConfig.getCarModel()) && btnStartRecord != null) {
+                // L7-多按钮 和 L7-浮动 布局：更新录制按钮文字为"停止"
+                if ((AppConfig.CAR_MODEL_L7_MULTI.equals(appConfig.getCarModel()) || AppConfig.CAR_MODEL_L7_FLOATING.equals(appConfig.getCarModel())) && btnStartRecord != null) {
                     btnStartRecord.setText("停止");
                 }
 
@@ -3131,8 +3348,8 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
             // 发送录制状态广播（通知悬浮窗）
             FloatingWindowService.sendRecordingStateChanged(this, false);
 
-            // L7-多按钮布局：恢复录制按钮文字为"录像"
-            if (AppConfig.CAR_MODEL_L7_MULTI.equals(appConfig.getCarModel()) && btnStartRecord != null) {
+            // L7-多按钮 和 L7-浮动 布局：恢复录制按钮文字为"录像"
+            if ((AppConfig.CAR_MODEL_L7_MULTI.equals(appConfig.getCarModel()) || AppConfig.CAR_MODEL_L7_FLOATING.equals(appConfig.getCarModel())) && btnStartRecord != null) {
                 btnStartRecord.setText("录像");
             }
 

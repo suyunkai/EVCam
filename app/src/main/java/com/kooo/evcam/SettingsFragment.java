@@ -68,7 +68,7 @@ public class SettingsFragment extends Fragment {
     // 车型配置相关
     private Spinner carModelSpinner;
     private Button customCameraConfigButton;
-    private static final String[] CAR_MODEL_OPTIONS = {"银河E5", "银河E5-多按钮", "银河L6/L7", "银河L7-多按钮", "领克07/08", "手机", "自定义车型"};
+    private static final String[] CAR_MODEL_OPTIONS = {"银河E5", "银河E5-多按钮", "银河L6/L7", "银河L7-多按钮", "银河L7-浮动", "领克07/08", "手机", "自定义车型"};
     private boolean isInitializingCarModel = false;
     private String lastAppliedCarModel = null;
     
@@ -801,7 +801,7 @@ public class SettingsFragment extends Fragment {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String newModel;
                 String modelName;
-                
+
                 if (position == 0) {
                     newModel = AppConfig.CAR_MODEL_GALAXY_E5;
                     modelName = "银河E5";
@@ -815,9 +815,12 @@ public class SettingsFragment extends Fragment {
                     newModel = AppConfig.CAR_MODEL_L7_MULTI;
                     modelName = "银河L7-多按钮";
                 } else if (position == 4) {
+                    newModel = AppConfig.CAR_MODEL_L7_FLOATING;
+                    modelName = "银河L7-浮动";
+                } else if (position == 5) {
                     newModel = AppConfig.CAR_MODEL_LYNK0708;
                     modelName = "领克07/08";
-                } else if (position == 5) {
+                } else if (position == 6) {
                     newModel = AppConfig.CAR_MODEL_PHONE;
                     modelName = "手机";
                 } else {
@@ -826,7 +829,7 @@ public class SettingsFragment extends Fragment {
                 }
 
                 // 仅自定义车型显示配置按钮
-                updateCustomConfigButtonVisibility(position == 6);
+                updateCustomConfigButtonVisibility(position == 7);
 
                 if (isInitializingCarModel) {
                     return;
@@ -863,12 +866,14 @@ public class SettingsFragment extends Fragment {
             selectedIndex = 2;
         } else if (AppConfig.CAR_MODEL_L7_MULTI.equals(currentModel)) {
             selectedIndex = 3;
-        } else if (AppConfig.CAR_MODEL_LYNK0708.equals(currentModel)) {
+        } else if (AppConfig.CAR_MODEL_L7_FLOATING.equals(currentModel)) {
             selectedIndex = 4;
-        } else if (AppConfig.CAR_MODEL_PHONE.equals(currentModel)) {
+        } else if (AppConfig.CAR_MODEL_LYNK0708.equals(currentModel)) {
             selectedIndex = 5;
-        } else if (AppConfig.CAR_MODEL_CUSTOM.equals(currentModel)) {
+        } else if (AppConfig.CAR_MODEL_PHONE.equals(currentModel)) {
             selectedIndex = 6;
+        } else if (AppConfig.CAR_MODEL_CUSTOM.equals(currentModel)) {
+            selectedIndex = 7;
         }
         carModelSpinner.setSelection(selectedIndex);
         
