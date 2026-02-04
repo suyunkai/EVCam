@@ -343,7 +343,7 @@ public class SettingsFragment extends Fragment {
 
         // 初始化悬浮窗设置
         initFloatingWindowSettings(view);
-
+        
         // 沉浸式状态栏兼容
         View toolbar = view.findViewById(R.id.toolbar);
         if (toolbar != null) {
