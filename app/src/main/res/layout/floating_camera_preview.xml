@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/floating_preview_background">
+
+    <!-- 预览画面 -->
+    <ImageView
+        android:id="@+id/preview_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:background="#000000" />
+
+    <!-- 顶部控制栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="4dp"
+        android:background="#80000000">
+
+        <!-- 摄像头标签 -->
+        <TextView
+            android:id="@+id/camera_label"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="前"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp" />
+
+        <!-- 切换摄像头按钮 -->
+        <ImageButton
+            android:id="@+id/btn_switch_camera"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_switch_camera"
+            android:scaleType="centerInside"
+            android:padding="4dp"
+            android:contentDescription="Switch camera" />
+
+        <!-- 放大按钮 -->
+        <ImageButton
+            android:id="@+id/btn_zoom_in"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_zoom_in"
+            android:scaleType="centerInside"
+            android:padding="4dp"
+            android:contentDescription="Zoom in" />
+
+        <!-- 缩小按钮 -->
+        <ImageButton
+            android:id="@+id/btn_zoom_out"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_zoom_out"
+            android:scaleType="centerInside"
+            android:padding="4dp"
+            android:contentDescription="Zoom out" />
+
+        <!-- 关闭按钮 -->
+        <ImageButton
+            android:id="@+id/btn_close"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_close_white"
+            android:scaleType="centerInside"
+            android:padding="4dp"
+            android:contentDescription="Close" />
+
+    </LinearLayout>
+
+</FrameLayout>

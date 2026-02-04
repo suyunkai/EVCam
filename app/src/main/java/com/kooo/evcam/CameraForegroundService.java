@@ -72,11 +72,47 @@ public class CameraForegroundService extends Service {
                     AppLog.d(TAG, "悬浮窗已启用，从 Service 启动悬浮窗...");
                     FloatingWindowService.start(this);
                 }
+                
+                // 如果启用了自动录制，启动 MainActivity
+                // 这确保杀后台重启后也能自动录制（与开机启动行为一致）
+                if (appConfig.isAutoStartRecording()) {
+                    startMainActivityForAutoRecording();
+                }
             } else {
                 AppLog.d(TAG, "开机自启动未开启，跳过远程服务启动");
             }
         } catch (Exception e) {
             AppLog.e(TAG, "启动远程服务失败: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 启动 MainActivity 进行自动录制
+     * 用于：
+     * 1. 杀后台后服务重启时恢复自动录制
+     * 2. 与开机启动（TransparentBootActivity）行为保持一致
+     */
+    private void startMainActivityForAutoRecording() {
+        try {
+            // 检查 MainActivity 是否已经在运行
+            // 通过检查静态引用判断（避免重复启动）
+            if (MainActivity.getInstance() != null) {
+                AppLog.d(TAG, "MainActivity 已在运行，跳过启动");
+                return;
+            }
+            
+            AppLog.d(TAG, "自动录制已启用，启动 MainActivity（后台模式）...");
+            
+            Intent mainIntent = new Intent(this, MainActivity.class);
+            mainIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+            mainIntent.putExtra("auto_start_from_boot", true);  // 复用开机自启动的逻辑
+            mainIntent.putExtra("silent_mode", true);
+            mainIntent.putExtra("from_service_restart", true);  // 标记来自服务重启
+            startActivity(mainIntent);
+            
+            AppLog.d(TAG, "MainActivity 已启动（用于自动录制）");
+        } catch (Exception e) {
+            AppLog.e(TAG, "启动 MainActivity 失败: " + e.getMessage(), e);
         }
     }
     
@@ -124,6 +160,10 @@ public class CameraForegroundService extends Service {
         
         // 确保 WakeLock 已获取
         acquireWakeLock();
+        
+        // 确保远程服务和悬浮窗已启动（处理 START_STICKY 自动重启的情况）
+        // onCreate 可能不会被调用（服务自动恢复时），所以这里也要检查
+        ensureRemoteServicesStarted();
 
         // 从Intent获取通知内容，如果没有则使用默认内容
         String title = intent != null ? intent.getStringExtra("title") : null;
@@ -143,6 +183,39 @@ public class CameraForegroundService extends Service {
         startForeground(NOTIFICATION_ID, notification);
 
         return START_STICKY;
+    }
+    
+    /**
+     * 确保远程服务和悬浮窗已启动
+     * 用于处理 START_STICKY 自动重启的情况（此时 onCreate 不会被调用）
+     */
+    private void ensureRemoteServicesStarted() {
+        try {
+            AppConfig appConfig = new AppConfig(this);
+            if (!appConfig.isAutoStartOnBoot()) {
+                return;  // 未开启开机自启动，跳过
+            }
+            
+            // 检查并启动悬浮窗
+            if (appConfig.isFloatingWindowEnabled() && !FloatingWindowService.isRunning()) {
+                AppLog.d(TAG, "悬浮窗未运行，重新启动...");
+                FloatingWindowService.start(this);
+            }
+            
+            // 检查并启动远程服务（如果未运行）
+            RemoteServiceManager serviceManager = RemoteServiceManager.getInstance();
+            if (!serviceManager.hasAnyServiceRunning()) {
+                AppLog.d(TAG, "远程服务未运行，重新启动...");
+                serviceManager.startRemoteServicesFromService(this);
+            }
+            
+            // 检查并启动 MainActivity（如果启用了自动录制且 Activity 未运行）
+            if (appConfig.isAutoStartRecording() && MainActivity.getInstance() == null) {
+                startMainActivityForAutoRecording();
+            }
+        } catch (Exception e) {
+            AppLog.e(TAG, "确保服务启动失败: " + e.getMessage(), e);
+        }
     }
 
     @Override

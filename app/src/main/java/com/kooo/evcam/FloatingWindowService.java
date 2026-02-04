@@ -28,6 +28,9 @@ import androidx.annotation.Nullable;
 public class FloatingWindowService extends Service {
     private static final String TAG = "FloatingWindowService";
     
+    // 服务运行状态（用于外部检查）
+    private static boolean isServiceRunning = false;
+    
     // 广播动作
     public static final String ACTION_RECORDING_STATE_CHANGED = "com.kooo.evcam.RECORDING_STATE_CHANGED";
     public static final String EXTRA_IS_RECORDING = "is_recording";
@@ -68,6 +71,7 @@ public class FloatingWindowService extends Service {
     public void onCreate() {
         super.onCreate();
         AppLog.d(TAG, "FloatingWindowService onCreate");
+        isServiceRunning = true;
         
         appConfig = new AppConfig(this);
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
@@ -102,6 +106,7 @@ public class FloatingWindowService extends Service {
     public void onDestroy() {
         super.onDestroy();
         AppLog.d(TAG, "FloatingWindowService onDestroy");
+        isServiceRunning = false;
         
         // 保存当前位置
         if (layoutParams != null) {
@@ -433,38 +438,23 @@ public class FloatingWindowService extends Service {
     
     /**
      * 打开应用
-     * 双保险策略：同时使用 moveTaskToFront 和 startActivity
-     * 因为 moveTaskToFront 可能静默失败（不抛异常但不生效）
+     * 使用 startActivity 将应用带回前台
+     * FLAG_ACTIVITY_REORDER_TO_FRONT 会将现有 Activity 移到栈顶
+     * FLAG_ACTIVITY_SINGLE_TOP 确保不会创建新实例
+     * 
+     * 注意：不再使用 moveTaskToFront + startActivity 双保险模式，
+     * 因为会导致 onResume 被调用两次，引发摄像头资源冲突
      */
     private void openApp() {
         AppLog.d(TAG, "点击悬浮窗，打开应用");
         
-        boolean moveToFrontAttempted = false;
-        
-        // 尝试使用 moveTaskToFront 快速恢复
-        android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
-        if (am != null) {
-            java.util.List<android.app.ActivityManager.AppTask> tasks = am.getAppTasks();
-            if (tasks != null && !tasks.isEmpty()) {
-                try {
-                    tasks.get(0).moveToFront();
-                    moveToFrontAttempted = true;
-                    AppLog.d(TAG, "已尝试 moveTaskToFront");
-                } catch (Exception e) {
-                    AppLog.w(TAG, "moveTaskToFront 异常: " + e.getMessage());
-                }
-            }
-        }
-        
-        // 始终同时发送 startActivity 作为备份
-        // moveTaskToFront 可能静默失败，startActivity 确保 Intent 被系统处理
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK 
                 | Intent.FLAG_ACTIVITY_SINGLE_TOP 
                 | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivity(intent);
         
-        AppLog.d(TAG, "已发送 startActivity" + (moveToFrontAttempted ? "（双保险模式）" : ""));
+        AppLog.d(TAG, "已发送 startActivity");
     }
     
     /**
@@ -563,6 +553,13 @@ public class FloatingWindowService extends Service {
     public static void stop(Context context) {
         Intent intent = new Intent(context, FloatingWindowService.class);
         context.stopService(intent);
+    }
+    
+    /**
+     * 检查悬浮窗服务是否正在运行
+     */
+    public static boolean isRunning() {
+        return isServiceRunning;
     }
     
     /**

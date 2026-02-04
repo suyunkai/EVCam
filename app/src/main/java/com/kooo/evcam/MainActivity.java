@@ -64,6 +64,9 @@ import java.util.concurrent.TimeUnit;
 public class MainActivity extends AppCompatActivity implements WechatRemoteManager.CommandExecutor {
     private static final String TAG = "MainActivity";
     private static final int REQUEST_PERMISSIONS = 100;
+    
+    // 静态实例引用（用于悬浮窗等外部组件访问）
+    private static MainActivity instance;
 
     // 根据Android版本动态获取需要的权限
     private String[] getRequiredPermissions() {
@@ -108,10 +111,20 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
     private boolean autoStartRecordingTriggered = false;  // 标记自动录制是否已触发（避免重复触发）
     private boolean isAutoRecordingPending = false;  // 标记自动录制已计划但尚未开始（防止 onPause 关闭摄像头）
     
+    // 自动录制定时检查相关
+    private boolean isManuallyStoppedRecording = false;  // 用户是否手动停止了录制（手动停止后不自动恢复）
+    private android.os.Handler autoRecordingCheckHandler;  // 定时检查 Handler
+    private Runnable autoRecordingCheckRunnable;  // 定时检查 Runnable
+    private static final long AUTO_RECORDING_CHECK_INTERVAL_MS = 30000;  // 检查间隔（30秒）
+    
     // 主题切换后恢复录制相关
     private boolean shouldResumeRecordingAfterRecreate = false;  // 主题切换后是否需要恢复录制
     private long savedRecordingStartTime = 0;  // 保存的录制开始时间（用于计时器恢复）
     private int savedSegmentCount = 1;  // 保存的分段数
+    
+    // 摄像头重连防抖相关
+    private android.os.Handler reopenCameraHandler;  // 重新打开摄像头的 Handler
+    private Runnable reopenCameraRunnable;  // 重新打开摄像头的 Runnable
     
     // 息屏录制相关
     private android.content.BroadcastReceiver screenStateReceiver;  // 屏幕状态广播接收器
@@ -200,6 +213,7 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        instance = this;  // 设置静态实例引用
         AppLog.init(this);
 
         // 设置字体缩放比例（1.3倍）
@@ -1007,6 +1021,9 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
         textureBack = findViewById(R.id.texture_back);  // 1摄布局中为null
         textureLeft = findViewById(R.id.texture_left);  // 1摄和2摄布局中为null
         textureRight = findViewById(R.id.texture_right);  // 1摄和2摄布局中为null
+        
+        // 设置长按事件，长按摄像头预览可弹出独立悬浮窗
+        setupCameraPreviewLongClick();
         
         btnStartRecord = findViewById(R.id.btn_start_record);
         btnExit = findViewById(R.id.btn_exit);
@@ -2572,6 +2589,9 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
                 
                 // 检查并触发自动录制（延迟执行，确保摄像头准备就绪）
                 checkAutoStartRecording();
+                
+                // 启动自动录制定时检查（如果启用了自动录制）
+                startAutoRecordingCheck();
 
             } catch (CameraAccessException e) {
                 AppLog.e(TAG, "Failed to access camera", e);
@@ -2995,6 +3015,93 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
     }
     
     /**
+     * 启动自动录制定时检查
+     * 定期检查录制状态，如果启用了自动录制且不是手动停止的，则自动恢复录制
+     */
+    private void startAutoRecordingCheck() {
+        // 检查是否启用了自动录制
+        if (!appConfig.isAutoStartRecording()) {
+            AppLog.d(TAG, "未启用自动录制，跳过定时检查");
+            return;
+        }
+        
+        // 初始化 Handler
+        if (autoRecordingCheckHandler == null) {
+            autoRecordingCheckHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        }
+        
+        // 取消之前的检查任务
+        if (autoRecordingCheckRunnable != null) {
+            autoRecordingCheckHandler.removeCallbacks(autoRecordingCheckRunnable);
+        }
+        
+        // 创建定时检查任务
+        autoRecordingCheckRunnable = new Runnable() {
+            @Override
+            public void run() {
+                checkAndRestoreAutoRecording();
+                // 继续下一次检查
+                if (autoRecordingCheckHandler != null && autoRecordingCheckRunnable != null) {
+                    autoRecordingCheckHandler.postDelayed(this, AUTO_RECORDING_CHECK_INTERVAL_MS);
+                }
+            }
+        };
+        
+        // 延迟首次检查（给自动录制启动一些时间）
+        autoRecordingCheckHandler.postDelayed(autoRecordingCheckRunnable, AUTO_RECORDING_CHECK_INTERVAL_MS);
+        AppLog.d(TAG, "自动录制定时检查已启动（每 " + (AUTO_RECORDING_CHECK_INTERVAL_MS / 1000) + " 秒检查一次）");
+    }
+    
+    /**
+     * 停止自动录制定时检查
+     */
+    private void stopAutoRecordingCheck() {
+        if (autoRecordingCheckHandler != null && autoRecordingCheckRunnable != null) {
+            autoRecordingCheckHandler.removeCallbacks(autoRecordingCheckRunnable);
+            AppLog.d(TAG, "自动录制定时检查已停止");
+        }
+        autoRecordingCheckRunnable = null;
+    }
+    
+    /**
+     * 检查并恢复自动录制
+     * 条件：启用了自动录制 + 不是手动停止 + 当前没在录制 + 摄像头已连接
+     */
+    private void checkAndRestoreAutoRecording() {
+        // 检查是否启用了自动录制
+        if (!appConfig.isAutoStartRecording()) {
+            return;
+        }
+        
+        // 如果用户手动停止了录制，不自动恢复
+        if (isManuallyStoppedRecording) {
+            // 每5分钟打印一次日志（避免日志刷屏）
+            return;
+        }
+        
+        // 如果已经在录制，不需要恢复
+        if (isRecording) {
+            return;
+        }
+        
+        // 如果正在准备录制，不需要恢复
+        if (isAutoRecordingPending || isPreparingRecording) {
+            return;
+        }
+        
+        // 检查摄像头是否就绪
+        if (cameraManager == null || !cameraManager.hasConnectedCameras()) {
+            AppLog.w(TAG, "自动录制检查：摄像头未就绪，跳过恢复");
+            return;
+        }
+        
+        // 满足所有条件，自动恢复录制
+        AppLog.d(TAG, "自动录制检查：检测到未在录制，自动恢复录制...");
+        startRecording();
+        Toast.makeText(this, "已自动恢复录制", Toast.LENGTH_SHORT).show();
+    }
+    
+    /**
      * 初始化息屏状态广播接收器
      * 用于检测屏幕开关状态，实现息屏录制功能
      */
@@ -3328,11 +3435,20 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
         lastRecordButtonClickTime = currentTime;
         
         if (isRecording) {
+            // 用户手动停止录制，设置手动停止标记
+            // 这样自动录制检查不会自动恢复录制
+            isManuallyStoppedRecording = true;
+            AppLog.d(TAG, "用户手动停止录制，自动录制检查将不再自动恢复");
+            
             // 用户手动停止录制，重置息屏录制标记
             // 这样亮屏后不会错误地恢复录制
             wasRecordingBeforeScreenOff = false;
             stopRecording();
         } else {
+            // 用户手动开始录制，重置手动停止标记
+            // 这样后续如果录制异常停止，可以自动恢复
+            isManuallyStoppedRecording = false;
+            AppLog.d(TAG, "用户手动开始录制，自动录制检查已启用");
             startRecording();
         }
     }
@@ -4386,8 +4502,19 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
         
         // 返回前台时，检查摄像头连接状态
         if (cameraManager != null && wasInBackground) {
-            // 延迟500ms后重新打开摄像头
-            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            // 初始化 Handler（如果需要）
+            if (reopenCameraHandler == null) {
+                reopenCameraHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+            }
+            
+            // 取消之前的延迟任务（防抖：避免 onResume 被多次调用时重复打开摄像头）
+            if (reopenCameraRunnable != null) {
+                reopenCameraHandler.removeCallbacks(reopenCameraRunnable);
+                AppLog.d(TAG, "Cancelled previous camera reopen task (debounce)");
+            }
+            
+            // 创建新的延迟任务
+            reopenCameraRunnable = () -> {
                 // 只在没有正在录制时重新打开（录制时摄像头应该保持连接）
                 if (!isRecording) {
                     AppLog.d(TAG, "Reopening cameras after returning from background");
@@ -4423,7 +4550,10 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
                         }
                     }, 1500);
                 }
-            }, 500);
+            };
+            
+            // 延迟100ms后执行（只有最后一次 onResume 会真正执行）
+            reopenCameraHandler.postDelayed(reopenCameraRunnable, 100);
         }
         // 注意：心跳服务自启动逻辑已移至 initHeartbeatManager() 中
         // 因为 onResume 执行时 HeartbeatManager 可能还没有初始化
@@ -4433,6 +4563,11 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
     protected void onDestroy() {
         super.onDestroy();
         
+        // 清除静态实例引用
+        if (instance == this) {
+            instance = null;
+        }
+        
         // 保存当前运行日志到持久化文件（用于下次启动时可上传"上次运行日志"）
         // 放在 onDestroy 开头，确保在清理其他资源前保存完整日志
         AppLog.saveToPersistentLog(this);
@@ -4441,6 +4576,9 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
         if (autoStopHandler != null && autoStopRunnable != null) {
             autoStopHandler.removeCallbacks(autoStopRunnable);
         }
+        
+        // 停止自动录制定时检查
+        stopAutoRecordingCheck();
         
         // 重置远程录制状态
         isRemoteRecording = false;
@@ -4925,5 +5063,99 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
                 Toast.makeText(this, "悬浮窗权限未授予", Toast.LENGTH_SHORT).show();
             }
         }
+    }
+    
+    // ==================== 悬浮窗相关方法 ====================
+    
+    /**
+     * 设置摄像头预览长按事件
+     * 长按摄像头预览可弹出独立悬浮窗显示该摄像头画面
+     */
+    private void setupCameraPreviewLongClick() {
+        View.OnLongClickListener longClickListener = v -> {
+            String position = null;
+            if (v == textureFront) {
+                position = "front";
+            } else if (v == textureBack) {
+                position = "back";
+            } else if (v == textureLeft) {
+                position = "left";
+            } else if (v == textureRight) {
+                position = "right";
+            }
+            
+            if (position != null) {
+                showCameraPreviewFloating(position);
+                return true;
+            }
+            return false;
+        };
+        
+        // 为每个 TextureView 设置长按事件
+        if (textureFront != null) {
+            textureFront.setOnLongClickListener(longClickListener);
+        }
+        if (textureBack != null) {
+            textureBack.setOnLongClickListener(longClickListener);
+        }
+        if (textureLeft != null) {
+            textureLeft.setOnLongClickListener(longClickListener);
+        }
+        if (textureRight != null) {
+            textureRight.setOnLongClickListener(longClickListener);
+        }
+    }
+    
+    /**
+     * 获取 MainActivity 实例
+     * 用于悬浮窗等外部组件访问摄像头
+     * 
+     * @return MainActivity 实例，如果 Activity 未创建或已销毁则返回 null
+     */
+    public static MainActivity getInstance() {
+        return instance;
+    }
+    
+    /**
+     * 根据位置获取对应的摄像头
+     * 
+     * @param position 摄像头位置（front/back/left/right）
+     * @return SingleCamera 实例，如果不存在则返回 null
+     */
+    public SingleCamera getCameraByPosition(String position) {
+        if (cameraManager == null) {
+            return null;
+        }
+        return cameraManager.getCamera(position);
+    }
+    
+    /**
+     * 显示摄像头预览悬浮窗
+     * 
+     * @param cameraPosition 要显示的摄像头位置（front/back/left/right）
+     */
+    public void showCameraPreviewFloating(String cameraPosition) {
+        // 检查悬浮窗权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !android.provider.Settings.canDrawOverlays(this)) {
+            Toast.makeText(this, "需要悬浮窗权限才能显示预览", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    android.net.Uri.parse("package:" + getPackageName()));
+            startActivity(intent);
+            return;
+        }
+        
+        // TODO: CameraPreviewFloatingService 尚未实现
+        // CameraPreviewFloatingService.start(this, cameraPosition);
+        AppLog.d(TAG, "Camera preview floating not implemented yet for: " + cameraPosition);
+        Toast.makeText(this, "摄像头预览悬浮窗功能尚未实现", Toast.LENGTH_SHORT).show();
+    }
+    
+    /**
+     * 关闭摄像头预览悬浮窗
+     */
+    public void dismissCameraPreviewFloating() {
+        // TODO: CameraPreviewFloatingService 尚未实现
+        // CameraPreviewFloatingService.stop(this);
+        AppLog.d(TAG, "Camera preview floating stop - not implemented yet");
     }
 }
