@@ -1251,25 +1251,22 @@
                         android:layout_height="wrap_content"
                         android:layout_gravity="bottom" />
 
-                    <!-- 录制状态显示（在最上层） -->
+                    <!-- 录制状态显示（右上角，与银河E5样式一致） -->
                     <TextView
                         android:id="@+id/tv_recording_stats"
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="bottom"
-                        android:layout_marginBottom="2dp"
-                        android:layout_marginStart="8dp"
-                        android:layout_marginEnd="8dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="15dp"
+                        android:layout_marginEnd="16dp"
                         android:background="@drawable/camera_label_background"
                         android:paddingStart="12dp"
                         android:paddingEnd="12dp"
                         android:paddingTop="6dp"
                         android:paddingBottom="6dp"
-                        android:text="正在录制 00:00 / 1"
-                        android:textColor="#FF0000"
+                        android:text="00:00 / 1"
+                        android:textColor="#FFFFFF"
                         android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:gravity="center"
                         android:visibility="gone" />
 
                     <!-- 左侧按钮容器（竖版时显示，在摄像头上层） -->
