@@ -4490,9 +4490,16 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
                 // 自动录制正在等待中：保持摄像头连接（开机自启动场景）
                 AppLog.d(TAG, "Auto recording pending, keeping cameras connected for startup recording");
             } else {
-                // 未录制：主动断开摄像头，避免后台拍照黑屏问题
-                AppLog.d(TAG, "Not recording, closing all cameras to avoid background issues");
-                cameraManager.closeAllCameras();
+                boolean keepCamerasForBlindSpot = appConfig.isSecondaryDisplayEnabled()
+                        || appConfig.isMainFloatingEnabled()
+                        || appConfig.isTurnSignalLinkageEnabled();
+                if (keepCamerasForBlindSpot) {
+                    AppLog.d(TAG, "Not recording, but blind-spot features enabled, keeping cameras connected");
+                } else {
+                    // 未录制：主动断开摄像头，避免后台拍照黑屏问题
+                    AppLog.d(TAG, "Not recording, closing all cameras to avoid background issues");
+                    cameraManager.closeAllCameras();
+                }
             }
         }
     }

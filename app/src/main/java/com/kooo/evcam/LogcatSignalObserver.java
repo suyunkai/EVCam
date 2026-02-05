@@ -21,10 +21,11 @@ public class LogcatSignalObserver {
 
     public interface SignalListener {
         /**
-         * 转向灯信号回调
-         * @param data1 170:右, 85:左, 0:熄灭
+         * 原始日志回调
+         * @param line 完整logcat行
+         * @param data1 解析到的 data1（未解析到则为 -1）
          */
-        void onTurnSignalReceived(int data1);
+        void onLogLine(String line, int data1);
     }
 
     private final SignalListener listener;
@@ -51,21 +52,24 @@ public class LogcatSignalObserver {
                 
                 String line;
                 while (isRunning && (line = reader.readLine()) != null) {
+                    int data1 = -1;
                     if (line.contains("data1 =")) {
                         Matcher matcher = SIGNAL_PATTERN.matcher(line);
                         if (matcher.find()) {
                             try {
-                                final int data1 = Integer.parseInt(matcher.group(1));
-                                mainHandler.post(() -> {
-                                    if (listener != null) {
-                                        listener.onTurnSignalReceived(data1);
-                                    }
-                                });
+                                data1 = Integer.parseInt(matcher.group(1));
                             } catch (NumberFormatException e) {
-                                // Ignore
+                                data1 = -1;
                             }
                         }
                     }
+                    final int finalData1 = data1;
+                    final String finalLine = line;
+                    mainHandler.post(() -> {
+                        if (listener != null) {
+                            listener.onLogLine(finalLine, finalData1);
+                        }
+                    });
                 }
             } catch (Exception e) {
                 AppLog.e(TAG, "Logcat reading error: " + e.getMessage());

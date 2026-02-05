@@ -47,6 +47,7 @@ public class MultiVideoPlayerManager {
     private boolean isPrepared = false;
     private int preparedCount = 0;
     private int totalVideos = 0;
+    private boolean isStopping = false;
 
     /** 当前倍速 */
     private float currentSpeed = 1.0f;
@@ -180,7 +181,12 @@ public class MultiVideoPlayerManager {
             });
 
             videoView.setOnErrorListener((mp, what, extra) -> {
-                Log.e(TAG, "Video error: " + position + ", what=" + what + ", extra=" + extra);
+                if (!isStopping) {
+                    Log.w(TAG, "Video error: " + position + ", what=" + what + ", extra=" + extra);
+                    if (playbackListener != null) {
+                        playbackListener.onError("Video error: " + position + ", what=" + what + ", extra=" + extra);
+                    }
+                }
                 return true;
             });
 
@@ -282,6 +288,7 @@ public class MultiVideoPlayerManager {
         isPlaying = false;
         isPrepared = false;
         handler.removeCallbacksAndMessages(null);
+        isStopping = true;
 
         try {
             if (videoFront != null) videoFront.stopPlayback();
@@ -294,6 +301,7 @@ public class MultiVideoPlayerManager {
         }
 
         mediaPlayers.clear();
+        isStopping = false;
     }
 
     /**

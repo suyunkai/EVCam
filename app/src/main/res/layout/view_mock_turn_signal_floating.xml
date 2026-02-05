@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/spinner_background"
+    android:padding="10dp">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/tv_drag_handle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="模拟补盲（拖动这里）"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:paddingStart="6dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp" />
+
+        <Button
+            android:id="@+id/btn_close"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:text="×"
+            android:textSize="18sp"
+            android:backgroundTint="@color/button_background"
+            android:textColor="@color/button_text" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp">
+
+        <Button
+            android:id="@+id/btn_mock_left"
+            android:layout_width="88dp"
+            android:layout_height="48dp"
+            android:text="左 (3s)"
+            android:textSize="14sp"
+            android:backgroundTint="@color/button_accent"
+            android:textColor="@color/white"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btn_mock_right"
+            android:layout_width="88dp"
+            android:layout_height="48dp"
+            android:text="右 (3s)"
+            android:textSize="14sp"
+            android:backgroundTint="@color/button_accent"
+            android:textColor="@color/white" />
+    </LinearLayout>
+</LinearLayout>

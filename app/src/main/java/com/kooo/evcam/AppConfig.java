@@ -79,6 +79,17 @@ public class AppConfig {
     private static final String KEY_TURN_SIGNAL_FLOATING_WIDTH = "turn_signal_floating_width";  // 独立补盲悬浮窗宽度
     private static final String KEY_TURN_SIGNAL_FLOATING_HEIGHT = "turn_signal_floating_height"; // 独立补盲悬浮窗高度
     private static final String KEY_TURN_SIGNAL_FLOATING_ROTATION = "turn_signal_floating_rotation"; // 独立补盲悬浮窗旋转
+    private static final String KEY_TURN_SIGNAL_LOG_PRESET = "turn_signal_log_preset"; // 转向灯log预置
+    private static final String KEY_TURN_SIGNAL_CUSTOM_LEFT_TRIGGER_LOG = "turn_signal_custom_left_trigger_log"; // 自定义车型-左转向灯触发log关键字
+    private static final String KEY_TURN_SIGNAL_CUSTOM_RIGHT_TRIGGER_LOG = "turn_signal_custom_right_trigger_log"; // 自定义车型-右转向灯触发log关键字
+
+    public static final String TURN_SIGNAL_LOG_PRESET_XINGHAN7_2026 = "xinghan7_2026";
+    public static final String TURN_SIGNAL_LOG_PRESET_CUSTOM = "custom";
+
+    // 桌面悬浮模拟按钮 (补盲选项新增)
+    private static final String KEY_MOCK_TURN_SIGNAL_FLOATING_ENABLED = "mock_turn_signal_floating_enabled"; // 悬浮模拟按钮开关
+    private static final String KEY_MOCK_TURN_SIGNAL_FLOATING_X = "mock_turn_signal_floating_x";             // 悬浮模拟按钮X
+    private static final String KEY_MOCK_TURN_SIGNAL_FLOATING_Y = "mock_turn_signal_floating_y";             // 悬浮模拟按钮Y
     
     // 时间角标配置
     private static final String KEY_TIMESTAMP_WATERMARK_ENABLED = "timestamp_watermark_enabled";  // 时间角标开关
@@ -1515,6 +1526,57 @@ public class AppConfig {
         return prefs.getBoolean(KEY_TURN_SIGNAL_REUSE_MAIN_FLOATING, true);
     }
 
+    public void setTurnSignalLogPreset(String preset) {
+        prefs.edit().putString(KEY_TURN_SIGNAL_LOG_PRESET, preset).apply();
+    }
+
+    public String getTurnSignalLogPreset() {
+        return prefs.getString(
+                KEY_TURN_SIGNAL_LOG_PRESET,
+                TURN_SIGNAL_LOG_PRESET_XINGHAN7_2026
+        );
+    }
+
+    public boolean isTurnSignalCustomPreset() {
+        return TURN_SIGNAL_LOG_PRESET_CUSTOM.equals(getTurnSignalLogPreset());
+    }
+
+    public void setTurnSignalCustomLeftTriggerLog(String keyword) {
+        prefs.edit().putString(KEY_TURN_SIGNAL_CUSTOM_LEFT_TRIGGER_LOG, keyword).apply();
+    }
+
+    public String getTurnSignalCustomLeftTriggerLog() {
+        return prefs.getString(
+                KEY_TURN_SIGNAL_CUSTOM_LEFT_TRIGGER_LOG,
+                ""
+        );
+    }
+
+    public void setTurnSignalCustomRightTriggerLog(String keyword) {
+        prefs.edit().putString(KEY_TURN_SIGNAL_CUSTOM_RIGHT_TRIGGER_LOG, keyword).apply();
+    }
+
+    public String getTurnSignalCustomRightTriggerLog() {
+        return prefs.getString(
+                KEY_TURN_SIGNAL_CUSTOM_RIGHT_TRIGGER_LOG,
+                ""
+        );
+    }
+
+    public String getTurnSignalLeftTriggerLog() {
+        if (isTurnSignalCustomPreset()) {
+            return getTurnSignalCustomLeftTriggerLog();
+        }
+        return "data1 = 85";
+    }
+
+    public String getTurnSignalRightTriggerLog() {
+        if (isTurnSignalCustomPreset()) {
+            return getTurnSignalCustomRightTriggerLog();
+        }
+        return "data1 = 170";
+    }
+
     /**
      * 设置独立补盲悬浮窗位置和大小
      */
@@ -1552,6 +1614,31 @@ public class AppConfig {
 
     public int getTurnSignalFloatingRotation() {
         return prefs.getInt(KEY_TURN_SIGNAL_FLOATING_ROTATION, 0);
+    }
+
+    // ==================== 桌面悬浮模拟按钮配置相关方法 ====================
+
+    public void setMockTurnSignalFloatingEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_MOCK_TURN_SIGNAL_FLOATING_ENABLED, enabled).apply();
+    }
+
+    public boolean isMockTurnSignalFloatingEnabled() {
+        return prefs.getBoolean(KEY_MOCK_TURN_SIGNAL_FLOATING_ENABLED, false);
+    }
+
+    public void setMockTurnSignalFloatingPosition(int x, int y) {
+        prefs.edit()
+                .putInt(KEY_MOCK_TURN_SIGNAL_FLOATING_X, x)
+                .putInt(KEY_MOCK_TURN_SIGNAL_FLOATING_Y, y)
+                .apply();
+    }
+
+    public int getMockTurnSignalFloatingX() {
+        return prefs.getInt(KEY_MOCK_TURN_SIGNAL_FLOATING_X, 200);
+    }
+
+    public int getMockTurnSignalFloatingY() {
+        return prefs.getInt(KEY_MOCK_TURN_SIGNAL_FLOATING_Y, 200);
     }
     
     // ==================== 时间角标配置相关方法 ====================
