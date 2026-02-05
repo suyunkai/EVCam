@@ -1176,8 +1176,21 @@ public class SingleCamera {
                     
                     // 重试逻辑... (保持原有的重试逻辑，但简化一下)
                     if (recordSurface != null) {
-                        AppLog.w(TAG, "Retrying without recording surface...");
-                        recordSurface = null;
+                        boolean droppedOptionalSurface = false;
+                        if (secondaryDisplaySurface != null) {
+                            secondaryDisplaySurface = null;
+                            droppedOptionalSurface = true;
+                            AppLog.w(TAG, "Retrying without secondary display surface...");
+                        }
+                        if (!droppedOptionalSurface && mainFloatingSurface != null) {
+                            mainFloatingSurface = null;
+                            droppedOptionalSurface = true;
+                            AppLog.w(TAG, "Retrying without main floating surface...");
+                        }
+                        if (!droppedOptionalSurface) {
+                            AppLog.w(TAG, "Retrying without recording surface...");
+                            recordSurface = null;
+                        }
                         if (backgroundHandler != null) {
                             backgroundHandler.postDelayed(() -> {
                                 if (cameraDevice != null) createCameraPreviewSession();
@@ -1215,19 +1228,29 @@ public class SingleCamera {
             String message = e.getMessage();
             if (message != null && message.contains("abandoned")) {
                 AppLog.e(TAG, "Camera " + cameraId + " detected abandoned Surface, attempting recovery...");
-                // 清理废弃的录制 Surface
-                if (recordSurface != null) {
-                    AppLog.w(TAG, "Camera " + cameraId + " clearing abandoned recordSurface and retrying");
+                boolean cleared = false;
+                if (secondaryDisplaySurface != null) {
+                    secondaryDisplaySurface = null;
+                    cleared = true;
+                    AppLog.w(TAG, "Camera " + cameraId + " cleared abandoned secondaryDisplaySurface and retrying");
+                }
+                if (!cleared && mainFloatingSurface != null) {
+                    mainFloatingSurface = null;
+                    cleared = true;
+                    AppLog.w(TAG, "Camera " + cameraId + " cleared abandoned mainFloatingSurface and retrying");
+                }
+                if (!cleared && recordSurface != null) {
                     recordSurface = null;
-                    // 延迟重试创建会话（只使用预览 Surface）
-                    if (backgroundHandler != null) {
-                        backgroundHandler.postDelayed(() -> {
-                            if (cameraDevice != null) {
-                                AppLog.d(TAG, "Camera " + cameraId + " retrying session creation without record surface");
-                                createCameraPreviewSession();
-                            }
-                        }, 100);
-                    }
+                    cleared = true;
+                    AppLog.w(TAG, "Camera " + cameraId + " cleared abandoned recordSurface and retrying");
+                }
+                if (cleared && backgroundHandler != null) {
+                    backgroundHandler.postDelayed(() -> {
+                        if (cameraDevice != null) {
+                            AppLog.d(TAG, "Camera " + cameraId + " retrying session creation after abandoning surface cleanup");
+                            createCameraPreviewSession();
+                        }
+                    }, 100);
                     return;
                 }
             }

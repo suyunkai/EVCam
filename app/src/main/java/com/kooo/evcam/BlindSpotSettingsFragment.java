@@ -7,7 +7,6 @@ import android.view.Display;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.MotionEvent;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -16,6 +15,7 @@ import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.text.method.KeyListener;
 import android.text.TextWatcher;
 import android.text.Editable;
 import android.content.Intent;
@@ -43,6 +43,11 @@ public class BlindSpotSettingsFragment extends Fragment {
     private TextView tvTurnSignalTimeout;
     private SwitchMaterial reuseMainFloatingSwitch;
     private Button setupBlindSpotPosButton;
+    private Spinner turnSignalPresetSpinner;
+    private EditText turnSignalLeftLogEditText;
+    private EditText turnSignalRightLogEditText;
+    private KeyListener turnSignalLeftKeyListener;
+    private KeyListener turnSignalRightKeyListener;
 
     private SwitchMaterial secondaryDisplaySwitch;
     private Spinner cameraSpinner;
@@ -53,8 +58,7 @@ public class BlindSpotSettingsFragment extends Fragment {
     private Spinner rotationSpinner;
     private Spinner orientationSpinner;
     private SwitchMaterial borderSwitch;
-    private Button mockLeftButton, mockRightButton;
-    private View joystickContainer, joystickHandle;
+    private SwitchMaterial mockFloatingSwitch;
     private Button saveButton;
     private Button logcatDebugButton;
     private android.widget.EditText logFilterEditText;
@@ -88,6 +92,11 @@ public class BlindSpotSettingsFragment extends Fragment {
         tvTurnSignalTimeout = view.findViewById(R.id.tv_turn_signal_timeout_value);
         reuseMainFloatingSwitch = view.findViewById(R.id.switch_reuse_main_floating);
         setupBlindSpotPosButton = view.findViewById(R.id.btn_setup_blind_spot_pos);
+        turnSignalPresetSpinner = view.findViewById(R.id.spinner_turn_signal_preset);
+        turnSignalLeftLogEditText = view.findViewById(R.id.et_turn_signal_left_log);
+        turnSignalRightLogEditText = view.findViewById(R.id.et_turn_signal_right_log);
+        turnSignalLeftKeyListener = turnSignalLeftLogEditText.getKeyListener();
+        turnSignalRightKeyListener = turnSignalRightLogEditText.getKeyListener();
 
         // 副屏显示
         secondaryDisplaySwitch = view.findViewById(R.id.switch_secondary_display);
@@ -106,10 +115,7 @@ public class BlindSpotSettingsFragment extends Fragment {
         orientationSpinner = view.findViewById(R.id.spinner_screen_orientation);
         borderSwitch = view.findViewById(R.id.switch_border);
         
-        mockLeftButton = view.findViewById(R.id.btn_mock_left);
-        mockRightButton = view.findViewById(R.id.btn_mock_right);
-        joystickContainer = view.findViewById(R.id.joystick_container);
-        joystickHandle = view.findViewById(R.id.joystick_handle);
+        mockFloatingSwitch = view.findViewById(R.id.switch_mock_floating);
         
         saveButton = view.findViewById(R.id.btn_save_apply);
         logcatDebugButton = view.findViewById(R.id.btn_logcat_debug);
@@ -134,6 +140,11 @@ public class BlindSpotSettingsFragment extends Fragment {
         ArrayAdapter<String> orientationAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, orientations);
         orientationAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         orientationSpinner.setAdapter(orientationAdapter);
+
+        String[] turnSignalPresets = {"2026款星舰7（默认）", "自定义车型"};
+        ArrayAdapter<String> turnSignalPresetAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, turnSignalPresets);
+        turnSignalPresetAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        turnSignalPresetSpinner.setAdapter(turnSignalPresetAdapter);
 
         // 检测显示器
         updateDisplayList();
@@ -165,6 +176,8 @@ public class BlindSpotSettingsFragment extends Fragment {
         tvTurnSignalTimeout.setText(timeout + "s");
         reuseMainFloatingSwitch.setChecked(appConfig.isTurnSignalReuseMainFloating());
         setupBlindSpotPosButton.setVisibility(appConfig.isTurnSignalReuseMainFloating() ? View.GONE : View.VISIBLE);
+        turnSignalPresetSpinner.setSelection(appConfig.isTurnSignalCustomPreset() ? 1 : 0);
+        applyTurnSignalPresetUi(appConfig.isTurnSignalCustomPreset() ? 1 : 0, false);
 
         // 副屏显示
         secondaryDisplaySwitch.setChecked(appConfig.isSecondaryDisplayEnabled());
@@ -193,6 +206,56 @@ public class BlindSpotSettingsFragment extends Fragment {
         rotationSpinner.setSelection(appConfig.getSecondaryDisplayRotation() / 90);
         orientationSpinner.setSelection(appConfig.getSecondaryDisplayOrientation() / 90);
         borderSwitch.setChecked(appConfig.isSecondaryDisplayBorderEnabled());
+
+        mockFloatingSwitch.setChecked(appConfig.isMockTurnSignalFloatingEnabled());
+    }
+
+    private void applyTurnSignalPresetUi(int presetIndex, boolean persist) {
+        if (presetIndex == 0) {
+            if (persist) {
+                appConfig.setTurnSignalLogPreset(AppConfig.TURN_SIGNAL_LOG_PRESET_XINGHAN7_2026);
+            }
+            setTurnSignalLogEditable(false);
+            turnSignalLeftLogEditText.setText("data1 = 85");
+            turnSignalRightLogEditText.setText("data1 = 170");
+        } else {
+            if (persist) {
+                appConfig.setTurnSignalLogPreset(AppConfig.TURN_SIGNAL_LOG_PRESET_CUSTOM);
+            }
+            setTurnSignalLogEditable(true);
+            turnSignalLeftLogEditText.setText(appConfig.getTurnSignalCustomLeftTriggerLog());
+            turnSignalRightLogEditText.setText(appConfig.getTurnSignalCustomRightTriggerLog());
+        }
+    }
+
+    private void setTurnSignalLogEditable(boolean editable) {
+        if (editable) {
+            turnSignalLeftLogEditText.setKeyListener(turnSignalLeftKeyListener);
+            turnSignalRightLogEditText.setKeyListener(turnSignalRightKeyListener);
+            turnSignalLeftLogEditText.setCursorVisible(true);
+            turnSignalRightLogEditText.setCursorVisible(true);
+            turnSignalLeftLogEditText.setFocusable(true);
+            turnSignalRightLogEditText.setFocusable(true);
+            turnSignalLeftLogEditText.setFocusableInTouchMode(true);
+            turnSignalRightLogEditText.setFocusableInTouchMode(true);
+            turnSignalLeftLogEditText.setLongClickable(true);
+            turnSignalRightLogEditText.setLongClickable(true);
+            turnSignalLeftLogEditText.setTextIsSelectable(true);
+            turnSignalRightLogEditText.setTextIsSelectable(true);
+        } else {
+            turnSignalLeftLogEditText.setKeyListener(null);
+            turnSignalRightLogEditText.setKeyListener(null);
+            turnSignalLeftLogEditText.setCursorVisible(false);
+            turnSignalRightLogEditText.setCursorVisible(false);
+            turnSignalLeftLogEditText.setFocusable(false);
+            turnSignalRightLogEditText.setFocusable(false);
+            turnSignalLeftLogEditText.setFocusableInTouchMode(false);
+            turnSignalRightLogEditText.setFocusableInTouchMode(false);
+            turnSignalLeftLogEditText.setLongClickable(false);
+            turnSignalRightLogEditText.setLongClickable(false);
+            turnSignalLeftLogEditText.setTextIsSelectable(false);
+            turnSignalRightLogEditText.setTextIsSelectable(false);
+        }
     }
 
     private int getCameraIndex(String pos) {
@@ -245,12 +308,63 @@ public class BlindSpotSettingsFragment extends Fragment {
             public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
+        turnSignalPresetSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            private boolean first = true;
+
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (first) {
+                    first = false;
+                    return;
+                }
+                applyTurnSignalPresetUi(position, true);
+                BlindSpotService.update(requireContext());
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
+        android.text.TextWatcher turnSignalLogWatcher = new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {
+                if (!appConfig.isTurnSignalCustomPreset()) return;
+                if (turnSignalLeftLogEditText.getEditableText() == s) {
+                    appConfig.setTurnSignalCustomLeftTriggerLog(s.toString());
+                } else if (turnSignalRightLogEditText.getEditableText() == s) {
+                    appConfig.setTurnSignalCustomRightTriggerLog(s.toString());
+                } else {
+                    return;
+                }
+                BlindSpotService.update(requireContext());
+            }
+        };
+        turnSignalLeftLogEditText.addTextChangedListener(turnSignalLogWatcher);
+        turnSignalRightLogEditText.addTextChangedListener(turnSignalLogWatcher);
+
         secondaryDisplaySwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked && !WakeUpHelper.hasOverlayPermission(requireContext())) {
                 secondaryDisplaySwitch.setChecked(false);
                 Toast.makeText(requireContext(), "请先授予悬浮窗权限", Toast.LENGTH_SHORT).show();
                 WakeUpHelper.requestOverlayPermission(requireContext());
             }
+        });
+
+        mockFloatingSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked && !WakeUpHelper.hasOverlayPermission(requireContext())) {
+                mockFloatingSwitch.setChecked(false);
+                Toast.makeText(requireContext(), "请先授予悬浮窗权限", Toast.LENGTH_SHORT).show();
+                WakeUpHelper.requestOverlayPermission(requireContext());
+                return;
+            }
+            appConfig.setMockTurnSignalFloatingEnabled(isChecked);
+            BlindSpotService.update(requireContext());
         });
 
         displaySpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -307,10 +421,6 @@ public class BlindSpotSettingsFragment extends Fragment {
         etWidth.addTextChangedListener(textWatcher);
         etHeight.addTextChangedListener(textWatcher);
 
-        // 模拟按钮监听
-        mockLeftButton.setOnClickListener(v -> sendMockSignal("left"));
-        mockRightButton.setOnClickListener(v -> sendMockSignal("right"));
-
         reuseMainFloatingSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             appConfig.setTurnSignalReuseMainFloating(isChecked);
             setupBlindSpotPosButton.setVisibility(isChecked ? View.GONE : View.VISIBLE);
@@ -321,9 +431,6 @@ public class BlindSpotSettingsFragment extends Fragment {
             intent.putExtra("action", "setup_blind_spot_window");
             requireContext().startService(intent);
         });
-
-        // 摇杆逻辑
-        setupJoystick();
 
         saveButton.setOnClickListener(v -> saveAndApply());
 
@@ -342,75 +449,6 @@ public class BlindSpotSettingsFragment extends Fragment {
         homeButton.setOnClickListener(v -> {
             if (getActivity() instanceof MainActivity) {
                 ((MainActivity) getActivity()).goToRecordingInterface();
-            }
-        });
-    }
-
-    private void sendMockSignal(String pos) {
-        Intent intent = new Intent(requireContext(), BlindSpotService.class);
-        intent.putExtra("mock_turn_signal", pos);
-        requireContext().startService(intent);
-        Toast.makeText(requireContext(), "已发送模拟信号: " + (pos.equals("left") ? "左" : "右") + " (3秒)", Toast.LENGTH_SHORT).show();
-    }
-
-    private void setupJoystick() {
-        joystickContainer.setOnTouchListener(new View.OnTouchListener() {
-            private float lastTouchX, lastTouchY;
-            private int initialPosX, initialPosY;
-
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                float touchX = event.getX();
-                float touchY = event.getY();
-
-                switch (event.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
-                        lastTouchX = touchX;
-                        lastTouchY = touchY;
-                        initialPosX = seekbarX.getProgress();
-                        initialPosY = seekbarY.getProgress();
-                        return true;
-
-                    case MotionEvent.ACTION_MOVE:
-                        float dx = touchX - lastTouchX;
-                        float dy = touchY - lastTouchY;
-
-                        // 缩放灵敏度：摇杆容器 200dp，假设映射到全屏
-                        // 简单起见，按位移比例映射
-                        int moveX = (int) (dx * 5); // 灵敏度系数 5
-                        int moveY = (int) (dy * 5);
-
-                        int newX = Math.max(0, Math.min(seekbarX.getMax(), initialPosX + moveX));
-                        int newY = Math.max(0, Math.min(seekbarY.getMax(), initialPosY + moveY));
-
-                        seekbarX.setProgress(newX);
-                        seekbarY.setProgress(newY);
-                        etX.setText(String.valueOf(newX));
-                        etY.setText(String.valueOf(newY));
-
-                        // 更新摇杆球位置（视觉反馈）
-                        float ballX = touchX - (joystickHandle.getWidth() / 2f);
-                        float ballY = touchY - (joystickHandle.getHeight() / 2f);
-                        
-                        // 限制在容器内
-                        ballX = Math.max(0, Math.min(joystickContainer.getWidth() - joystickHandle.getWidth(), ballX));
-                        ballY = Math.max(0, Math.min(joystickContainer.getHeight() - joystickHandle.getHeight(), ballY));
-                        
-                        joystickHandle.setX(ballX);
-                        joystickHandle.setY(ballY);
-                        return true;
-
-                    case MotionEvent.ACTION_UP:
-                    case MotionEvent.ACTION_CANCEL:
-                        // 复位摇杆球到中心
-                        joystickHandle.animate()
-                                .x((joystickContainer.getWidth() - joystickHandle.getWidth()) / 2f)
-                                .y((joystickContainer.getHeight() - joystickHandle.getHeight()) / 2f)
-                                .setDuration(200)
-                                .start();
-                        return true;
-                }
-                return false;
             }
         });
     }

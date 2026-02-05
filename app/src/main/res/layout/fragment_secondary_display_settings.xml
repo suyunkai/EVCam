@@ -208,6 +208,82 @@
                         android:textColor="@color/text_primary" />
                 </LinearLayout>
 
+                <!-- 触发log预置与自定义 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="触发log预置"
+                            android:textColor="@color/text_primary"
+                            android:textSize="16sp" />
+
+                        <Spinner
+                            android:id="@+id/spinner_turn_signal_preset"
+                            android:layout_width="190dp"
+                            android:layout_height="48dp"
+                            android:background="@drawable/spinner_background"
+                            android:popupBackground="@color/card_background" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="左转向灯触发log关键字"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="6dp" />
+
+                    <EditText
+                        android:id="@+id/et_turn_signal_left_log"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="48dp"
+                        android:maxLines="3"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/spinner_background"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:inputType="text"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="右转向灯触发log关键字"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="6dp" />
+
+                    <EditText
+                        android:id="@+id/et_turn_signal_right_log"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="48dp"
+                        android:maxLines="3"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/spinner_background"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:inputType="text"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
                 <!-- 是否复用主屏悬浮窗 -->
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -241,33 +317,47 @@
                     android:textColor="@color/white"
                     android:visibility="gone" />
 
-                <!-- 模拟测试按钮 -->
+                <!-- 桌面悬浮模拟按钮 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
+                    android:orientation="vertical"
                     android:layout_marginTop="16dp">
 
-                    <Button
-                        android:id="@+id/btn_mock_left"
-                        android:layout_width="0dp"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="模拟左补盲 (3s)"
-                        android:textSize="14sp"
-                        android:backgroundTint="@color/button_accent"
-                        android:textColor="@color/white"
-                        android:layout_marginEnd="8dp" />
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
 
-                    <Button
-                        android:id="@+id/btn_mock_right"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="模拟右补盲 (3s)"
-                        android:textSize="14sp"
-                        android:backgroundTint="@color/button_accent"
-                        android:textColor="@color/white" />
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="桌面悬浮模拟按钮"
+                                android:textColor="@color/text_primary"
+                                android:textSize="16sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="回到桌面点击左/右按钮，触发补盲 (3秒)"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="14sp"
+                                android:layout_marginTop="4dp" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switch_mock_floating"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="16dp" />
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
 
@@ -415,7 +505,7 @@
                     android:layout_marginBottom="8dp">
 
                     <TextView
-                        android:layout_width="80dp"
+                        android:layout_width="72dp"
                         android:layout_height="wrap_content"
                         android:text="X 坐标"
                         android:textColor="@color/text_primary"
@@ -430,15 +520,15 @@
 
                     <EditText
                         android:id="@+id/et_x_value"
-                        android:layout_width="60dp"
-                        android:layout_height="40dp"
+                        android:layout_width="96dp"
+                        android:layout_height="48dp"
                         android:text="0"
                         android:inputType="number"
                         android:gravity="center"
                         android:background="@drawable/spinner_background"
                         android:textColor="@color/text_primary"
-                        android:textSize="14sp"
-                        android:layout_marginStart="8dp" />
+                        android:textSize="16sp"
+                        android:layout_marginStart="12dp" />
                 </LinearLayout>
 
                 <!-- Y 坐标 -->
@@ -450,7 +540,7 @@
                     android:layout_marginBottom="8dp">
 
                     <TextView
-                        android:layout_width="80dp"
+                        android:layout_width="72dp"
                         android:layout_height="wrap_content"
                         android:text="Y 坐标"
                         android:textColor="@color/text_primary"
@@ -465,15 +555,15 @@
 
                     <EditText
                         android:id="@+id/et_y_value"
-                        android:layout_width="60dp"
-                        android:layout_height="40dp"
+                        android:layout_width="96dp"
+                        android:layout_height="48dp"
                         android:text="0"
                         android:inputType="number"
                         android:gravity="center"
                         android:background="@drawable/spinner_background"
                         android:textColor="@color/text_primary"
-                        android:textSize="14sp"
-                        android:layout_marginStart="8dp" />
+                        android:textSize="16sp"
+                        android:layout_marginStart="12dp" />
                 </LinearLayout>
 
                 <!-- 宽度 -->
@@ -485,7 +575,7 @@
                     android:layout_marginBottom="8dp">
 
                     <TextView
-                        android:layout_width="80dp"
+                        android:layout_width="72dp"
                         android:layout_height="wrap_content"
                         android:text="宽度"
                         android:textColor="@color/text_primary"
@@ -500,15 +590,15 @@
 
                     <EditText
                         android:id="@+id/et_width_value"
-                        android:layout_width="60dp"
-                        android:layout_height="40dp"
+                        android:layout_width="96dp"
+                        android:layout_height="48dp"
                         android:text="480"
                         android:inputType="number"
                         android:gravity="center"
                         android:background="@drawable/spinner_background"
                         android:textColor="@color/text_primary"
-                        android:textSize="14sp"
-                        android:layout_marginStart="8dp" />
+                        android:textSize="16sp"
+                        android:layout_marginStart="12dp" />
                 </LinearLayout>
 
                 <!-- 高度 -->
@@ -520,7 +610,7 @@
                     android:layout_marginBottom="16dp">
 
                     <TextView
-                        android:layout_width="80dp"
+                        android:layout_width="72dp"
                         android:layout_height="wrap_content"
                         android:text="高度"
                         android:textColor="@color/text_primary"
@@ -535,49 +625,16 @@
 
                     <EditText
                         android:id="@+id/et_height_value"
-                        android:layout_width="60dp"
-                        android:layout_height="40dp"
+                        android:layout_width="96dp"
+                        android:layout_height="48dp"
                         android:text="320"
                         android:inputType="number"
                         android:gravity="center"
                         android:background="@drawable/spinner_background"
                         android:textColor="@color/text_primary"
-                        android:textSize="14sp"
-                        android:layout_marginStart="8dp" />
+                        android:textSize="16sp"
+                        android:layout_marginStart="12dp" />
                 </LinearLayout>
-
-                <!-- 摇杆控制器 -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="位置调节摇杆"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="14sp"
-                    android:layout_marginBottom="8dp" />
-
-                <FrameLayout
-                    android:id="@+id/joystick_container"
-                    android:layout_width="200dp"
-                    android:layout_height="200dp"
-                    android:layout_gravity="center"
-                    android:background="@drawable/spinner_background"
-                    android:padding="10dp">
-
-                    <!-- 背景网格/圆圈 -->
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:background="@drawable/joystick_bg"
-                        android:alpha="0.3" />
-
-                    <!-- 摇杆中心球 -->
-                    <View
-                        android:id="@+id/joystick_handle"
-                        android:layout_width="50dp"
-                        android:layout_height="50dp"
-                        android:layout_gravity="center"
-                        android:background="@drawable/joystick_handle" />
-                </FrameLayout>
             </LinearLayout>
 
             <!-- 旋转与边框设置 -->

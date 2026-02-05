@@ -13,10 +13,13 @@ import android.util.Size;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 
@@ -51,6 +54,10 @@ public class BlindSpotService extends Service {
     private AppConfig appConfig;
     private DisplayManager displayManager;
 
+    private WindowManager mockControlWindowManager;
+    private View mockControlView;
+    private WindowManager.LayoutParams mockControlParams;
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -60,15 +67,34 @@ public class BlindSpotService extends Service {
     }
 
     private void initSignalObserver() {
-        signalObserver = new LogcatSignalObserver(data1 -> {
+        signalObserver = new LogcatSignalObserver((line, data1) -> {
             if (!appConfig.isTurnSignalLinkageEnabled()) return;
 
-            if (data1 == 85) { // 左转向灯
+            String leftKeyword = appConfig.getTurnSignalLeftTriggerLog();
+            String rightKeyword = appConfig.getTurnSignalRightTriggerLog();
+
+            boolean matched = false;
+            if (leftKeyword != null && !leftKeyword.isEmpty() && line.contains(leftKeyword)) {
+                matched = true;
                 handleTurnSignal("left");
-            } else if (data1 == 170) { // 右转向灯
+            } else if (rightKeyword != null && !rightKeyword.isEmpty() && line.contains(rightKeyword)) {
+                matched = true;
                 handleTurnSignal("right");
-            } else if (data1 == 0) { // 熄灭
+            }
+
+            if (matched) return;
+
+            if (line.contains("data1 = 0") || data1 == 0) {
                 startHideTimer();
+                return;
+            }
+            if (appConfig.isTurnSignalCustomPreset()) {
+                return;
+            }
+            if (data1 == 85) {
+                handleTurnSignal("left");
+            } else if (data1 == 170) {
+                handleTurnSignal("right");
             }
         });
         signalObserver.start();
@@ -227,14 +253,7 @@ public class BlindSpotService extends Service {
         if (intent != null) {
             String mockSignal = intent.getStringExtra("mock_turn_signal");
             if (mockSignal != null) {
-                AppLog.d(TAG, "收到模拟转向灯信号: " + mockSignal);
-                handleTurnSignal(mockSignal);
-                
-                // 3秒后模拟熄灭
-                hideHandler.postDelayed(() -> {
-                    AppLog.d(TAG, "模拟转向灯结束，执行熄灭");
-                    startHideTimer();
-                }, 3000);
+                triggerMockSignal(mockSignal);
                 return START_STICKY;
             }
 
@@ -259,12 +278,34 @@ public class BlindSpotService extends Service {
     private void updateWindows() {
         updateSecondaryDisplay();
         updateMainFloatingWindow();
+        updateMockControlWindow();
+        
+        if (appConfig.isSecondaryDisplayEnabled()
+                || appConfig.isMainFloatingEnabled()
+                || appConfig.isTurnSignalLinkageEnabled()
+                || appConfig.isMockTurnSignalFloatingEnabled()
+                || currentSignalCamera != null) {
+            CameraForegroundService.start(this, "补盲运行中", "正在显示补盲画面");
+        }
         
         // 如果两个功能都关闭了，可以考虑停止服务
         // 但若转向灯联动开启，仍需要服务常驻以便“主关副关”时弹出临时补盲窗口
-        if (!appConfig.isSecondaryDisplayEnabled() && !appConfig.isMainFloatingEnabled() && !appConfig.isTurnSignalLinkageEnabled()) {
+        if (!appConfig.isSecondaryDisplayEnabled()
+                && !appConfig.isMainFloatingEnabled()
+                && !appConfig.isTurnSignalLinkageEnabled()
+                && !appConfig.isMockTurnSignalFloatingEnabled()) {
             stopSelf();
         }
+    }
+
+    private void triggerMockSignal(String mockSignal) {
+        AppLog.d(TAG, "收到模拟转向灯信号: " + mockSignal);
+        handleTurnSignal(mockSignal);
+
+        hideHandler.postDelayed(() -> {
+            AppLog.d(TAG, "模拟转向灯结束，执行熄灭");
+            startHideTimer();
+        }, 3000);
     }
 
     private void updateSecondaryDisplay() {
@@ -504,6 +545,116 @@ public class BlindSpotService extends Service {
         }
     }
 
+    private void updateMockControlWindow() {
+        if (appConfig.isMockTurnSignalFloatingEnabled()) {
+            showMockControlWindow();
+        } else {
+            removeMockControlWindow();
+        }
+    }
+
+    private void showMockControlWindow() {
+        if (mockControlView != null) return;
+        if (!WakeUpHelper.hasOverlayPermission(this)) {
+            appConfig.setMockTurnSignalFloatingEnabled(false);
+            return;
+        }
+
+        mockControlWindowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+        if (mockControlWindowManager == null) {
+            appConfig.setMockTurnSignalFloatingEnabled(false);
+            return;
+        }
+
+        mockControlView = LayoutInflater.from(this).inflate(R.layout.view_mock_turn_signal_floating, null);
+        Button leftButton = mockControlView.findViewById(R.id.btn_mock_left);
+        Button rightButton = mockControlView.findViewById(R.id.btn_mock_right);
+        Button closeButton = mockControlView.findViewById(R.id.btn_close);
+        TextView dragHandle = mockControlView.findViewById(R.id.tv_drag_handle);
+
+        leftButton.setOnClickListener(v -> triggerMockSignal("left"));
+        rightButton.setOnClickListener(v -> triggerMockSignal("right"));
+        closeButton.setOnClickListener(v -> {
+            appConfig.setMockTurnSignalFloatingEnabled(false);
+            updateWindows();
+        });
+
+        int type = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ?
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY :
+                WindowManager.LayoutParams.TYPE_PHONE;
+
+        int x = appConfig.getMockTurnSignalFloatingX();
+        int y = appConfig.getMockTurnSignalFloatingY();
+
+        mockControlParams = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                type,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT
+        );
+        mockControlParams.gravity = Gravity.TOP | Gravity.START;
+        mockControlParams.x = x;
+        mockControlParams.y = y;
+
+        dragHandle.setOnTouchListener(new View.OnTouchListener() {
+            private int initialX;
+            private int initialY;
+            private float initialTouchX;
+            private float initialTouchY;
+
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (mockControlParams == null || mockControlWindowManager == null || mockControlView == null) return false;
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        initialX = mockControlParams.x;
+                        initialY = mockControlParams.y;
+                        initialTouchX = event.getRawX();
+                        initialTouchY = event.getRawY();
+                        return true;
+                    case MotionEvent.ACTION_MOVE:
+                        mockControlParams.x = initialX + (int) (event.getRawX() - initialTouchX);
+                        mockControlParams.y = initialY + (int) (event.getRawY() - initialTouchY);
+                        try {
+                            mockControlWindowManager.updateViewLayout(mockControlView, mockControlParams);
+                        } catch (Exception e) {
+                            AppLog.e(TAG, "更新模拟悬浮窗位置失败: " + e.getMessage());
+                        }
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        appConfig.setMockTurnSignalFloatingPosition(mockControlParams.x, mockControlParams.y);
+                        return true;
+                }
+                return false;
+            }
+        });
+
+        try {
+            mockControlWindowManager.addView(mockControlView, mockControlParams);
+        } catch (Exception e) {
+            AppLog.e(TAG, "无法添加模拟悬浮窗: " + e.getMessage());
+            mockControlView = null;
+            mockControlWindowManager = null;
+            mockControlParams = null;
+            appConfig.setMockTurnSignalFloatingEnabled(false);
+        }
+    }
+
+    private void removeMockControlWindow() {
+        if (mockControlWindowManager != null && mockControlView != null) {
+            try {
+                mockControlWindowManager.removeView(mockControlView);
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
+        mockControlView = null;
+        mockControlWindowManager = null;
+        mockControlParams = null;
+    }
+
     @Override
     public void onDestroy() {
         if (signalObserver != null) {
@@ -513,6 +664,7 @@ public class BlindSpotService extends Service {
             hideHandler.removeCallbacks(hideRunnable);
         }
         removeSecondaryView();
+        removeMockControlWindow();
         if (mainFloatingWindowView != null) {
             mainFloatingWindowView.dismiss();
         }
