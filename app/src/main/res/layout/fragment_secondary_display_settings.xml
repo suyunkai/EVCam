@@ -62,7 +62,42 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- 主屏悬浮窗控制 -->
+            <!-- 实验室入口 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:background="@color/card_background"
+                android:layout_marginBottom="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="实验室（不建议使用）"
+                    android:textColor="@color/text_primary"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="包含主屏悬浮窗、复用主屏等实验性选项"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp"
+                    android:layout_marginTop="4dp" />
+
+                <Button
+                    android:id="@+id/btn_open_lab"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="进入实验室"
+                    android:layout_marginTop="12dp"
+                    android:backgroundTint="@color/button_accent"
+                    android:textColor="@color/white" />
+            </LinearLayout>
+
+            <!-- 补盲画面矫正 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -86,7 +121,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="开启主屏悬浮窗"
+                            android:text="补盲画面矫正"
                             android:textColor="@color/text_primary"
                             android:textSize="20sp"
                             android:textStyle="bold" />
@@ -94,42 +129,27 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="在当前主屏幕显示可拖动和缩放的摄像头悬浮窗"
+                            android:text="对补盲悬浮窗画面进行平移/缩放矫正 (Matrix)"
                             android:textColor="@color/text_secondary"
                             android:textSize="14sp"
                             android:layout_marginTop="4dp" />
                     </LinearLayout>
 
                     <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/switch_main_floating"
+                        android:id="@+id/switch_blind_spot_correction"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="16dp" />
                 </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/layout_main_floating_camera"
+                <Button
+                    android:id="@+id/btn_adjust_blind_spot_correction"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginTop="16dp">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="悬浮窗摄像头"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp" />
-
-                    <Spinner
-                        android:id="@+id/spinner_main_floating_camera"
-                        android:layout_width="150dp"
-                        android:layout_height="48dp"
-                        android:background="@drawable/spinner_background"
-                        android:popupBackground="@color/card_background" />
-                </LinearLayout>
+                    android:text="调整矫正参数 (四路独立)"
+                    android:layout_marginTop="12dp"
+                    android:backgroundTint="@color/button_accent"
+                    android:textColor="@color/white" />
             </LinearLayout>
 
             <!-- 转向灯联动设置 -->
@@ -208,34 +228,12 @@
                         android:textColor="@color/text_primary" />
                 </LinearLayout>
 
-                <!-- 触发log预置与自定义 -->
+                <!-- 触发log关键字 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:layout_marginTop="16dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="触发log预置"
-                            android:textColor="@color/text_primary"
-                            android:textSize="16sp" />
-
-                        <Spinner
-                            android:id="@+id/spinner_turn_signal_preset"
-                            android:layout_width="190dp"
-                            android:layout_height="48dp"
-                            android:background="@drawable/spinner_background"
-                            android:popupBackground="@color/card_background" />
-                    </LinearLayout>
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -284,39 +282,6 @@
                         android:textSize="14sp" />
                 </LinearLayout>
 
-                <!-- 是否复用主屏悬浮窗 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginTop="16dp">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="复用主屏悬浮窗"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp" />
-
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/switch_reuse_main_floating"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
-                </LinearLayout>
-
-                <!-- 独立补盲悬浮窗位置设置 -->
-                <Button
-                    android:id="@+id/btn_setup_blind_spot_pos"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="设置独立补盲窗位置"
-                    android:layout_marginTop="12dp"
-                    android:backgroundTint="@color/button_accent"
-                    android:textColor="@color/white"
-                    android:visibility="gone" />
-
                 <!-- 桌面悬浮模拟按钮 -->
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -359,370 +324,51 @@
                             android:layout_marginStart="16dp" />
                     </LinearLayout>
                 </LinearLayout>
-            </LinearLayout>
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="副屏显示设置"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp"
-                android:layout_marginBottom="8dp" />
-
-            <!-- 开关控制 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:padding="16dp"
-                android:background="@color/card_background"
-                android:layout_marginBottom="16dp">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="开启副屏显示"
-                        android:textColor="@color/text_primary"
-                        android:textSize="20sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="将选中的摄像头画面以悬浮窗形式显示在指定屏幕上"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="14sp"
-                        android:layout_marginTop="4dp" />
-                </LinearLayout>
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/switch_secondary_display"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp" />
-            </LinearLayout>
-
-            <!-- 摄像头选择 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:padding="16dp"
-                android:background="@color/card_background"
-                android:layout_marginBottom="16dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="选择摄像头"
-                    android:textColor="@color/text_primary"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
-
-                <Spinner
-                    android:id="@+id/spinner_camera_selection"
-                    android:layout_width="150dp"
-                    android:layout_height="48dp"
-                    android:background="@drawable/spinner_background"
-                    android:popupBackground="@color/card_background" />
-            </LinearLayout>
-
-            <!-- 屏幕选择 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp"
-                android:background="@color/card_background"
-                android:layout_marginBottom="16dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="显示屏幕 (Display ID)"
-                        android:textColor="@color/text_primary"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
-
-                    <Spinner
-                        android:id="@+id/spinner_display_selection"
-                        android:layout_width="150dp"
-                        android:layout_height="48dp"
-                        android:background="@drawable/spinner_background"
-                        android:popupBackground="@color/card_background" />
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/tv_display_info"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="当前屏幕分辨率: 未知"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="14sp"
-                    android:layout_marginTop="8dp" />
-            </LinearLayout>
-
-            <!-- 位置和大小设置 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp"
-                android:background="@color/card_background"
-                android:layout_marginBottom="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="位置与大小"
-                    android:textColor="@color/text_primary"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="16dp" />
-
-                <!-- X 坐标 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:layout_marginBottom="8dp">
+                    android:layout_marginTop="16dp">
 
-                    <TextView
-                        android:layout_width="72dp"
-                        android:layout_height="wrap_content"
-                        android:text="X 坐标"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp" />
-
-                    <SeekBar
-                        android:id="@+id/seekbar_x"
+                    <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:max="2000" />
+                        android:orientation="vertical">
 
-                    <EditText
-                        android:id="@+id/et_x_value"
-                        android:layout_width="96dp"
-                        android:layout_height="48dp"
-                        android:text="0"
-                        android:inputType="number"
-                        android:gravity="center"
-                        android:background="@drawable/spinner_background"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp"
-                        android:layout_marginStart="12dp" />
-                </LinearLayout>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="副屏补盲显示"
+                            android:textColor="@color/text_primary"
+                            android:textSize="16sp" />
 
-                <!-- Y 坐标 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="8dp">
-
-                    <TextView
-                        android:layout_width="72dp"
-                        android:layout_height="wrap_content"
-                        android:text="Y 坐标"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp" />
-
-                    <SeekBar
-                        android:id="@+id/seekbar_y"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:max="2000" />
-
-                    <EditText
-                        android:id="@+id/et_y_value"
-                        android:layout_width="96dp"
-                        android:layout_height="48dp"
-                        android:text="0"
-                        android:inputType="number"
-                        android:gravity="center"
-                        android:background="@drawable/spinner_background"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp"
-                        android:layout_marginStart="12dp" />
-                </LinearLayout>
-
-                <!-- 宽度 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="8dp">
-
-                    <TextView
-                        android:layout_width="72dp"
-                        android:layout_height="wrap_content"
-                        android:text="宽度"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp" />
-
-                    <SeekBar
-                        android:id="@+id/seekbar_width"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:max="2000" />
-
-                    <EditText
-                        android:id="@+id/et_width_value"
-                        android:layout_width="96dp"
-                        android:layout_height="48dp"
-                        android:text="480"
-                        android:inputType="number"
-                        android:gravity="center"
-                        android:background="@drawable/spinner_background"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp"
-                        android:layout_marginStart="12dp" />
-                </LinearLayout>
-
-                <!-- 高度 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="16dp">
-
-                    <TextView
-                        android:layout_width="72dp"
-                        android:layout_height="wrap_content"
-                        android:text="高度"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp" />
-
-                    <SeekBar
-                        android:id="@+id/seekbar_height"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:max="2000" />
-
-                    <EditText
-                        android:id="@+id/et_height_value"
-                        android:layout_width="96dp"
-                        android:layout_height="48dp"
-                        android:text="320"
-                        android:inputType="number"
-                        android:gravity="center"
-                        android:background="@drawable/spinner_background"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp"
-                        android:layout_marginStart="12dp" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- 旋转与边框设置 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp"
-                android:background="@color/card_background"
-                android:layout_marginBottom="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="高级设置"
-                    android:textColor="@color/text_primary"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="16dp" />
-
-                <!-- 旋转角度 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="16dp">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="悬浮窗旋转"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp" />
-
-                    <Spinner
-                        android:id="@+id/spinner_rotation"
-                        android:layout_width="120dp"
-                        android:layout_height="48dp"
-                        android:background="@drawable/spinner_background"
-                        android:popupBackground="@color/card_background" />
-                </LinearLayout>
-
-                <!-- 屏幕方向 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="16dp">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="屏幕方向适配"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp" />
-
-                    <Spinner
-                        android:id="@+id/spinner_screen_orientation"
-                        android:layout_width="150dp"
-                        android:layout_height="48dp"
-                        android:background="@drawable/spinner_background"
-                        android:popupBackground="@color/card_background" />
-                </LinearLayout>
-
-                <!-- 白色边框 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="显示识别边框 (白色)"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="补盲激活时在副屏显示悬浮窗画面"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="14sp"
+                            android:layout_marginTop="4dp" />
+                    </LinearLayout>
 
                     <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/switch_border"
+                        android:id="@+id/switch_secondary_blind_spot_display"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp" />
                 </LinearLayout>
+
+                <Button
+                    android:id="@+id/btn_adjust_secondary_blind_spot_window"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="调整副屏悬浮窗位置"
+                    android:layout_marginTop="12dp"
+                    android:backgroundTint="@color/button_accent"
+                    android:textColor="@color/white" />
             </LinearLayout>
 
             <!-- 保存按钮 -->

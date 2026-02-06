@@ -1098,50 +1098,55 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
 
         btnTakePhoto.setOnClickListener(v -> takePicture());
 
-        // 为每个TextureView添加Surface监听器
-        TextureView.SurfaceTextureListener surfaceTextureListener = new TextureView.SurfaceTextureListener() {
+        if (textureFront != null) {
+            textureFront.setSurfaceTextureListener(buildSurfaceListener("front"));
+        }
+        if (textureBack != null && configuredCameraCount >= 2) {
+            textureBack.setSurfaceTextureListener(buildSurfaceListener("back"));
+        }
+        if (textureLeft != null && configuredCameraCount >= 4) {
+            textureLeft.setSurfaceTextureListener(buildSurfaceListener("left"));
+        }
+        if (textureRight != null && configuredCameraCount >= 4) {
+            textureRight.setSurfaceTextureListener(buildSurfaceListener("right"));
+        }
+    }
+
+    private TextureView.SurfaceTextureListener buildSurfaceListener(String cameraKey) {
+        return new TextureView.SurfaceTextureListener() {
             @Override
             public void onSurfaceTextureAvailable(@NonNull android.graphics.SurfaceTexture surface, int width, int height) {
                 textureReadyCount++;
-                AppLog.d(TAG, "TextureView ready: " + textureReadyCount + "/" + requiredTextureCount);
+                AppLog.d(TAG, "TextureView " + cameraKey + " ready: " + textureReadyCount + "/" + requiredTextureCount);
 
-                // 当所有需要的TextureView都准备好后，初始化摄像头
                 if (textureReadyCount >= requiredTextureCount && checkPermissions()) {
-                    initCamera();
+                    if (cameraManager == null) {
+                        initCamera();
+                    } else {
+                        cameraManager.updatePreviewTextureViews(textureFront, textureBack, textureLeft, textureRight);
+                    }
                 }
             }
 
             @Override
             public void onSurfaceTextureSizeChanged(@NonNull android.graphics.SurfaceTexture surface, int width, int height) {
-                AppLog.d(TAG, "TextureView size changed: " + width + "x" + height);
+                AppLog.d(TAG, "TextureView " + cameraKey + " size changed: " + width + "x" + height);
             }
 
             @Override
             public boolean onSurfaceTextureDestroyed(@NonNull android.graphics.SurfaceTexture surface) {
                 textureReadyCount--;
-                AppLog.d(TAG, "TextureView destroyed, remaining: " + textureReadyCount);
+                AppLog.d(TAG, "TextureView " + cameraKey + " destroyed, remaining: " + textureReadyCount);
+                if (cameraManager != null) {
+                    cameraManager.onPreviewTextureDestroyed(cameraKey);
+                }
                 return true;
             }
 
             @Override
             public void onSurfaceTextureUpdated(@NonNull android.graphics.SurfaceTexture surface) {
-                // 不需要处理每帧更新
             }
         };
-
-        // 根据配置的摄像头数量设置监听器
-        if (textureFront != null) {
-            textureFront.setSurfaceTextureListener(surfaceTextureListener);
-        }
-        if (textureBack != null && configuredCameraCount >= 2) {
-            textureBack.setSurfaceTextureListener(surfaceTextureListener);
-        }
-        if (textureLeft != null && configuredCameraCount >= 4) {
-            textureLeft.setSurfaceTextureListener(surfaceTextureListener);
-        }
-        if (textureRight != null && configuredCameraCount >= 4) {
-            textureRight.setSurfaceTextureListener(surfaceTextureListener);
-        }
     }
     
     /**

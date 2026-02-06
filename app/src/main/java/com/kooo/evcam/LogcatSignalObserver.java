@@ -1,8 +1,5 @@
 package com.kooo.evcam;
 
-import android.os.Handler;
-import android.os.Looper;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.regex.Matcher;
@@ -15,8 +12,7 @@ import java.util.regex.Pattern;
 public class LogcatSignalObserver {
     private static final String TAG = "LogcatSignalObserver";
     
-    // 日志特征: I/avm_vc_signal: [videox_i]signal_process_light:533 signal transfer light[10] data1 = 170, status is 0xaa
-    private static final String SIGNAL_LOG_PREFIX = "avm_vc_signal";
+    private static final String LOGCAT_CMD = "logcat -v brief *:I";
     private static final Pattern SIGNAL_PATTERN = Pattern.compile("data1 = (\\d+)");
 
     public interface SignalListener {
@@ -31,7 +27,6 @@ public class LogcatSignalObserver {
     private final SignalListener listener;
     private Thread logcatThread;
     private volatile boolean isRunning = false;
-    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     public LogcatSignalObserver(SignalListener listener) {
         this.listener = listener;
@@ -45,9 +40,7 @@ public class LogcatSignalObserver {
             Process process = null;
             BufferedReader reader = null;
             try {
-                // 清理旧日志并开始读取
-                Runtime.getRuntime().exec("logcat -c").waitFor();
-                process = Runtime.getRuntime().exec("logcat -v brief " + SIGNAL_LOG_PREFIX + ":I *:S");
+                process = Runtime.getRuntime().exec(LOGCAT_CMD);
                 reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
                 
                 String line;
@@ -63,13 +56,9 @@ public class LogcatSignalObserver {
                             }
                         }
                     }
-                    final int finalData1 = data1;
-                    final String finalLine = line;
-                    mainHandler.post(() -> {
-                        if (listener != null) {
-                            listener.onLogLine(finalLine, finalData1);
-                        }
-                    });
+                    if (listener != null) {
+                        listener.onLogLine(line, data1);
+                    }
                 }
             } catch (Exception e) {
                 AppLog.e(TAG, "Logcat reading error: " + e.getMessage());

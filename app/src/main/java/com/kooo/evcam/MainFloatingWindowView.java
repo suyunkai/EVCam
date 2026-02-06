@@ -3,6 +3,8 @@ package com.kooo.evcam;
 import android.content.Context;
 import android.graphics.PixelFormat;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Size;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -31,6 +33,10 @@ public class MainFloatingWindowView extends FrameLayout {
     private Surface cachedSurface;
     private SingleCamera currentCamera;
     private String desiredCameraPos;
+
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private Runnable retryBindRunnable;
+    private int retryBindCount = 0;
 
     private float lastX, lastY;
     private float initialX, initialY;
@@ -85,13 +91,17 @@ public class MainFloatingWindowView extends FrameLayout {
                 }
                 cachedSurface = new Surface(surface);
                 startCameraPreview(cachedSurface);
+                applyTransformNow();
             }
 
             @Override
-            public void onSurfaceTextureSizeChanged(android.graphics.SurfaceTexture surface, int width, int height) {}
+            public void onSurfaceTextureSizeChanged(android.graphics.SurfaceTexture surface, int width, int height) {
+                applyTransformNow();
+            }
 
             @Override
             public boolean onSurfaceTextureDestroyed(android.graphics.SurfaceTexture surface) {
+                cancelRetryBind();
                 stopCameraPreview();
                 if (cachedSurface != null) {
                     cachedSurface.release();
@@ -177,18 +187,32 @@ public class MainFloatingWindowView extends FrameLayout {
     }
 
     private void startCameraPreview(Surface surface) {
+        if (surface == null || !surface.isValid()) {
+            scheduleRetryBind();
+            return;
+        }
         String cameraPos = desiredCameraPos != null ? desiredCameraPos : appConfig.getMainFloatingCamera();
         MainActivity mainActivity = MainActivity.getInstance();
-        if (mainActivity == null) return;
+        if (mainActivity == null) {
+            scheduleRetryBind();
+            return;
+        }
 
         MultiCameraManager cameraManager = mainActivity.getCameraManager();
-        if (cameraManager == null) return;
+        if (cameraManager == null) {
+            scheduleRetryBind();
+            return;
+        }
 
         currentCamera = cameraManager.getCamera(cameraPos);
-        if (currentCamera != null) {
-            currentCamera.setMainFloatingSurface(surface);
-            currentCamera.recreateSession();
+        if (currentCamera == null) {
+            scheduleRetryBind();
+            return;
         }
+
+        cancelRetryBind();
+        currentCamera.setMainFloatingSurface(surface);
+        currentCamera.recreateSession();
     }
 
     private void stopCameraPreview() {
@@ -203,6 +227,12 @@ public class MainFloatingWindowView extends FrameLayout {
         try {
             if (this.getParent() == null) {
                 windowManager.addView(this, params);
+                if (textureView != null && textureView.isAvailable() && cachedSurface != null && cachedSurface.isValid()) {
+                    startCameraPreview(cachedSurface);
+                } else {
+                    scheduleRetryBind();
+                }
+                applyTransformNow();
             } else {
                 updateLayout();
             }
@@ -224,9 +254,11 @@ public class MainFloatingWindowView extends FrameLayout {
         } catch (Exception e) {
             AppLog.e(TAG, "Error updating main floating window layout: " + e.getMessage());
         }
+        applyTransformNow();
     }
 
     public void dismiss() {
+        cancelRetryBind();
         stopCameraPreview();
         try {
             windowManager.removeView(this);
@@ -241,9 +273,15 @@ public class MainFloatingWindowView extends FrameLayout {
     public void updateCamera(String cameraPos) {
         desiredCameraPos = cameraPos;
         MainActivity mainActivity = MainActivity.getInstance();
-        if (mainActivity == null) return;
+        if (mainActivity == null) {
+            scheduleRetryBind();
+            return;
+        }
         MultiCameraManager cameraManager = mainActivity.getCameraManager();
-        if (cameraManager == null) return;
+        if (cameraManager == null) {
+            scheduleRetryBind();
+            return;
+        }
 
         SingleCamera newCamera = cameraManager.getCamera(cameraPos);
         if (newCamera == currentCamera) {
@@ -267,6 +305,56 @@ public class MainFloatingWindowView extends FrameLayout {
             }
             currentCamera.setMainFloatingSurface(cachedSurface);
             currentCamera.recreateSession();
+            cancelRetryBind();
+            applyTransformNow();
+        } else {
+            scheduleRetryBind();
         }
+    }
+
+    public void applyTransformNow() {
+        String cameraPos = desiredCameraPos != null ? desiredCameraPos : appConfig.getMainFloatingCamera();
+        BlindSpotCorrection.apply(textureView, appConfig, cameraPos, 0);
+    }
+
+    private void scheduleRetryBind() {
+        cancelRetryBind();
+        retryBindCount++;
+        long delayMs;
+        if (retryBindCount <= 10) {
+            delayMs = 500;
+        } else if (retryBindCount <= 30) {
+            delayMs = 1000;
+        } else {
+            delayMs = 3000;
+        }
+        retryBindRunnable = () -> {
+            if (getParent() == null) return;
+            if (textureView == null || !textureView.isAvailable()) {
+                scheduleRetryBind();
+                return;
+            }
+            if (cachedSurface == null || !cachedSurface.isValid()) {
+                android.graphics.SurfaceTexture st = textureView.getSurfaceTexture();
+                if (st == null) {
+                    scheduleRetryBind();
+                    return;
+                }
+                if (cachedSurface != null) {
+                    try { cachedSurface.release(); } catch (Exception e) {}
+                }
+                cachedSurface = new Surface(st);
+            }
+            startCameraPreview(cachedSurface);
+        };
+        mainHandler.postDelayed(retryBindRunnable, delayMs);
+    }
+
+    private void cancelRetryBind() {
+        if (retryBindRunnable != null) {
+            mainHandler.removeCallbacks(retryBindRunnable);
+            retryBindRunnable = null;
+        }
+        retryBindCount = 0;
     }
 }

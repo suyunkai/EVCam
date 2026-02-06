@@ -79,17 +79,18 @@ public class AppConfig {
     private static final String KEY_TURN_SIGNAL_FLOATING_WIDTH = "turn_signal_floating_width";  // 独立补盲悬浮窗宽度
     private static final String KEY_TURN_SIGNAL_FLOATING_HEIGHT = "turn_signal_floating_height"; // 独立补盲悬浮窗高度
     private static final String KEY_TURN_SIGNAL_FLOATING_ROTATION = "turn_signal_floating_rotation"; // 独立补盲悬浮窗旋转
-    private static final String KEY_TURN_SIGNAL_LOG_PRESET = "turn_signal_log_preset"; // 转向灯log预置
-    private static final String KEY_TURN_SIGNAL_CUSTOM_LEFT_TRIGGER_LOG = "turn_signal_custom_left_trigger_log"; // 自定义车型-左转向灯触发log关键字
-    private static final String KEY_TURN_SIGNAL_CUSTOM_RIGHT_TRIGGER_LOG = "turn_signal_custom_right_trigger_log"; // 自定义车型-右转向灯触发log关键字
-
-    public static final String TURN_SIGNAL_LOG_PRESET_XINGHAN7_2026 = "xinghan7_2026";
-    public static final String TURN_SIGNAL_LOG_PRESET_CUSTOM = "custom";
+    private static final String KEY_TURN_SIGNAL_CUSTOM_LEFT_TRIGGER_LOG = "turn_signal_custom_left_trigger_log"; // 左转向灯触发log关键字
+    private static final String KEY_TURN_SIGNAL_CUSTOM_RIGHT_TRIGGER_LOG = "turn_signal_custom_right_trigger_log"; // 右转向灯触发log关键字
 
     // 桌面悬浮模拟按钮 (补盲选项新增)
     private static final String KEY_MOCK_TURN_SIGNAL_FLOATING_ENABLED = "mock_turn_signal_floating_enabled"; // 悬浮模拟按钮开关
     private static final String KEY_MOCK_TURN_SIGNAL_FLOATING_X = "mock_turn_signal_floating_x";             // 悬浮模拟按钮X
     private static final String KEY_MOCK_TURN_SIGNAL_FLOATING_Y = "mock_turn_signal_floating_y";             // 悬浮模拟按钮Y
+
+    // 补盲画面矫正 (Matrix)
+    private static final String KEY_BLIND_SPOT_CORRECTION_ENABLED = "blind_spot_correction_enabled";
+    private static final String KEY_BLIND_SPOT_CORRECTION_PREFIX = "blind_spot_correction_";
+    private static final String KEY_BLIND_SPOT_DISCLAIMER_ACCEPTED = "blind_spot_disclaimer_accepted";
     
     // 时间角标配置
     private static final String KEY_TIMESTAMP_WATERMARK_ENABLED = "timestamp_watermark_enabled";  // 时间角标开关
@@ -1393,15 +1394,15 @@ public class AppConfig {
     }
     
     public int getSecondaryDisplayY() {
-        return prefs.getInt(KEY_SECONDARY_DISPLAY_Y, 0);
+        return prefs.getInt(KEY_SECONDARY_DISPLAY_Y, 139);
     }
     
     public int getSecondaryDisplayWidth() {
-        return prefs.getInt(KEY_SECONDARY_DISPLAY_WIDTH, 480);
+        return prefs.getInt(KEY_SECONDARY_DISPLAY_WIDTH, 318);
     }
     
     public int getSecondaryDisplayHeight() {
-        return prefs.getInt(KEY_SECONDARY_DISPLAY_HEIGHT, 320);
+        return prefs.getInt(KEY_SECONDARY_DISPLAY_HEIGHT, 236);
     }
     
     /**
@@ -1434,7 +1435,68 @@ public class AppConfig {
     }
     
     public int getSecondaryDisplayOrientation() {
-        return prefs.getInt(KEY_SECONDARY_DISPLAY_ORIENTATION, 0);
+        return prefs.getInt(KEY_SECONDARY_DISPLAY_ORIENTATION, 180);
+    }
+
+    public void setBlindSpotCorrectionEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_BLIND_SPOT_CORRECTION_ENABLED, enabled).apply();
+    }
+
+    public boolean isBlindSpotCorrectionEnabled() {
+        return prefs.getBoolean(KEY_BLIND_SPOT_CORRECTION_ENABLED, false);
+    }
+
+    public void setBlindSpotDisclaimerAccepted(boolean accepted) {
+        prefs.edit().putBoolean(KEY_BLIND_SPOT_DISCLAIMER_ACCEPTED, accepted).apply();
+    }
+
+    public boolean isBlindSpotDisclaimerAccepted() {
+        return prefs.getBoolean(KEY_BLIND_SPOT_DISCLAIMER_ACCEPTED, false);
+    }
+
+    private String getBlindSpotCorrectionKey(String cameraPos, String suffix) {
+        return KEY_BLIND_SPOT_CORRECTION_PREFIX + cameraPos + "_" + suffix;
+    }
+
+    public void setBlindSpotCorrectionScaleX(String cameraPos, float scaleX) {
+        prefs.edit().putFloat(getBlindSpotCorrectionKey(cameraPos, "scale_x"), scaleX).apply();
+    }
+
+    public void setBlindSpotCorrectionScaleY(String cameraPos, float scaleY) {
+        prefs.edit().putFloat(getBlindSpotCorrectionKey(cameraPos, "scale_y"), scaleY).apply();
+    }
+
+    public void setBlindSpotCorrectionTranslateX(String cameraPos, float translateX) {
+        prefs.edit().putFloat(getBlindSpotCorrectionKey(cameraPos, "translate_x"), translateX).apply();
+    }
+
+    public void setBlindSpotCorrectionTranslateY(String cameraPos, float translateY) {
+        prefs.edit().putFloat(getBlindSpotCorrectionKey(cameraPos, "translate_y"), translateY).apply();
+    }
+
+    public float getBlindSpotCorrectionScaleX(String cameraPos) {
+        return prefs.getFloat(getBlindSpotCorrectionKey(cameraPos, "scale_x"), 1.0f);
+    }
+
+    public float getBlindSpotCorrectionScaleY(String cameraPos) {
+        return prefs.getFloat(getBlindSpotCorrectionKey(cameraPos, "scale_y"), 1.0f);
+    }
+
+    public float getBlindSpotCorrectionTranslateX(String cameraPos) {
+        return prefs.getFloat(getBlindSpotCorrectionKey(cameraPos, "translate_x"), 0.0f);
+    }
+
+    public float getBlindSpotCorrectionTranslateY(String cameraPos) {
+        return prefs.getFloat(getBlindSpotCorrectionKey(cameraPos, "translate_y"), 0.0f);
+    }
+
+    public void resetBlindSpotCorrection(String cameraPos) {
+        prefs.edit()
+                .putFloat(getBlindSpotCorrectionKey(cameraPos, "scale_x"), 1.0f)
+                .putFloat(getBlindSpotCorrectionKey(cameraPos, "scale_y"), 1.0f)
+                .putFloat(getBlindSpotCorrectionKey(cameraPos, "translate_x"), 0.0f)
+                .putFloat(getBlindSpotCorrectionKey(cameraPos, "translate_y"), 0.0f)
+                .apply();
     }
 
     // ==================== 主屏悬浮窗配置相关方法 ====================
@@ -1526,21 +1588,6 @@ public class AppConfig {
         return prefs.getBoolean(KEY_TURN_SIGNAL_REUSE_MAIN_FLOATING, true);
     }
 
-    public void setTurnSignalLogPreset(String preset) {
-        prefs.edit().putString(KEY_TURN_SIGNAL_LOG_PRESET, preset).apply();
-    }
-
-    public String getTurnSignalLogPreset() {
-        return prefs.getString(
-                KEY_TURN_SIGNAL_LOG_PRESET,
-                TURN_SIGNAL_LOG_PRESET_XINGHAN7_2026
-        );
-    }
-
-    public boolean isTurnSignalCustomPreset() {
-        return TURN_SIGNAL_LOG_PRESET_CUSTOM.equals(getTurnSignalLogPreset());
-    }
-
     public void setTurnSignalCustomLeftTriggerLog(String keyword) {
         prefs.edit().putString(KEY_TURN_SIGNAL_CUSTOM_LEFT_TRIGGER_LOG, keyword).apply();
     }
@@ -1548,7 +1595,7 @@ public class AppConfig {
     public String getTurnSignalCustomLeftTriggerLog() {
         return prefs.getString(
                 KEY_TURN_SIGNAL_CUSTOM_LEFT_TRIGGER_LOG,
-                ""
+                "left front turn signal:1"
         );
     }
 
@@ -1559,22 +1606,16 @@ public class AppConfig {
     public String getTurnSignalCustomRightTriggerLog() {
         return prefs.getString(
                 KEY_TURN_SIGNAL_CUSTOM_RIGHT_TRIGGER_LOG,
-                ""
+                "right front turn signal:1"
         );
     }
 
     public String getTurnSignalLeftTriggerLog() {
-        if (isTurnSignalCustomPreset()) {
-            return getTurnSignalCustomLeftTriggerLog();
-        }
-        return "data1 = 85";
+        return getTurnSignalCustomLeftTriggerLog();
     }
 
     public String getTurnSignalRightTriggerLog() {
-        if (isTurnSignalCustomPreset()) {
-            return getTurnSignalCustomRightTriggerLog();
-        }
-        return "data1 = 170";
+        return getTurnSignalCustomRightTriggerLog();
     }
 
     /**

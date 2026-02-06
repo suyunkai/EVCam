@@ -2,6 +2,7 @@ package com.kooo.evcam;
 
 
 import com.kooo.evcam.AppLog;
+import com.kooo.evcam.camera.MultiCameraManager;
 // import android.app.AlarmManager;  // 已移除，使用 TIME_TICK 替代
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -38,6 +39,10 @@ public class CameraForegroundService extends Service {
     // 服务重启延迟时间
     private static final long RESTART_DELAY_MS = 1000;
 
+    private static final long CAMERA_REPAIR_INTERVAL_MS = 10000;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private Runnable cameraRepairRunnable;
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -53,6 +58,8 @@ public class CameraForegroundService extends Service {
         // 启动远程服务（钉钉/Telegram）
         // 这样远程服务不依赖 MainActivity，即使 Activity 被杀也能继续运行
         startRemoteServicesIfNeeded();
+
+        startCameraRepairLoop();
     }
     
     /**
@@ -170,6 +177,7 @@ public class CameraForegroundService extends Service {
         // 确保远程服务和悬浮窗已启动（处理 START_STICKY 自动重启的情况）
         // onCreate 可能不会被调用（服务自动恢复时），所以这里也要检查
         ensureRemoteServicesStarted();
+        startCameraRepairLoop();
 
         // 从Intent获取通知内容，如果没有则使用默认内容
         String title = intent != null ? intent.getStringExtra("title") : null;
@@ -227,11 +235,44 @@ public class CameraForegroundService extends Service {
     @Override
     public void onDestroy() {
         AppLog.d(TAG, "Service destroyed - 尝试重启...");
+        stopCameraRepairLoop();
         
         // 服务被杀时，发送延迟重启广播
         scheduleServiceRestart();
         
         super.onDestroy();
+    }
+
+    private void startCameraRepairLoop() {
+        stopCameraRepairLoop();
+        cameraRepairRunnable = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    MainActivity mainActivity = MainActivity.getInstance();
+                    if (mainActivity != null) {
+                        MultiCameraManager cameraManager = mainActivity.getCameraManager();
+                        if (cameraManager != null) {
+                            int repaired = cameraManager.checkAndRepairCameras();
+                            if (repaired > 0) {
+                                AppLog.w(TAG, "Camera repair triggered for " + repaired + " cameras");
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    AppLog.e(TAG, "Camera repair loop error: " + e.getMessage(), e);
+                }
+                mainHandler.postDelayed(this, CAMERA_REPAIR_INTERVAL_MS);
+            }
+        };
+        mainHandler.postDelayed(cameraRepairRunnable, CAMERA_REPAIR_INTERVAL_MS);
+    }
+
+    private void stopCameraRepairLoop() {
+        if (cameraRepairRunnable != null) {
+            mainHandler.removeCallbacks(cameraRepairRunnable);
+            cameraRepairRunnable = null;
+        }
     }
     
     /**
