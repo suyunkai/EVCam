@@ -1,14 +1,19 @@
 package com.kooo.evcam;
 
+import android.content.res.AssetManager;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import java.io.InputStream;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -84,6 +89,21 @@ public class BlindSpotSettingsFragment extends Fragment {
         logFilterEditText = view.findViewById(R.id.et_log_filter);
         menuButton = view.findViewById(R.id.btn_menu);
         homeButton = view.findViewById(R.id.btn_home);
+
+        // 加载抖音二维码
+        ImageView douyinQrCode = view.findViewById(R.id.img_douyin_qrcode);
+        loadAssetImage(douyinQrCode, "douyin.jpg");
+    }
+
+    private void loadAssetImage(ImageView imageView, String assetName) {
+        try {
+            AssetManager am = requireContext().getAssets();
+            try (InputStream is = am.open(assetName)) {
+                imageView.setImageBitmap(BitmapFactory.decodeStream(is));
+            }
+        } catch (Exception e) {
+            imageView.setVisibility(View.GONE);
+        }
     }
 
     private void loadSettings() {
