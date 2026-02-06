@@ -113,11 +113,34 @@ echo.
 
 REM 步骤 3: 创建 Git Tag
 echo [3/5] 创建 Git Tag...
+
+set "TAG_EXISTS="
+for /f "delims=" %%t in ('git tag -l !VERSION!') do set "TAG_EXISTS=1"
+
+if not defined TAG_EXISTS goto create_new_tag
+
+echo [提示] Tag !VERSION! 已存在
+set /p RETAG="是否删除并重建? (Y/N): "
+if /i not "!RETAG!"=="Y" goto push_tag
+
+git tag -d !VERSION!
+if errorlevel 1 goto tag_create_error
+echo [完成] 本地 Tag 已删除
+
+:create_new_tag
 git tag -a !VERSION! -m "Release !VERSION!"
 if errorlevel 1 goto tag_create_error
+
+:push_tag
 echo [推送] 推送 Tag...
 git push origin !VERSION!
+if not errorlevel 1 goto tag_pushed
+
+echo [提示] 远程 Tag 可能已存在, 强制推送...
+git push origin !VERSION! --force
 if errorlevel 1 goto tag_push_error
+
+:tag_pushed
 echo [完成] Tag 已推送
 echo.
 
@@ -171,8 +194,7 @@ exit /b 1
 
 :tag_create_error
 echo [错误] 创建 Tag 失败
-echo   - Tag !VERSION! 可能已存在
-echo   - 运行: git tag -d !VERSION!  删除本地 tag
+echo   - 运行 git tag -d !VERSION! 删除本地 tag
 pause
 exit /b 1
 
@@ -199,7 +221,7 @@ exit /b 0
 
 :release_error
 echo [错误] 创建 Release 失败
-echo   - 运行: gh auth login 登录
+echo   - 运行 gh auth login 登录
 echo   - 检查权限
 echo   - Tag 可能已有 Release
 pause
