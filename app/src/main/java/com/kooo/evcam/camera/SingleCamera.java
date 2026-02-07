@@ -1252,7 +1252,7 @@ public class SingleCamera {
                 // 通过 onClosed 回调触发重建（见下方 sessionCloseCallback）
                 // 同时设置 300ms 安全兜底，防止 CLOSED 回调丢失
                 if (backgroundHandler != null) {
-                    backgroundHandler.postDelayed(this::createCameraPreviewSessionIfClosePending, 300);
+                    backgroundHandler.postDelayed(sessionCloseFallbackRunnable, 300);
                 }
                 synchronized (sessionLock) {
                     isConfiguring = false;
@@ -1428,9 +1428,9 @@ public class SingleCamera {
                     // 延迟 50ms 重建（原 300ms 固定延迟 → 现 CLOSED + 50ms，总体更快更可靠）
                     if (wasClosing && backgroundHandler != null) {
                         // 移除所有待执行的重建任务，避免重复重建
-                        backgroundHandler.removeCallbacks(SingleCamera.this::createCameraPreviewSessionIfClosePending);
+                        backgroundHandler.removeCallbacks(sessionCloseFallbackRunnable);
                         backgroundHandler.removeCallbacks(recreateSessionRunnable);
-                        backgroundHandler.postDelayed(SingleCamera.this::createCameraPreviewSession, 50);
+                        backgroundHandler.postDelayed(recreateSessionRunnable, 50);
                     }
                 }
             };
@@ -1512,6 +1512,7 @@ public class SingleCamera {
      * 增加防抖处理，避免频繁重建导致黑屏
      */
     private final Runnable recreateSessionRunnable = this::createCameraPreviewSession;
+    private final Runnable sessionCloseFallbackRunnable = this::createCameraPreviewSessionIfClosePending;
 
     /**
      * 立即停止当前会话的 repeating request，防止帧继续推到即将销毁的 Surface。
