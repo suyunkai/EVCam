@@ -363,7 +363,29 @@
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:buttonTint="@color/colorPrimary" />
+
+                        <RadioButton
+                            android:id="@+id/rb_preset_car_api"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="40dp"
+                            android:text="银河E5-CarAPI触发（测试中）"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:buttonTint="@color/colorPrimary" />
                     </RadioGroup>
+
+                    <!-- CarAPI 连接状态 -->
+                    <TextView
+                        android:id="@+id/tv_car_api_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="CarAPI 服务状态: 检测中..."
+                        android:textSize="14sp"
+                        android:paddingStart="32dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:visibility="gone" />
                 </LinearLayout>
 
                 <!-- 触发log关键字 -->

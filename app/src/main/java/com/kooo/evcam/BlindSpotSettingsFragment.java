@@ -47,6 +47,8 @@ public class BlindSpotSettingsFragment extends Fragment {
         { "e5", "PA_GpioTurnLeftLamp, value:1", "PA_GpioTurnRightLamp, value:1" },
     };
 
+    private TextView carApiStatusText;
+
     private SwitchMaterial blindSpotGlobalSwitch;
     private android.widget.LinearLayout subFeaturesContainer;
     private SwitchMaterial secondaryBlindSpotSwitch;
@@ -105,6 +107,8 @@ public class BlindSpotSettingsFragment extends Fragment {
         blindSpotCorrectionSwitch = view.findViewById(R.id.switch_blind_spot_correction);
         adjustBlindSpotCorrectionButton = view.findViewById(R.id.btn_adjust_blind_spot_correction);
         
+        carApiStatusText = view.findViewById(R.id.tv_car_api_status);
+
         logcatDebugButton = view.findViewById(R.id.btn_logcat_debug);
         logFilterEditText = view.findViewById(R.id.et_log_filter);
         menuButton = view.findViewById(R.id.btn_menu);
@@ -142,17 +146,25 @@ public class BlindSpotSettingsFragment extends Fragment {
         turnSignalLeftLogEditText.setText(currentLeft);
         turnSignalRightLogEditText.setText(currentRight);
 
-        // 根据当前关键词匹配预设
-        int matchedPreset = findMatchingPreset(currentLeft, currentRight);
-        if (matchedPreset == 0) {
-            turnSignalPresetGroup.check(R.id.rb_preset_xinghan7);
+        // 根据触发模式和当前关键词匹配预设
+        if (appConfig.isCarApiTriggerMode()) {
+            turnSignalPresetGroup.check(R.id.rb_preset_car_api);
             customKeywordsLayout.setVisibility(View.GONE);
-        } else if (matchedPreset == 1) {
-            turnSignalPresetGroup.check(R.id.rb_preset_e5);
-            customKeywordsLayout.setVisibility(View.GONE);
+            carApiStatusText.setVisibility(View.VISIBLE);
+            checkCarApiConnection();
         } else {
-            turnSignalPresetGroup.check(R.id.rb_preset_custom);
-            customKeywordsLayout.setVisibility(View.VISIBLE);
+            int matchedPreset = findMatchingPreset(currentLeft, currentRight);
+            if (matchedPreset == 0) {
+                turnSignalPresetGroup.check(R.id.rb_preset_xinghan7);
+                customKeywordsLayout.setVisibility(View.GONE);
+            } else if (matchedPreset == 1) {
+                turnSignalPresetGroup.check(R.id.rb_preset_e5);
+                customKeywordsLayout.setVisibility(View.GONE);
+            } else {
+                turnSignalPresetGroup.check(R.id.rb_preset_custom);
+                customKeywordsLayout.setVisibility(View.VISIBLE);
+            }
+            carApiStatusText.setVisibility(View.GONE);
         }
 
         secondaryBlindSpotSwitch.setChecked(appConfig.isSecondaryDisplayEnabled());
@@ -219,12 +231,25 @@ public class BlindSpotSettingsFragment extends Fragment {
 
         // 预设方案选择
         turnSignalPresetGroup.setOnCheckedChangeListener((group, checkedId) -> {
-            if (checkedId == R.id.rb_preset_custom) {
-                customKeywordsLayout.setVisibility(View.VISIBLE);
-            } else {
+            if (checkedId == R.id.rb_preset_car_api) {
+                // CarAPI 模式
                 customKeywordsLayout.setVisibility(View.GONE);
-                int presetIndex = (checkedId == R.id.rb_preset_xinghan7) ? 0 : 1;
-                applyPreset(presetIndex);
+                carApiStatusText.setVisibility(View.VISIBLE);
+                appConfig.setTurnSignalTriggerMode(AppConfig.TRIGGER_MODE_CAR_API);
+                checkCarApiConnection();
+                BlindSpotService.update(requireContext());
+            } else {
+                // Logcat 模式
+                carApiStatusText.setVisibility(View.GONE);
+                appConfig.setTurnSignalTriggerMode(AppConfig.TRIGGER_MODE_LOGCAT);
+                if (checkedId == R.id.rb_preset_custom) {
+                    customKeywordsLayout.setVisibility(View.VISIBLE);
+                } else {
+                    customKeywordsLayout.setVisibility(View.GONE);
+                    int presetIndex = (checkedId == R.id.rb_preset_xinghan7) ? 0 : 1;
+                    applyPreset(presetIndex);
+                }
+                BlindSpotService.update(requireContext());
             }
         });
 
@@ -380,6 +405,31 @@ public class BlindSpotSettingsFragment extends Fragment {
         if (appConfig.isBlindSpotDisclaimerAccepted()) return;
         disclaimerDialogShown = true;
         new BlindSpotDisclaimerDialogFragment().show(getChildFragmentManager(), "blind_spot_disclaimer");
+    }
+
+    /**
+     * 异步检查 CarAPI daemon 连接状态并更新 UI
+     */
+    private void checkCarApiConnection() {
+        if (carApiStatusText == null) return;
+        carApiStatusText.setText("CarAPI 服务状态: 检测中...");
+        carApiStatusText.setTextColor(getResources().getColor(R.color.text_secondary, null));
+
+        new Thread(() -> {
+            boolean connected = VhalSignalObserver.testConnection();
+            if (getActivity() != null && isAdded()) {
+                getActivity().runOnUiThread(() -> {
+                    if (carApiStatusText == null) return;
+                    if (connected) {
+                        carApiStatusText.setText("CarAPI 服务状态: ✓ 已连接");
+                        carApiStatusText.setTextColor(0xFF4CAF50); // green
+                    } else {
+                        carApiStatusText.setText("CarAPI 服务状态: ✗ 连接失败（请确认 EVCC daemon 已启动）");
+                        carApiStatusText.setTextColor(0xFFF44336); // red
+                    }
+                });
+            }
+        }).start();
     }
 
 }

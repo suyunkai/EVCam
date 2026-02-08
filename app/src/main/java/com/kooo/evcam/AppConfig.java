@@ -85,6 +85,11 @@ public class AppConfig {
     private static final String KEY_TURN_SIGNAL_FLOATING_ROTATION = "turn_signal_floating_rotation"; // 独立补盲悬浮窗旋转
     private static final String KEY_TURN_SIGNAL_CUSTOM_LEFT_TRIGGER_LOG = "turn_signal_custom_left_trigger_log"; // 左转向灯触发log关键字
     private static final String KEY_TURN_SIGNAL_CUSTOM_RIGHT_TRIGGER_LOG = "turn_signal_custom_right_trigger_log"; // 右转向灯触发log关键字
+    private static final String KEY_TURN_SIGNAL_TRIGGER_MODE = "turn_signal_trigger_mode"; // 转向灯触发模式
+
+    // 转向灯触发模式常量
+    public static final String TRIGGER_MODE_LOGCAT = "logcat";     // Logcat 日志触发（默认）
+    public static final String TRIGGER_MODE_CAR_API = "car_api";   // CarAPI 触发（通过 EVCC daemon）
 
     // 桌面悬浮模拟按钮 (补盲选项新增)
     private static final String KEY_MOCK_TURN_SIGNAL_FLOATING_ENABLED = "mock_turn_signal_floating_enabled"; // 悬浮模拟按钮开关
@@ -1759,6 +1764,29 @@ public class AppConfig {
 
     public String getTurnSignalRightTriggerLog() {
         return getTurnSignalCustomRightTriggerLog();
+    }
+
+    /**
+     * 设置转向灯触发模式
+     * @param mode TRIGGER_MODE_LOGCAT 或 TRIGGER_MODE_CAR_API
+     */
+    public void setTurnSignalTriggerMode(String mode) {
+        prefs.edit().putString(KEY_TURN_SIGNAL_TRIGGER_MODE, mode).apply();
+        AppLog.d(TAG, "转向灯触发模式: " + mode);
+    }
+
+    /**
+     * 获取转向灯触发模式
+     */
+    public String getTurnSignalTriggerMode() {
+        return prefs.getString(KEY_TURN_SIGNAL_TRIGGER_MODE, TRIGGER_MODE_LOGCAT);
+    }
+
+    /**
+     * 是否使用 CarAPI 触发模式
+     */
+    public boolean isCarApiTriggerMode() {
+        return TRIGGER_MODE_CAR_API.equals(getTurnSignalTriggerMode());
     }
 
     /**

@@ -48,7 +48,8 @@ public class BlindSpotService extends Service {
     private boolean isSecondaryAdjustMode = false;
     private int secondaryAttachedDisplayId = -1;
 
-    private LogcatSignalObserver signalObserver;
+    private LogcatSignalObserver logcatSignalObserver;
+    private VhalSignalObserver vhalSignalObserver;
     private final Handler hideHandler = new Handler(Looper.getMainLooper());
     private Runnable hideRunnable;
     private Runnable signalKeepAliveRunnable; // 信号保活计时器（debounce）
@@ -74,12 +75,50 @@ public class BlindSpotService extends Service {
     }
 
     private void initSignalObserver() {
+        // 停止旧的观察者
+        stopSignalObservers();
+
+        if (appConfig.isCarApiTriggerMode()) {
+            initVhalSignalObserver();
+        } else {
+            initLogcatSignalObserver();
+        }
+    }
+
+    private void initVhalSignalObserver() {
+        AppLog.d(TAG, "Using CarAPI (VHAL) trigger mode");
+
+        vhalSignalObserver = new VhalSignalObserver(new VhalSignalObserver.TurnSignalListener() {
+            @Override
+            public void onTurnSignal(String direction, boolean on) {
+                if (!appConfig.isBlindSpotGlobalEnabled()) return;
+                if (!appConfig.isTurnSignalLinkageEnabled()) return;
+
+                if (on) {
+                    handleTurnSignal(direction);
+                } else {
+                    // 转向灯关闭，启动隐藏计时器
+                    startHideTimer();
+                }
+            }
+
+            @Override
+            public void onConnectionStateChanged(boolean connected) {
+                AppLog.d(TAG, "EVCC daemon connection: " + (connected ? "connected" : "disconnected"));
+            }
+        });
+        vhalSignalObserver.start();
+    }
+
+    private void initLogcatSignalObserver() {
+        AppLog.d(TAG, "Using Logcat trigger mode");
+
         // 安全兜底：即使 logcat -T 已从源头跳过历史缓冲，
         // 仍保留 500ms 预热期以防极端情况（如系统时间跳变）
         final long observerStartTime = System.currentTimeMillis();
         final long WARMUP_MS = 500;
 
-        signalObserver = new LogcatSignalObserver((line, data1) -> {
+        logcatSignalObserver = new LogcatSignalObserver((line, data1) -> {
             if (System.currentTimeMillis() - observerStartTime < WARMUP_MS) return;
 
             if (!appConfig.isBlindSpotGlobalEnabled()) return;
@@ -111,11 +150,22 @@ public class BlindSpotService extends Service {
         });
         // 将用户配置的触发关键字传入，用于构建 logcat -e 原生过滤正则。
         // 行驶中车机日志量暴增，不做原生过滤会导致转向灯信号被"淹没"而延迟。
-        signalObserver.setFilterKeywords(
+        logcatSignalObserver.setFilterKeywords(
                 appConfig.getTurnSignalLeftTriggerLog(),
                 appConfig.getTurnSignalRightTriggerLog()
         );
-        signalObserver.start();
+        logcatSignalObserver.start();
+    }
+
+    private void stopSignalObservers() {
+        if (logcatSignalObserver != null) {
+            logcatSignalObserver.stop();
+            logcatSignalObserver = null;
+        }
+        if (vhalSignalObserver != null) {
+            vhalSignalObserver.stop();
+            vhalSignalObserver = null;
+        }
     }
 
     private void handleTurnSignal(String cameraPos) {
@@ -900,9 +950,7 @@ public class BlindSpotService extends Service {
 
     @Override
     public void onDestroy() {
-        if (signalObserver != null) {
-            signalObserver.stop();
-        }
+        stopSignalObservers();
         if (hideRunnable != null) {
             hideHandler.removeCallbacks(hideRunnable);
         }
