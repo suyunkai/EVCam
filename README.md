@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
   <img src="assets/logo.png" alt="EVCam Logo" width="200"/>
   
   # EVCam - 电车记录仪
@@ -10,8 +10,7 @@
   <p>
     <img src="https://img.shields.io/badge/Android-9.0+-green?style=flat-square&logo=android" alt="Android"/>
     <img src="https://img.shields.io/badge/API-28+-brightgreen?style=flat-square" alt="API"/>
-    <img src="https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey?style=flat-square" alt="License"/>
-    <img src="https://img.shields.io/badge/Commercial-Contact%20Author-orange?style=flat-square" alt="Commercial"/>
+    <img src="https://img.shields.io/badge/License-GPLv3-blue?style=flat-square" alt="License"/>
     <img src="https://img.shields.io/badge/Language-Java-red?style=flat-square&logo=openjdk&logoColor=white" alt="Java"/>
   </p>
 </div>
@@ -45,7 +44,7 @@
 - **最低版本**: Android 9.0 (API 28)
 - **目标版本**: Android 14+ (API 36)
 - **摄像头API**: Camera2 API
-- **视频编码**: MediaRecorder（硬编码）/ MediaCodec（软编码）
+- **视频编码**: MediaRecorder（硬编码）/ OpenGL + MediaCodec（软编码）
 - **构建工具**: Gradle 8.x (Kotlin DSL)
 - **UI组件**: Material Design Components
 - **图片加载**: Glide 4.16.0
@@ -60,8 +59,8 @@
 |------|-----------|---------|------|
 | 银河E5 | 4 | MediaRecorder | 默认车型 |
 | 银河E5-多按钮 | 4 | MediaRecorder | 简化操作界面 |
-| 银河L6/L7 | 4 | MediaCodec | 自动适配编码模式 |
-| 银河L7-多按钮 | 4 | MediaCodec | 简化操作界面 |
+| 银河L6/L7 | 4 | OpenGL+MediaCodec | 自动适配编码模式 |
+| 银河L7-多按钮 | 4 | OpenGL+MediaCodec | 简化操作界面 |
 | 手机 | 2 | MediaRecorder | 前后摄像头 |
 | 自定义车型 | 1/2/4 | 可选 | 完全自定义配置 |
 
@@ -298,7 +297,7 @@ adb install app\build\outputs\apk\debug\app-debug.apk
 | 设置项 | 说明 |
 |--------|------|
 | 车型选择 | 选择车型或自定义摄像头配置 |
-| 录制模式 | 自动/MediaRecorder/MediaCodec |
+| 录制模式 | 自动/MediaRecorder/OpenGL+MediaCodec |
 | 分段时长 | 1分钟/3分钟/5分钟 |
 | 存储位置 | 内部存储/U盘 |
 | 存储限制 | 视频和照片的最大存储空间（GB） |
@@ -344,7 +343,7 @@ EVCam/
 │   ├── MultiCameraManager.java   # 多摄像头编排器
 │   ├── SingleCamera.java          # 单摄像头封装（Camera2 API）
 │   ├── VideoRecorder.java         # 视频录制器（MediaRecorder）
-│   ├── CodecVideoRecorder.java    # 视频录制器（MediaCodec）
+│   ├── CodecVideoRecorder.java    # 视频录制器（OpenGL+MediaCodec）
 │   ├── EglSurfaceEncoder.java     # EGL Surface 编码器
 │   ├── ImageAdjustManager.java    # 图像调节管理器
 │   ├── CameraCallback.java        # 摄像头事件回调接口
@@ -614,16 +613,17 @@ gradlew.bat connectedAndroidTest
 
 ## 📄 许可证
 
-本项目采用 **双重许可** 模式：
+本项目采用 **GPL-3.0** 开源协议。
 
-### 非商业使用
-- 📜 **CC BY-NC-SA 4.0**（知识共享署名-非商业性使用-相同方式共享 4.0）
-- ✅ 允许个人学习、研究、非商业使用
-- ✅ 允许修改和分发（需保持相同许可）
-- ❌ 禁止任何商业用途
+你可以自由地使用、修改和分发本项目，但需要遵守 GPL-3.0 的条款。
 
-### 商业使用
-- 💼 如需商业授权，请联系作者获取商业许可证
+### 必须遵守
+- 保留版权与许可声明，随分发提供 GPL-3.0 文本（LICENSE）。
+- 任何修改或衍生作品在对外分发时，必须以 GPL-3.0 许可发布并提供对应源代码。
+- 不得添加额外限制或技术手段，阻止他人行使 GPL 权利。
+
+### 商业用途
+GPL-3.0 **允许** 商业目的使用与分发/销售，但只要对外分发，就需要遵守上面的开源义务（提供源代码、保留声明、同许可等）。
 
 详细条款请参阅 [LICENSE](LICENSE) 文件。
 
@@ -646,3 +646,5 @@ gradlew.bat connectedAndroidTest
 - **wechat**: greenteacher46 (请备注来意)
 
 ---
+
+
