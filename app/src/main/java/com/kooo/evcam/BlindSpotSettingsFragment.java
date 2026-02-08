@@ -122,6 +122,10 @@ public class BlindSpotSettingsFragment extends Fragment {
         // 加载抖音二维码
         ImageView douyinQrCode = view.findViewById(R.id.img_douyin_qrcode);
         loadAssetImage(douyinQrCode, "douyin.jpg");
+
+        // 加载第二个抖音二维码（阿卜IT老师）
+        ImageView douyinQrCode2 = view.findViewById(R.id.img_douyin_qrcode2);
+        loadAssetImage(douyinQrCode2, "douyin2.png");
     }
 
     private void loadAssetImage(ImageView imageView, String assetName) {
@@ -245,7 +249,7 @@ public class BlindSpotSettingsFragment extends Fragment {
 
         // 预设方案选择
         turnSignalPresetGroup.setOnCheckedChangeListener((group, checkedId) -> {
-            if (checkedId == R.id.rb_preset_l6l7) {
+            if (checkedId == R.id.rb_preset_l6l7 || checkedId == R.id.rb_preset_boyue_l) {
                 // CarSignalManager API 模式
                 customKeywordsLayout.setVisibility(View.GONE);
                 carApiStatusText.setVisibility(View.VISIBLE);
