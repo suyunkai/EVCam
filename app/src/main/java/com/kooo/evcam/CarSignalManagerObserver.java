@@ -290,25 +290,29 @@ public class CarSignalManagerObserver {
                 // 根据状态转换为方向和开关信息
                 switch (currentState) {
                     case 0: // 关闭
-                        // 通知左右都关闭
-                        handler.post(() -> {
-                            listener.onTurnSignal("left", false);
-                            listener.onTurnSignal("right", false);
-                        });
+                        // 只在从非关闭状态切换到关闭状态时，才通知关闭
+                        // 避免重复触发 startHideTimer()
+                        if (lastTurnSignalState == 1) {
+                            // 从左转切换到关闭
+                            handler.post(() -> listener.onTurnSignal("left", false));
+                        } else if (lastTurnSignalState == 2) {
+                            // 从右转切换到关闭
+                            handler.post(() -> listener.onTurnSignal("right", false));
+                        } else if (lastTurnSignalState == 3) {
+                            // 从双闪切换到关闭
+                            handler.post(() -> {
+                                listener.onTurnSignal("left", false);
+                                listener.onTurnSignal("right", false);
+                            });
+                        }
                         break;
                         
                     case 1: // 左转
-                        handler.post(() -> {
-                            listener.onTurnSignal("left", true);
-                            listener.onTurnSignal("right", false);
-                        });
+                        handler.post(() -> listener.onTurnSignal("left", true));
                         break;
                         
                     case 2: // 右转
-                        handler.post(() -> {
-                            listener.onTurnSignal("left", false);
-                            listener.onTurnSignal("right", true);
-                        });
+                        handler.post(() -> listener.onTurnSignal("right", true));
                         break;
                         
                     case 3: // 双闪

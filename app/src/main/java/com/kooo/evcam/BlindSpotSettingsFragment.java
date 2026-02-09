@@ -157,7 +157,14 @@ public class BlindSpotSettingsFragment extends Fragment {
 
         // 根据触发模式和当前关键词匹配预设
         if (appConfig.isCarSignalManagerTriggerMode()) {
-            turnSignalPresetGroup.check(R.id.rb_preset_l6l7);
+            // CarSignalManager 模式：根据保存的预设选择恢复 RadioButton
+            String presetSelection = appConfig.getTurnSignalPresetSelection();
+            if ("boyue_l".equals(presetSelection)) {
+                turnSignalPresetGroup.check(R.id.rb_preset_boyue_l);
+            } else {
+                // 默认选中 L6/L7
+                turnSignalPresetGroup.check(R.id.rb_preset_l6l7);
+            }
             customKeywordsLayout.setVisibility(View.GONE);
             carApiStatusText.setVisibility(View.VISIBLE);
             carApiStatusText.setText("CarSignalManager 服务状态: 检测中...");
@@ -255,6 +262,14 @@ public class BlindSpotSettingsFragment extends Fragment {
                 carApiStatusText.setVisibility(View.VISIBLE);
                 carApiStatusText.setText("CarSignalManager 服务状态: 检测中...");
                 appConfig.setTurnSignalTriggerMode(AppConfig.TRIGGER_MODE_CAR_SIGNAL_MANAGER);
+                
+                // 保存具体选择的预设（博越L 或 L6/L7）
+                if (checkedId == R.id.rb_preset_boyue_l) {
+                    appConfig.setTurnSignalPresetSelection("boyue_l");
+                } else {
+                    appConfig.setTurnSignalPresetSelection("l6l7");
+                }
+                
                 checkCarSignalManagerConnection();
                 BlindSpotService.update(requireContext());
             } else if (checkedId == R.id.rb_preset_car_api) {

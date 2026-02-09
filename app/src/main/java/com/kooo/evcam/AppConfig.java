@@ -86,6 +86,7 @@ public class AppConfig {
     private static final String KEY_TURN_SIGNAL_CUSTOM_LEFT_TRIGGER_LOG = "turn_signal_custom_left_trigger_log"; // 左转向灯触发log关键字
     private static final String KEY_TURN_SIGNAL_CUSTOM_RIGHT_TRIGGER_LOG = "turn_signal_custom_right_trigger_log"; // 右转向灯触发log关键字
     private static final String KEY_TURN_SIGNAL_TRIGGER_MODE = "turn_signal_trigger_mode"; // 转向灯触发模式
+    private static final String KEY_TURN_SIGNAL_PRESET_SELECTION = "turn_signal_preset_selection"; // 用户选择的预设选项（博越L/L6L7等）
 
     // 转向灯触发模式常量
     public static final String TRIGGER_MODE_LOGCAT = "logcat";            // Logcat 日志触发（默认）
@@ -1829,6 +1830,23 @@ public class AppConfig {
      */
     public boolean isCarSignalManagerTriggerMode() {
         return TRIGGER_MODE_CAR_SIGNAL_MANAGER.equals(getTurnSignalTriggerMode());
+    }
+
+    /**
+     * 保存用户选择的转向灯预设选项（用于恢复具体的 RadioButton 选择）
+     * @param presetName 预设名称，如 "l6l7" 或 "boyue_l"
+     */
+    public void setTurnSignalPresetSelection(String presetName) {
+        prefs.edit().putString(KEY_TURN_SIGNAL_PRESET_SELECTION, presetName).apply();
+        AppLog.d(TAG, "保存转向灯预设选择: " + presetName);
+    }
+
+    /**
+     * 获取用户选择的转向灯预设选项
+     * @return 预设名称，如 "l6l7" 或 "boyue_l"
+     */
+    public String getTurnSignalPresetSelection() {
+        return prefs.getString(KEY_TURN_SIGNAL_PRESET_SELECTION, "l6l7"); // 默认返回 l6l7
     }
 
     /**

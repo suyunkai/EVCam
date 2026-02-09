@@ -124,7 +124,11 @@ public class BlindSpotService extends Service {
                 if (!appConfig.isTurnSignalLinkageEnabled()) return;
 
                 if (on) {
-                    handleTurnSignal(direction);
+                    //handleTurnSignal(direction);
+                    // 转向灯打开，显示摄像头
+                    // 注意：不能调用 handleTurnSignal()，因为它会触发 resetSignalKeepAlive()
+                    // CarSignalManager API 通过轮询获取精确状态，不需要 debounce 机制
+                    showBlindSpotCamera(direction);
                 } else {
                     // 转向灯关闭，启动隐藏计时器
                     startHideTimer();
@@ -198,6 +202,81 @@ public class BlindSpotService extends Service {
         if (carSignalManagerObserver != null) {
             carSignalManagerObserver.stop();
             carSignalManagerObserver = null;
+        }
+    }
+
+    /**
+     * 显示盲区摄像头（用于 CarSignalManager API，不使用 debounce）
+     */
+    private void showBlindSpotCamera(String cameraPos) {
+        // 取消隐藏计时器
+        if (hideRunnable != null) {
+            hideHandler.removeCallbacks(hideRunnable);
+            hideRunnable = null;
+        }
+
+        // 取消信号保活计时器（如果之前从其他模式切换过来）
+        if (signalKeepAliveRunnable != null) {
+            hideHandler.removeCallbacks(signalKeepAliveRunnable);
+            signalKeepAliveRunnable = null;
+        }
+
+        if (cameraPos.equals(currentSignalCamera)) {
+            AppLog.d(TAG, "转向灯相同，不重复切换: " + cameraPos);
+            return;
+        }
+
+        currentSignalCamera = cameraPos;
+        AppLog.d(TAG, "转向灯触发摄像头(CarSignalManager): " + cameraPos);
+
+        // 确保前台服务已启动
+        CameraForegroundService.start(this, "补盲运行中", "正在显示补盲画面");
+
+        // 确保摄像头已初始化
+        com.kooo.evcam.camera.CameraManagerHolder.getInstance().getOrInit(this);
+
+        // 副屏窗口预创建
+        if (appConfig.isSecondaryDisplayEnabled()) {
+            if (secondaryFloatingView == null) {
+                showSecondaryDisplay();
+            }
+        }
+
+        boolean reuseMain = appConfig.isTurnSignalReuseMainFloating();
+
+        if (reuseMain) {
+            // 复用主屏悬浮窗
+            if (mainFloatingWindowView != null) {
+                mainFloatingWindowView.dismiss();
+                mainFloatingWindowView = null;
+            }
+            if (WakeUpHelper.hasOverlayPermission(this)) {
+                mainFloatingWindowView = new MainFloatingWindowView(this);
+                mainFloatingWindowView.updateCamera(cameraPos, true);
+                mainFloatingWindowView.show();
+                isMainTempShown = true;
+                AppLog.d(TAG, "主屏开启临时补盲悬浮窗");
+            }
+        } else {
+            // 使用独立补盲悬浮窗
+            if (mainFloatingWindowView != null) {
+                mainFloatingWindowView.dismiss();
+                mainFloatingWindowView = null;
+                isMainTempShown = false;
+            }
+            if (dedicatedBlindSpotWindow != null) {
+                dedicatedBlindSpotWindow.dismiss();
+                dedicatedBlindSpotWindow = null;
+            }
+            dedicatedBlindSpotWindow = new BlindSpotFloatingWindowView(this, false);
+            dedicatedBlindSpotWindow.setCameraPos(cameraPos);
+            dedicatedBlindSpotWindow.show();
+            dedicatedBlindSpotWindow.setCamera(cameraPos);
+        }
+
+        // 副屏摄像头预览
+        if (appConfig.isSecondaryDisplayEnabled()) {
+            startSecondaryCameraPreviewDirectly(cameraPos);
         }
     }
 
