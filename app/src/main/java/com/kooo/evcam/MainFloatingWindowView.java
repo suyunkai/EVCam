@@ -559,7 +559,7 @@ public class MainFloatingWindowView extends FrameLayout {
             }
         }
 
-        BlindSpotCorrection.apply(textureView, appConfig, cameraPos, 0);
+        BlindSpotCorrection.apply(textureView, appConfig, cameraPos, 0, isCurrentlySwapped);
     }
 
     private void scheduleRetryBind() {

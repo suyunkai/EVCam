@@ -417,7 +417,7 @@ public class BlindSpotFloatingWindowView extends FrameLayout {
             }
         }
 
-        BlindSpotCorrection.apply(textureView, appConfig, cameraPos, currentRotation);
+        BlindSpotCorrection.apply(textureView, appConfig, cameraPos, currentRotation, isCurrentlySwapped);
     }
 
     public void enableAdjustPreviewMode() {
