@@ -9,5 +9,4 @@ local.properties
 .externalNativeBuild/
 *.log
 captures/
-.claude/
 .trae/
