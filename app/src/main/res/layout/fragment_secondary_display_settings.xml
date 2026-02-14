@@ -679,7 +679,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="指定Activity在前台时自动隐藏主屏补盲窗口"
+                            android:text="EVCam本体和指定Activity在前台时自动隐藏主屏补盲窗口"
                             android:textColor="@color/text_secondary"
                             android:textSize="14sp"
                             android:layout_marginTop="4dp" />

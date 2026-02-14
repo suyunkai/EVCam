@@ -1238,7 +1238,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="车速超过阈值时按下定制键唤醒/退出EVCam预览（需VHAL gRPC）"
+                            android:text="车速超过阈值时按下定制键唤醒/退出EVCam预览（仅限龙鹰一号车型）"
                             android:textColor="@color/text_secondary"
                             android:textSize="14sp"
                             android:layout_marginTop="4dp" />
