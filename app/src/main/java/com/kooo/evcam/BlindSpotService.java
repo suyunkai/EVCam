@@ -74,8 +74,21 @@ public class BlindSpotService extends Service {
 
     // 全景影像避让
     private Runnable avmCheckRunnable;
-    private boolean isAvmAvoidanceActive = false; // 当前是否处于避让状态
+    private boolean isAvmAvoidanceActive = false; // 当前是否处于避让状态（AVM或自身前台）
+    private int avmDeactivateCount = 0; // 连续未检测到AVM前台的次数（去抖）
+    private static final int AVM_DEACTIVATE_THRESHOLD = 3; // 连续3次（3秒）未检测到才解除避让
     private static final long AVM_CHECK_INTERVAL_MS = 1000; // 前台检测轮询间隔
+    private static volatile boolean isSelfInForeground = false; // EVCam自身Activity是否在前台（生命周期驱动）
+
+    /** MainActivity.onResume 时调用 */
+    public static void notifySelfForeground() {
+        isSelfInForeground = true;
+    }
+
+    /** MainActivity.onPause 时调用 */
+    public static void notifySelfBackground() {
+        isSelfInForeground = false;
+    }
 
     // 定制键唤醒
     private boolean isCustomKeyPreviewShown = false; // 定制键唤醒的预览是否已显示
@@ -1503,27 +1516,38 @@ public class BlindSpotService extends Service {
         if (targetActivity == null || targetActivity.isEmpty()) return;
 
         // "all" 模式始终视为前台，主屏补盲永不显示
-        boolean isForeground = "all".equalsIgnoreCase(targetActivity)
-                || isActivityInForeground(targetActivity)
-                || isPackageInForeground(getPackageName());
+        boolean isAvmForeground = "all".equalsIgnoreCase(targetActivity)
+                || isActivityInForeground(targetActivity);
 
-        if (isForeground && !isAvmAvoidanceActive) {
-            // 目标Activity或自身应用在前台，隐藏主屏补盲窗口
-            isAvmAvoidanceActive = true;
-            AppLog.i(TAG, "全景影像避让：检测到前台应用需要避让，隐藏主屏补盲窗口");
-            if (mainFloatingWindowView != null) {
-                mainFloatingWindowView.dismiss();
-                mainFloatingWindowView = null;
+        // EVCam 自身前台检测（基于 Activity 生命周期，即时准确，不依赖 UsageEvents）
+        boolean selfFg = isSelfInForeground;
+
+        if (isAvmForeground || selfFg) {
+            if (isAvmForeground) {
+                avmDeactivateCount = 0; // AVM 确实在前台，重置去抖
             }
-            if (dedicatedBlindSpotWindow != null) {
-                dedicatedBlindSpotWindow.dismiss();
-                dedicatedBlindSpotWindow = null;
+            if (!isAvmAvoidanceActive) {
+                isAvmAvoidanceActive = true;
+                AppLog.i(TAG, "全景影像避让：隐藏主屏补盲窗口（AVM=" + isAvmForeground + ", 自身前台=" + selfFg + "）");
+                if (mainFloatingWindowView != null) {
+                    mainFloatingWindowView.dismiss();
+                    mainFloatingWindowView = null;
+                }
+                if (dedicatedBlindSpotWindow != null) {
+                    dedicatedBlindSpotWindow.dismiss();
+                    dedicatedBlindSpotWindow = null;
+                }
             }
-        } else if (!isForeground && isAvmAvoidanceActive) {
-            // 目标Activity离开前台，恢复窗口显示
-            isAvmAvoidanceActive = false;
-            AppLog.i(TAG, "全景影像避让：" + targetActivity + " 已离开前台，恢复主屏补盲窗口");
-            updateMainFloatingWindow();
+        } else if (isAvmAvoidanceActive) {
+            // 两个条件都不满足：AVM 不在前台，EVCam 也不在前台
+            avmDeactivateCount++;
+            AppLog.d(TAG, "全景影像避让：未检测到前台 (" + avmDeactivateCount + "/" + AVM_DEACTIVATE_THRESHOLD + ")");
+            if (avmDeactivateCount >= AVM_DEACTIVATE_THRESHOLD) {
+                isAvmAvoidanceActive = false;
+                avmDeactivateCount = 0;
+                AppLog.i(TAG, "全景影像避让：" + targetActivity + " 已离开前台，恢复主屏补盲窗口");
+                updateMainFloatingWindow();
+            }
         }
     }
 

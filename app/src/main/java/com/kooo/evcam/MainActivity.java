@@ -4826,6 +4826,7 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
     protected void onPause() {
         super.onPause();
         isInBackground = true;
+        BlindSpotService.notifySelfBackground();
         AppLog.d(TAG, "onPause called, isRecording=" + isRecording);
         
         // 暂停心跳推图（进入后台时）
@@ -4889,6 +4890,7 @@ public class MainActivity extends AppCompatActivity implements WechatRemoteManag
         super.onResume();
         boolean wasInBackground = isInBackground;
         isInBackground = false;
+        BlindSpotService.notifySelfForeground();
         
         // 标记 Activity 已经完全恢复过一次（用于区分新创建和已存在的 Activity）
         // 这个标记在 onCreate 后第一次 onResume 时设为 true
