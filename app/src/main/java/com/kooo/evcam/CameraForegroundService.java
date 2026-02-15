@@ -43,6 +43,23 @@ public class CameraForegroundService extends Service {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private Runnable cameraRepairRunnable;
 
+    private static volatile boolean isForegroundReady = false;
+    private static final java.util.List<Runnable> pendingReadyCallbacks = new java.util.ArrayList<>();
+
+    /**
+     * 前台服务就绪后执行回调。
+     * 如果服务已经运行，立即在主线程执行；否则排队等待 startForeground 完成后执行。
+     */
+    public static void whenReady(Context context, Runnable callback) {
+        if (isForegroundReady) {
+            callback.run();
+        } else {
+            synchronized (pendingReadyCallbacks) {
+                pendingReadyCallbacks.add(callback);
+            }
+        }
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -196,6 +213,15 @@ public class CameraForegroundService extends Service {
 
         // 启动前台服务
         startForeground(NOTIFICATION_ID, notification);
+
+        // 标记就绪，执行所有等待的回调
+        isForegroundReady = true;
+        synchronized (pendingReadyCallbacks) {
+            for (Runnable cb : pendingReadyCallbacks) {
+                mainHandler.post(cb);
+            }
+            pendingReadyCallbacks.clear();
+        }
 
         return START_STICKY;
     }
@@ -393,6 +419,7 @@ public class CameraForegroundService extends Service {
      * @param context 上下文
      */
     public static void stop(Context context) {
+        isForegroundReady = false;
         Intent intent = new Intent(context, CameraForegroundService.class);
         context.stopService(intent);
         AppLog.d(TAG, "Stopping foreground service");

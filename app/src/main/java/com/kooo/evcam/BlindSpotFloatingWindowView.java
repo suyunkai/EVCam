@@ -294,8 +294,9 @@ public class BlindSpotFloatingWindowView extends FrameLayout {
         // 如果摄像头硬件还未打开（后台初始化时不打开），先打开
         if (!currentCamera.isCameraOpened()) {
             AppLog.d(TAG, "Camera not opened yet, opening now for " + cameraPos);
-            // 只打开当前需要的摄像头，不打开其他不相关的摄像头
-            currentCamera.openCamera();
+            // 确保前台服务就绪后再打开相机（避免冷启动时 CAMERA_DISABLED）
+            final SingleCamera cam = currentCamera;
+            CameraForegroundService.whenReady(context, cam::openCamera);
         } else {
             currentCamera.recreateSession(urgent);
         }

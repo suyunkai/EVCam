@@ -636,12 +636,12 @@ public class BlindSpotService extends Service {
         if (secondaryCamera != null && secondaryTextureView != null && secondaryTextureView.isAvailable()) {
             if (secondaryCachedSurface == null || !secondaryCachedSurface.isValid()) {
                 Size previewSize = secondaryCamera.getPreviewSize();
-                if (previewSize == null) {
-                    // 冷启动时 openCamera 尚未完成，previewSize 未确定。
-                    // 此时不能创建 Surface，否则 buffer 尺寸会使用 TextureView 的物理尺寸
-                    // （如 318x236），与摄像头输出尺寸（如 1280x800）不匹配，导致 HAL 拒绝。
-                    // 延迟重试，等待摄像头打开后 previewSize 就位。
-                    AppLog.d(TAG, "副屏摄像头预览尺寸未确定（摄像头未打开），延迟绑定: " + cameraPos);
+                if (previewSize == null || !secondaryCamera.isCameraOpened()) {
+                    // 冷启动时 openCamera 尚未完成或被系统拒绝（CAMERA_DISABLED），
+                    // previewSize 可能已设置但相机未真正打开。
+                    // 此时不能创建 Surface，否则 buffer 尺寸不匹配导致 Session 配置失败。
+                    // 延迟重试，等待摄像头真正打开后再绑定。
+                    AppLog.d(TAG, "副屏等待摄像头打开（previewSize=" + previewSize + ", opened=" + secondaryCamera.isCameraOpened() + "），延迟绑定: " + cameraPos);
                     scheduleSecondaryRetry(cameraPos);
                     return;
                 }
