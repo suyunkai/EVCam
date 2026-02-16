@@ -2096,7 +2096,7 @@ public class AppConfig {
     }
 
     public boolean isFloatingWindowAnimationEnabled() {
-        return prefs.getBoolean(KEY_FLOATING_WINDOW_ANIMATION_ENABLED, true);
+        return prefs.getBoolean(KEY_FLOATING_WINDOW_ANIMATION_ENABLED, false);
     }
 
     // ==================== 时间角标配置相关方法 ====================

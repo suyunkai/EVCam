@@ -77,7 +77,7 @@ public class BlindSpotService extends Service {
     private Runnable avmCheckRunnable;
     private boolean isAvmAvoidanceActive = false; // 当前是否处于避让状态（AVM或自身前台）
     private int avmDeactivateCount = 0; // 连续未检测到AVM前台的次数（去抖）
-    private static final int AVM_DEACTIVATE_THRESHOLD = 3; // 连续3次（3秒）未检测到才解除避让
+    private static final int AVM_DEACTIVATE_THRESHOLD = 2; // 连续2次（2秒）未检测到才解除避让
     private static final long AVM_CHECK_INTERVAL_MS = 1000; // 前台检测轮询间隔
     private static volatile boolean isSelfInForeground = false; // EVCam自身Activity是否在前台（生命周期驱动）
 
@@ -492,8 +492,8 @@ public class BlindSpotService extends Service {
                 mainFloatingWindowView = null;
             }
             if (WakeUpHelper.hasOverlayPermission(this)) {
-                mainFloatingWindowView = new MainFloatingWindowView(this);
-                mainFloatingWindowView.updateCamera(cameraPos, true);
+                mainFloatingWindowView = new MainFloatingWindowView(this, appConfig);
+                mainFloatingWindowView.setDesiredCamera(cameraPos, true);
                 mainFloatingWindowView.show();
                 isMainTempShown = true;
                 AppLog.d(TAG, "主屏开启临时补盲悬浮窗");
@@ -548,10 +548,6 @@ public class BlindSpotService extends Service {
         com.kooo.evcam.camera.CameraManagerHolder.getInstance().getOrInit(this);
 
         // --- 副屏窗口预创建 ---
-        // 先创建副屏窗口，让副屏 TextureView 提前进入渲染管线。
-        // openCamera 是异步操作（~200-500ms），在此期间副屏 TextureView 有充足时间完成首帧渲染，
-        // 使 secondaryDisplaySurface 在摄像头打开时已就位，首次 Session 即可包含两个 Surface，
-        // 避免副屏需要额外一次 Session 重建而延迟出画面。
         if (appConfig.isSecondaryDisplayEnabled()) {
             if (secondaryFloatingView == null) {
                 showSecondaryDisplay();
@@ -570,8 +566,8 @@ public class BlindSpotService extends Service {
                     mainFloatingWindowView = null;
                 }
                 if (WakeUpHelper.hasOverlayPermission(this)) {
-                    mainFloatingWindowView = new MainFloatingWindowView(this);
-                    mainFloatingWindowView.updateCamera(cameraPos, true);
+                    mainFloatingWindowView = new MainFloatingWindowView(this, appConfig);
+                    mainFloatingWindowView.setDesiredCamera(cameraPos, true);
                     mainFloatingWindowView.show();
                     isMainTempShown = true;
                     AppLog.d(TAG, "主屏开启临时补盲悬浮窗");
@@ -657,10 +653,17 @@ public class BlindSpotService extends Service {
                             }
                         }
                     });
-                    // 如果相机未打开（例如全景影像避让时无主屏悬浮窗来打开相机），主动打开
+                    // 如果相机未打开，判断是否需要副屏主动打开
+                    // 当主屏悬浮窗正在创建时，由主屏的 updateCamera() 打开相机，
+                    // 这样 onCameraOpened 回调中副屏 Surface 已就绪，session 一次建成无需重建
                     if (!cam.isCameraOpened()) {
-                        AppLog.d(TAG, "副屏主动打开相机（无主屏窗口触发）: " + cameraPos);
-                        CameraForegroundService.whenReady(BlindSpotService.this, cam::openCamera);
+                        boolean mainWindowWillOpenCamera = mainFloatingWindowView != null || dedicatedBlindSpotWindow != null;
+                        if (!mainWindowWillOpenCamera) {
+                            AppLog.d(TAG, "副屏主动打开相机（无主屏窗口触发）: " + cameraPos);
+                            CameraForegroundService.whenReady(BlindSpotService.this, cam::openCamera);
+                        } else {
+                            AppLog.d(TAG, "副屏等待主屏窗口打开相机（避免过早创建session）: " + cameraPos);
+                        }
                     }
                     return;
                 }
@@ -730,6 +733,22 @@ public class BlindSpotService extends Service {
             secondaryRetryRunnable = null;
         }
         secondaryRetryCount = 0;
+    }
+
+    /**
+     * 预触发相机打开（与 UI 创建并行执行）。
+     * 在创建悬浮窗之前调用，使 openCamera 的异步操作与窗口创建/布局同时进行，
+     * 避免等 TextureView 就绪后才串行触发 openCamera 的延迟。
+     * openCamera 内部有 isOpening/isCameraOpened 防护，不会重复打开。
+     */
+    private void preOpenCamera(String cameraPos) {
+        MultiCameraManager cameraManager = com.kooo.evcam.camera.CameraManagerHolder.getInstance().getCameraManager();
+        if (cameraManager == null) return;
+        SingleCamera cam = cameraManager.getCamera(cameraPos);
+        if (cam != null && !cam.isCameraOpened()) {
+            AppLog.d(TAG, "预触发相机打开（与UI并行）: " + cameraPos);
+            CameraForegroundService.whenReady(this, cam::openCamera);
+        }
     }
 
     /**
@@ -851,8 +870,8 @@ public class BlindSpotService extends Service {
             }
             if (WakeUpHelper.hasOverlayPermission(this)) {
                 AppLog.i(TAG, "🚪 创建主屏悬浮窗，显示 " + side + " 侧摄像头");
-                mainFloatingWindowView = new MainFloatingWindowView(this);
-                mainFloatingWindowView.updateCamera(side, true);
+                mainFloatingWindowView = new MainFloatingWindowView(this, appConfig);
+                mainFloatingWindowView.setDesiredCamera(side, true);
                 mainFloatingWindowView.show();
                 isMainTempShown = true;
                 AppLog.i(TAG, "🚪 ✅ 主屏车门临时补盲悬浮窗已显示");
@@ -1351,7 +1370,7 @@ public class BlindSpotService extends Service {
             isMainTempShown = false; // 用户开启
             if (mainFloatingWindowView == null) {
                 if (WakeUpHelper.hasOverlayPermission(this)) {
-                    mainFloatingWindowView = new MainFloatingWindowView(this);
+                    mainFloatingWindowView = new MainFloatingWindowView(this, appConfig);
                     mainFloatingWindowView.show();
                 }
             } else {

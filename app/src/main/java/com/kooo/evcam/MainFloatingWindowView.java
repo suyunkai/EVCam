@@ -51,8 +51,12 @@ public class MainFloatingWindowView extends FrameLayout {
     private boolean isCurrentlySwapped = false;
 
     public MainFloatingWindowView(Context context) {
+        this(context, new AppConfig(context));
+    }
+
+    public MainFloatingWindowView(Context context, AppConfig appConfig) {
         super(context);
-        appConfig = new AppConfig(context);
+        this.appConfig = appConfig;
         windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
         desiredCameraPos = appConfig.getMainFloatingCamera();
         init();
@@ -387,7 +391,7 @@ public class MainFloatingWindowView extends FrameLayout {
         // 有动效：缩放 + 淡入
         if (windowAnimator != null) windowAnimator.cancel();
         windowAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f);
-        windowAnimator.setDuration(250);
+        windowAnimator.setDuration(100);
         windowAnimator.setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f));
         windowAnimator.addUpdateListener(animation -> {
             float val = (float) animation.getAnimatedValue();
@@ -447,7 +451,7 @@ public class MainFloatingWindowView extends FrameLayout {
             windowAnimator = null;
         }
         windowAnimator = android.animation.ValueAnimator.ofFloat(1f, 0f);
-        windowAnimator.setDuration(200);
+        windowAnimator.setDuration(100);
         windowAnimator.setInterpolator(new android.view.animation.AccelerateInterpolator(1.5f));
         windowAnimator.addUpdateListener(animation -> {
             float val = (float) animation.getAnimatedValue();
@@ -473,6 +477,16 @@ public class MainFloatingWindowView extends FrameLayout {
             }
         });
         windowAnimator.start();
+    }
+
+    /**
+     * 仅设置目标摄像头位置（不执行摄像头操作）。
+     * 用于 show() 之前设置，避免在 TextureView 未就绪时白跑 updateCamera。
+     * TextureView 就绪后会自动通过 onSurfaceTextureAvailable 触发 startCameraPreview。
+     */
+    public void setDesiredCamera(String cameraPos, boolean urgent) {
+        desiredCameraPos = cameraPos;
+        if (urgent) urgentPending = true;
     }
 
     /**
