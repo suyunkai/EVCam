@@ -657,6 +657,11 @@ public class BlindSpotService extends Service {
                             }
                         }
                     });
+                    // 如果相机未打开（例如全景影像避让时无主屏悬浮窗来打开相机），主动打开
+                    if (!cam.isCameraOpened()) {
+                        AppLog.d(TAG, "副屏主动打开相机（无主屏窗口触发）: " + cameraPos);
+                        CameraForegroundService.whenReady(BlindSpotService.this, cam::openCamera);
+                    }
                     return;
                 }
                 if (secondaryCachedSurface != null) secondaryCachedSurface.release();
