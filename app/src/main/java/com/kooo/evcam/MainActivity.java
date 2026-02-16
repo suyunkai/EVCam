@@ -2154,6 +2154,10 @@ public class MainActivity extends AppCompatActivity {
             // 绑定 TextureView
             cameraManager.updatePreviewTextureViews(textureFront, textureBack, textureLeft, textureRight);
 
+            // 打开所有摄像头（后台初始化时仅创建了对象，可能只打开了补盲所需的单个摄像头）
+            // 主界面需要所有摄像头画面，已打开的摄像头会被 openCamera 内部的防重复检查跳过
+            cameraManager.openAllCameras();
+
             // 手动触发 previewSizeCallback（摄像头可能已在补盲阶段打开并确定了预览尺寸）
             cameraManager.firePreviewSizeCallbacks();
 

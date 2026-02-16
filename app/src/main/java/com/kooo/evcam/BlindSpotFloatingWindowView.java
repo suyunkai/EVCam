@@ -371,7 +371,7 @@ public class BlindSpotFloatingWindowView extends FrameLayout {
         // 有动效：缩放 + 淡入
         if (windowAnimator != null) windowAnimator.cancel();
         windowAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f);
-        windowAnimator.setDuration(250);
+        windowAnimator.setDuration(100);
         windowAnimator.setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f));
         windowAnimator.addUpdateListener(animation -> {
             float val = (float) animation.getAnimatedValue();
@@ -494,7 +494,7 @@ public class BlindSpotFloatingWindowView extends FrameLayout {
             windowAnimator = null;
         }
         windowAnimator = android.animation.ValueAnimator.ofFloat(1f, 0f);
-        windowAnimator.setDuration(200);
+        windowAnimator.setDuration(100);
         windowAnimator.setInterpolator(new android.view.animation.AccelerateInterpolator(1.5f));
         windowAnimator.addUpdateListener(animation -> {
             float val = (float) animation.getAnimatedValue();

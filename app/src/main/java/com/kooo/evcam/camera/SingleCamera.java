@@ -113,6 +113,7 @@ public class SingleCamera {
     private Runnable reconnectRunnable;  // 重连任务
     private boolean isPausedByLifecycle = false;  // 是否因生命周期暂停（用于区分主动关闭和系统剥夺）
     private boolean isReconnecting = false;  // 是否正在重连中（防止多个重连任务同时运行）
+    private volatile boolean isOpening = false;  // 是否正在打开中（防止并行触发时重复调用 openCamera）
     private final Object reconnectLock = new Object();  // 重连锁
     private boolean isPrimaryInstance = true;  // 是否是主实例（用于多实例共享同一个cameraId时，只有主实例负责重连）
     private boolean isConfiguring = false; // 新增：标记是否正在配置中
@@ -738,6 +739,13 @@ public class SingleCamera {
             AppLog.d(TAG, "Camera " + cameraId + " already opened, skipping openCamera");
             return;
         }
+
+        // 正在打开中，不重复触发
+        if (isOpening) {
+            AppLog.d(TAG, "Camera " + cameraId + " already opening, skipping duplicate openCamera");
+            return;
+        }
+        isOpening = true;
         
         synchronized (reconnectLock) {
             // 安全措施：清理可能残留的录制 Surface 引用（防止 Surface abandoned 错误）
@@ -750,6 +758,7 @@ public class SingleCamera {
             // 如果已经在重连中，忽略新的打开请求
             if (isReconnecting) {
                 AppLog.d(TAG, "Camera " + cameraId + " already reconnecting, ignoring openCamera call");
+                isOpening = false;
                 return;
             }
             
@@ -777,6 +786,7 @@ public class SingleCamera {
                 if (callback != null) {
                     callback.onCameraError(cameraId, CameraDevice.StateCallback.ERROR_CAMERA_DEVICE);
                 }
+                isOpening = false;
                 return;
             }
 
@@ -792,6 +802,7 @@ public class SingleCamera {
                 synchronized (reconnectLock) {
                     shouldReconnect = false;  // 无效摄像头不应重连
                 }
+                isOpening = false;
                 return;
             }
             
@@ -813,6 +824,7 @@ public class SingleCamera {
                     synchronized (reconnectLock) {
                         shouldReconnect = false;  // 无效摄像头不应重连
                     }
+                    isOpening = false;
                     return;
                 }
 
@@ -842,6 +854,7 @@ public class SingleCamera {
                 synchronized (reconnectLock) {
                     shouldReconnect = false;  // 无效摄像头不应重连
                 }
+                isOpening = false;
                 return;
             }
 
@@ -856,6 +869,7 @@ public class SingleCamera {
             cameraManager.openCamera(cameraId, stateCallback, backgroundHandler);
 
         } catch (CameraAccessException e) {
+            isOpening = false;
             AppLog.e(TAG, "Failed to open camera " + cameraId, e);
             if (callback != null) {
                 callback.onCameraError(cameraId, -1);
@@ -867,11 +881,13 @@ public class SingleCamera {
                 }
             }
         } catch (SecurityException e) {
+            isOpening = false;
             AppLog.e(TAG, "No camera permission", e);
             if (callback != null) {
                 callback.onCameraError(cameraId, -2);
             }
         } catch (IllegalArgumentException e) {
+            isOpening = false;
             // 某些设备在打开无效摄像头时会抛出 IllegalArgumentException
             AppLog.e(TAG, "Camera " + cameraId + " invalid argument - camera may be virtual/invalid", e);
             if (callback != null) {
@@ -881,6 +897,7 @@ public class SingleCamera {
                 shouldReconnect = false;  // 无效摄像头不应重连
             }
         } catch (RuntimeException e) {
+            isOpening = false;
             // 捕获所有其他运行时异常，防止应用崩溃
             AppLog.e(TAG, "Camera " + cameraId + " runtime exception - camera may be virtual/invalid", e);
             if (callback != null) {
@@ -967,6 +984,16 @@ public class SingleCamera {
                                     AppLog.e(TAG, "No camera permission during reconnect", e);
                                     shouldReconnect = false;
                                     isReconnecting = false;
+                                } catch (IllegalArgumentException e) {
+                                    AppLog.e(TAG, "Camera " + cameraId + " unknown during reconnect (camera service may have restarted): " + e.getMessage());
+                                    shouldReconnect = false;
+                                    isReconnecting = false;
+                                } catch (RuntimeException e) {
+                                    AppLog.e(TAG, "Camera " + cameraId + " runtime exception during reconnect: " + e.getMessage());
+                                    isReconnecting = false;
+                                    if (shouldReconnect) {
+                                        scheduleReconnect();
+                                    }
                                 }
                             }
                         }, 150);
@@ -1004,6 +1031,7 @@ public class SingleCamera {
     private final CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
         @Override
         public void onOpened(@NonNull CameraDevice camera) {
+            isOpening = false;
             synchronized (reconnectLock) {
                 cameraDevice = camera;
                 reconnectAttempts = 0;  // 重置重连计数
@@ -1022,6 +1050,7 @@ public class SingleCamera {
 
         @Override
         public void onDisconnected(@NonNull CameraDevice camera) {
+            isOpening = false;
             synchronized (reconnectLock) {
                 try {
                     camera.close();
@@ -1051,6 +1080,7 @@ public class SingleCamera {
 
         @Override
         public void onError(@NonNull CameraDevice camera, int error) {
+            isOpening = false;
             synchronized (reconnectLock) {
                 try {
                     camera.close();
@@ -2151,6 +2181,7 @@ public class SingleCamera {
             shouldReconnect = false;  // 禁用自动重连
             reconnectAttempts = 0;  // 重置重连计数
             isReconnecting = false;  // 清除重连状态
+            isOpening = false;  // 清除打开中状态
             stopHealthMonitor();
 
             // 取消待处理的重连任务
