@@ -731,6 +731,12 @@ public class AdbPermissionHelper {
         commands.add(new PermissionCommand("日志读取权限",
                 "pm grant " + packageName + " android.permission.READ_LOGS"));
 
+        // 通知权限 (Android 13+)
+        if (sdk >= 33) {
+            commands.add(new PermissionCommand("通知权限",
+                    "pm grant " + packageName + " android.permission.POST_NOTIFICATIONS"));
+        }
+
         // 蓝牙连接权限 (Android 12+)
         if (sdk >= 31) {
             commands.add(new PermissionCommand("蓝牙连接权限",
@@ -746,6 +752,10 @@ public class AdbPermissionHelper {
             commands.add(new PermissionCommand("所有文件访问权限",
                     "appops set " + packageName + " MANAGE_EXTERNAL_STORAGE allow"));
         }
+
+        // 使用情况访问权限（全景影像避让需要）
+        commands.add(new PermissionCommand("使用情况访问权限",
+                "appops set " + packageName + " android:get_usage_stats allow"));
 
         return commands;
     }

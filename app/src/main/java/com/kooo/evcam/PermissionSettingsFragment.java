@@ -52,6 +52,8 @@ public class PermissionSettingsFragment extends Fragment {
     
     // 高级权限
     private LinearLayout layoutAllFilesPermission;
+    private TextView tvUsageStatsStatus;
+    private Button btnUsageStatsPermission;
     private TextView tvAllFilesStatus;
     private Button btnAllFilesPermission;
     private TextView tvOverlayStatus;
@@ -151,6 +153,8 @@ public class PermissionSettingsFragment extends Fragment {
         btnAccessibilityPermission = view.findViewById(R.id.btn_accessibility_permission);
         tvBatteryStatus = view.findViewById(R.id.tv_battery_status);
         btnBatteryPermission = view.findViewById(R.id.btn_battery_permission);
+        tvUsageStatsStatus = view.findViewById(R.id.tv_usage_stats_status);
+        btnUsageStatsPermission = view.findViewById(R.id.btn_usage_stats_permission);
         
         // 系统白名单（E245）
         btnSystemWhitelist = view.findViewById(R.id.btn_system_whitelist);
@@ -223,6 +227,9 @@ public class PermissionSettingsFragment extends Fragment {
         // 无障碍服务
         btnAccessibilityPermission.setOnClickListener(v -> openAccessibilitySettings());
         
+        // 使用情况访问权限
+        btnUsageStatsPermission.setOnClickListener(v -> openUsageStatsSettings());
+
         // 电池优化
         btnBatteryPermission.setOnClickListener(v -> {
             if (getContext() != null) {
@@ -257,6 +264,7 @@ public class PermissionSettingsFragment extends Fragment {
         updateAllFilesPermissionStatus();
         updateOverlayPermissionStatus();
         updateAccessibilityServiceStatus();
+        updateUsageStatsPermissionStatus();
         updateBatteryOptimizationStatus();
     }
 
@@ -523,6 +531,53 @@ public class PermissionSettingsFragment extends Fragment {
                     Toast.makeText(getContext(), "无法打开设置页面，请使用第三方权限管理工具设置", Toast.LENGTH_SHORT).show();
                 }
             }
+        }
+    }
+
+    /**
+     * 更新使用情况访问权限状态
+     */
+    private void updateUsageStatsPermissionStatus() {
+        if (getContext() == null) return;
+
+        boolean granted = hasUsageStatsPermission(getContext());
+
+        if (granted) {
+            tvUsageStatsStatus.setText("已授权 ✓");
+            tvUsageStatsStatus.setTextColor(getResources().getColor(android.R.color.holo_green_dark, null));
+            btnUsageStatsPermission.setText("已授权");
+            btnUsageStatsPermission.setEnabled(false);
+        } else {
+            tvUsageStatsStatus.setText("未授权 - 全景影像避让不可用");
+            tvUsageStatsStatus.setTextColor(getResources().getColor(android.R.color.holo_orange_dark, null));
+            btnUsageStatsPermission.setText("去授权");
+            btnUsageStatsPermission.setEnabled(true);
+        }
+    }
+
+    /**
+     * 检查使用情况访问权限
+     */
+    private boolean hasUsageStatsPermission(Context context) {
+        android.app.AppOpsManager appOps = (android.app.AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
+        int mode = appOps.unsafeCheckOpNoThrow("android:get_usage_stats",
+                android.os.Process.myUid(), context.getPackageName());
+        return mode == android.app.AppOpsManager.MODE_ALLOWED;
+    }
+
+    /**
+     * 打开使用情况访问权限设置页面
+     */
+    private void openUsageStatsSettings() {
+        if (getContext() == null) return;
+
+        try {
+            Intent intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
+            startActivity(intent);
+            Toast.makeText(getContext(), "请找到本应用并开启使用情况访问权限", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            AppLog.e("PermissionSettings", "打开使用情况访问设置失败", e);
+            Toast.makeText(getContext(), "无法打开设置页面", Toast.LENGTH_SHORT).show();
         }
     }
 

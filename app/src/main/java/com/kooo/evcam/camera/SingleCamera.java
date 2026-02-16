@@ -1206,8 +1206,8 @@ public class SingleCamera {
         try {
             AppLog.d(TAG, "createCameraPreviewSession: Starting for camera " + cameraId);
 
-            // 【关键】如果旧会话仍在运行，必须先关闭它再准备新的 Surface。
-            // 否则鱼眼矫正的 EGL 无法连接到 TextureView 的 SurfaceTexture（camera 仍作为 producer 连接着）。
+            // 【关键】如果旧会话仍在运行，必须先关闭它再创建新 session。
+            // HAL 不允许 Surface 同时绑定到多个 stream（"Surface already has a stream created for it"）
             if (captureSession != null) {
                 final CameraCaptureSession oldSession = captureSession;
                 captureSession = null;
@@ -1514,6 +1514,10 @@ public class SingleCamera {
                 @Override
                 public void onConfigureFailed(@NonNull CameraCaptureSession session) {
                     AppLog.e(TAG, "Failed to configure camera " + cameraId + " session!");
+                    // 关闭失败的 session，释放 Surface 绑定（否则重试会遇到 "Surface already has a stream"）
+                    try {
+                        session.close();
+                    } catch (Exception ignored) {}
                     boolean pending;
                     synchronized (sessionLock) {
                         isConfiguring = false;
@@ -1595,7 +1599,7 @@ public class SingleCamera {
                         isSessionClosing = false;
                     }
                     // CLOSED 回调后 HAL 仍需少量时间释放 Surface 绑定
-                    // 延迟 50ms 重建（原 300ms 固定延迟 → 现 CLOSED + 50ms，总体更快更可靠）
+                    // 延迟 50ms 重建（0ms 会触发 "Surface already has a stream" 错误）
                     if (wasClosing && backgroundHandler != null) {
                         // 移除所有待执行的重建任务，避免重复重建
                         backgroundHandler.removeCallbacks(sessionCloseFallbackRunnable);
@@ -2212,6 +2216,12 @@ public class SingleCamera {
             if (reconnectRunnable != null && backgroundHandler != null) {
                 backgroundHandler.removeCallbacks(reconnectRunnable);
                 reconnectRunnable = null;
+            }
+
+            // 取消待处理的 session 重建任务（防止 closeCamera 后仍尝试 createCaptureSession）
+            if (backgroundHandler != null) {
+                backgroundHandler.removeCallbacks(recreateSessionRunnable);
+                backgroundHandler.removeCallbacks(sessionCloseFallbackRunnable);
             }
 
             // 重置 Session 状态标志（防止重新打开时残留状态导致死循环）
