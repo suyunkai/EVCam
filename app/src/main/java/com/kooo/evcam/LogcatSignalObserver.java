@@ -79,7 +79,7 @@ public class LogcatSignalObserver {
                     cmd.add("-e");
                     cmd.add(regexFilter);
                 }
-                cmd.add("*:I");
+                cmd.add("*:V");
 
                 AppLog.d(TAG, "Logcat command: " + cmd);
 
