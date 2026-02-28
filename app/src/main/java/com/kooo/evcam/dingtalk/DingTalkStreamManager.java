@@ -7,6 +7,10 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 
 import com.dingtalk.open.app.api.OpenDingTalkClient;
 import com.dingtalk.open.app.api.OpenDingTalkStreamClientBuilder;
@@ -40,6 +44,14 @@ public class DingTalkStreamManager {
     private boolean autoReconnect = false;
     private int reconnectAttempts = 0;
     private CommandCallback currentCommandCallback;
+
+    // 网络状态监控（用于深度休眠唤醒后自动重连）
+    private ConnectivityManager.NetworkCallback networkCallback;
+    private volatile boolean networkWasLost = false;
+    private Runnable pendingReconnectRunnable;
+    private Runnable reconnectCheckRunnable;
+    private static final long RECONNECT_AFTER_NETWORK_DELAY_MS = 3000; // 网络恢复后等3秒再重连
+    private static final long RECONNECT_CHECK_INTERVAL_MS = 180_000; // 3分钟安全网检查
 
     public interface ConnectionCallback {
         void onConnected();
@@ -171,7 +183,12 @@ public class DingTalkStreamManager {
                 AppLog.d(TAG, "Stream 客户端已启动");
 
                 // 通知连接成功
-                mainHandler.post(() -> callback.onConnected());
+                mainHandler.post(() -> {
+                    callback.onConnected();
+                    // 注册网络状态监控（用于深度休眠唤醒后自动重连）
+                    registerNetworkCallback();
+                    startReconnectCheck();
+                });
 
             } catch (Exception e) {
                 AppLog.e(TAG, "启动 Stream 客户端失败", e);
@@ -205,6 +222,15 @@ public class DingTalkStreamManager {
         autoReconnect = false;
         reconnectAttempts = 0;
 
+        // 清理网络监控和定时检查
+        unregisterNetworkCallback();
+        stopReconnectCheck();
+        networkWasLost = false;
+        if (pendingReconnectRunnable != null) {
+            mainHandler.removeCallbacks(pendingReconnectRunnable);
+            pendingReconnectRunnable = null;
+        }
+
         new Thread(() -> {
             try {
                 if (streamClient != null) {
@@ -230,6 +256,153 @@ public class DingTalkStreamManager {
      */
     public boolean isRunning() {
         return isRunning;
+    }
+
+    /**
+     * 强制重连（用于深度休眠唤醒后连接丢失的场景）
+     * @param reason 重连原因（用于日志）
+     */
+    public synchronized void forceReconnect(String reason) {
+        if (!autoReconnect) {
+            AppLog.w(TAG, "自动重连未启用，跳过强制重连");
+            return;
+        }
+        if (!isRunning) {
+            AppLog.d(TAG, "连接未运行，跳过强制重连 (" + reason + ")");
+            return;
+        }
+
+        AppLog.d(TAG, "强制重连钉钉 Stream (" + reason + ")");
+
+        // 清理旧连接的网络监控
+        unregisterNetworkCallback();
+        stopReconnectCheck();
+
+        try {
+            streamClient = null;
+        } catch (Exception e) {
+            AppLog.e(TAG, "销毁旧 Stream 客户端失败", e);
+        }
+
+        isRunning = false;
+        reconnectAttempts = 0;
+
+        // 通知连接断开
+        mainHandler.post(() -> callback.onDisconnected());
+
+        // 取消之前可能存在的重连任务
+        if (pendingReconnectRunnable != null) {
+            mainHandler.removeCallbacks(pendingReconnectRunnable);
+        }
+
+        // 延迟后启动新连接
+        pendingReconnectRunnable = () -> {
+            if (autoReconnect && !isRunning) {
+                AppLog.d(TAG, "开始重新建立 Stream 连接...");
+                startConnection();
+            }
+        };
+        mainHandler.postDelayed(pendingReconnectRunnable, RECONNECT_DELAY_MS);
+    }
+
+    /**
+     * 注册网络状态回调
+     * 用于检测深度休眠唤醒后网络恢复，自动触发重连
+     */
+    private void registerNetworkCallback() {
+        try {
+            ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm == null) {
+                AppLog.w(TAG, "ConnectivityManager 不可用，跳过网络监控");
+                return;
+            }
+
+            unregisterNetworkCallback();
+
+            networkCallback = new ConnectivityManager.NetworkCallback() {
+                @Override
+                public void onAvailable(Network network) {
+                    if (networkWasLost && autoReconnect) {
+                        AppLog.d(TAG, "网络恢复（深度休眠唤醒），" + RECONNECT_AFTER_NETWORK_DELAY_MS + "ms 后重连");
+                        networkWasLost = false;
+                        mainHandler.postDelayed(() -> forceReconnect("网络恢复(深度休眠唤醒)"), RECONNECT_AFTER_NETWORK_DELAY_MS);
+                    }
+                }
+
+                @Override
+                public void onLost(Network network) {
+                    AppLog.d(TAG, "网络连接丢失（可能进入深度休眠），标记需要重连");
+                    networkWasLost = true;
+                }
+            };
+
+            NetworkRequest request = new NetworkRequest.Builder()
+                    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    .build();
+            cm.registerNetworkCallback(request, networkCallback);
+            AppLog.d(TAG, "网络状态回调已注册（监控深度休眠唤醒）");
+
+        } catch (Exception e) {
+            AppLog.e(TAG, "注册网络状态回调失败", e);
+        }
+    }
+
+    /**
+     * 注销网络状态回调
+     */
+    private void unregisterNetworkCallback() {
+        try {
+            if (networkCallback != null) {
+                ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+                if (cm != null) {
+                    cm.unregisterNetworkCallback(networkCallback);
+                }
+                networkCallback = null;
+            }
+        } catch (Exception e) {
+            AppLog.e(TAG, "注销网络状态回调失败", e);
+        }
+    }
+
+    /**
+     * 启动定时重连安全网检查
+     * 每隔一段时间检查网络状态，防止 onAvailable 回调被遗漏
+     */
+    private void startReconnectCheck() {
+        stopReconnectCheck();
+        reconnectCheckRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!autoReconnect || !isRunning) return;
+
+                if (networkWasLost) {
+                    try {
+                        ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+                        if (cm != null && cm.getActiveNetwork() != null) {
+                            AppLog.w(TAG, "安全网检查：网络已恢复但未收到回调，强制重连");
+                            networkWasLost = false;
+                            forceReconnect("安全网定时检查");
+                            return;
+                        }
+                    } catch (Exception e) {
+                        AppLog.e(TAG, "安全网检查失败", e);
+                    }
+                }
+
+                mainHandler.postDelayed(this, RECONNECT_CHECK_INTERVAL_MS);
+            }
+        };
+        mainHandler.postDelayed(reconnectCheckRunnable, RECONNECT_CHECK_INTERVAL_MS);
+    }
+
+    /**
+     * 停止定时重连安全网检查
+     */
+    private void stopReconnectCheck() {
+        if (reconnectCheckRunnable != null) {
+            mainHandler.removeCallbacks(reconnectCheckRunnable);
+            reconnectCheckRunnable = null;
+        }
     }
 
     /**
