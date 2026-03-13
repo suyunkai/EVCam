@@ -30,6 +30,10 @@ public class CustomLayoutManager {
     // 网格吸附像素
     private static final int GRID_SIZE = 10;
 
+    // 多视角布局边距（dp）
+    private static final int SIDE_MARGIN_DP = 20;   // 下行左右摄像头外侧边距
+    private static final int GAP_DP = 10;            // 摄像头之间间距
+
     private final Context context;
     private final AppConfig appConfig;
     
@@ -225,33 +229,24 @@ public class CustomLayoutManager {
      */
     private void applyRotationWithScale(TextureView textureView, int rotation) {
         textureView.setRotation(rotation);
-        
-        // 当旋转90°或270°时，宽高交换，需要计算缩放比例
+
         if (rotation == 90 || rotation == 270) {
-            int width = textureView.getWidth();
-            int height = textureView.getHeight();
-            
+            // 优先使用 LayoutParams 中的目标尺寸（setLayoutParams 后布局尚未刷新时
+            // getWidth/Height 仍返回旧值，导致缩放比例算错）
+            android.view.ViewGroup.LayoutParams lp = textureView.getLayoutParams();
+            int width = (lp != null && lp.width > 0) ? lp.width : textureView.getWidth();
+            int height = (lp != null && lp.height > 0) ? lp.height : textureView.getHeight();
+
             if (width > 0 && height > 0) {
-                // 计算需要的缩放比例，使旋转后的画面填满容器
                 float scale = Math.max((float) width / height, (float) height / width);
                 textureView.setScaleY(scale);
-                // 检查是否有镜像，镜像时 scaleX 为负值
                 float currentScaleX = textureView.getScaleX();
-                if (currentScaleX < 0) {
-                    textureView.setScaleX(-scale);
-                } else {
-                    textureView.setScaleX(scale);
-                }
-                AppLog.d(TAG, "旋转 " + rotation + "° 缩放: " + scale);
+                textureView.setScaleX(currentScaleX < 0 ? -scale : scale);
+                AppLog.d(TAG, "旋转 " + rotation + "° 缩放: " + scale + " (w=" + width + " h=" + height + ")");
             }
         } else {
-            // 0°或180°时，恢复正常缩放
             float currentScaleX = textureView.getScaleX();
-            if (currentScaleX < 0) {
-                textureView.setScaleX(-1.0f);
-            } else {
-                textureView.setScaleX(1.0f);
-            }
+            textureView.setScaleX(currentScaleX < 0 ? -1.0f : 1.0f);
             textureView.setScaleY(1.0f);
         }
     }
@@ -570,8 +565,10 @@ public class CustomLayoutManager {
         int containerWidth = containerCameras.getWidth();
         int containerHeight = containerCameras.getHeight();
         
-        // 前轮模式默认值
-        int frontLeftWidth = 1120;
+        // 普通模式画框位置 — 前/后轮模式复用，确保画框不跳变
+        int[] fp = getNormalFramePositions();
+
+        int frontLeftWidth = 1200;
         int frontLeftHeight = 662;
         int frontLeftX = 10;
         int frontLeftY = 397;
@@ -581,9 +578,8 @@ public class CustomLayoutManager {
         int frontRightX = -76;
         int frontRightY = 502;
         int frontRightRotation = 90;
-        
-        // 后轮模式默认值
-        int rearLeftWidth = 1120;
+
+        int rearLeftWidth = 1200;
         int rearLeftHeight = 662;
         int rearLeftX = 10;
         int rearLeftY = -624;
@@ -686,15 +682,15 @@ public class CustomLayoutManager {
         tvRightYValue.setText(String.valueOf(rightValues[3]));
         tvRightRotationValue.setText(rightValues[4] + "°");
 
-        // 画框默认位置和大小（根据模式选择）
-        final int defaultLeftX = mode.equals("front") ? frontLeftX : rearLeftX;
-        final int defaultLeftY = mode.equals("front") ? frontLeftY : rearLeftY;
-        final int defaultLeftWidth = mode.equals("front") ? frontLeftWidth : rearLeftWidth;
-        final int defaultLeftHeight = mode.equals("front") ? frontLeftHeight : rearLeftHeight;
-        final int defaultRightX = mode.equals("front") ? frontRightX : rearRightX;
-        final int defaultRightY = mode.equals("front") ? frontRightY : rearRightY;
-        final int defaultRightWidth = mode.equals("front") ? frontRightWidth : rearRightWidth;
-        final int defaultRightHeight = mode.equals("front") ? frontRightHeight : rearRightHeight;
+        // 画框位置始终使用普通模式值，画框不跳变
+        final int defaultLeftX = fp[0];
+        final int defaultLeftY = fp[1];
+        final int defaultLeftWidth = fp[2];
+        final int defaultLeftHeight = fp[3];
+        final int defaultRightX = fp[4];
+        final int defaultRightY = fp[5];
+        final int defaultRightWidth = fp[6];
+        final int defaultRightHeight = fp[7];
 
         // 创建弹窗
         android.app.AlertDialog dialog = builder.create();
@@ -717,27 +713,9 @@ public class CustomLayoutManager {
                 int rightY = sbRightY.getProgress() - POSITION_OFFSET;
                 int rightRotation = sbRightRotation.getProgress();
 
-                // 实时应用布局到视图（画框位置和大小保持默认值）
-                setViewPosition(frameLeft, defaultLeftX, defaultLeftY, defaultLeftWidth, defaultLeftHeight);
-                setViewPosition(frameRight, defaultRightX, defaultRightY, defaultRightWidth, defaultRightHeight);
-
-                // 实时应用位置和大小（只调整画面和测试文字）
-                if (textureLeft != null) {
-                    textureLeft.setX(leftX);
-                    textureLeft.setY(leftY);
-                    android.widget.FrameLayout.LayoutParams leftParams = new android.widget.FrameLayout.LayoutParams(leftWidth, leftHeight);
-                    textureLeft.setLayoutParams(leftParams);
-                    // 延迟应用旋转，确保布局已更新
-                    textureLeft.post(() -> applyRotationWithScale(textureLeft, leftRotation));
-                }
-                if (textureRight != null) {
-                    textureRight.setX(rightX);
-                    textureRight.setY(rightY);
-                    android.widget.FrameLayout.LayoutParams rightParams = new android.widget.FrameLayout.LayoutParams(rightWidth, rightHeight);
-                    textureRight.setLayoutParams(rightParams);
-                    // 延迟应用旋转，确保布局已更新
-                    textureRight.post(() -> applyRotationWithScale(textureRight, rightRotation));
-                }
+                // 画框不动，只调整画面纹理
+                applyWheelTextureTransform(textureLeft, leftWidth, leftHeight, leftRotation, leftX, leftY);
+                applyWheelTextureTransform(textureRight, rightWidth, rightHeight, rightRotation, rightX, rightY);
             }
         };
 
@@ -919,75 +897,41 @@ public class CustomLayoutManager {
 
         int containerWidth = containerCameras.getWidth();
         int containerHeight = containerCameras.getHeight();
-        
+
         AppLog.d(TAG, "前轮模式 - 容器尺寸: " + containerWidth + "x" + containerHeight);
-        
+
         if (containerWidth == 0 || containerHeight == 0) {
             AppLog.e(TAG, "前轮模式 - 容器尺寸为0，延迟重试");
             containerCameras.post(this::applyFrontWheelModeLayout);
             return;
         }
-        
-        int halfHeight = (containerHeight - 20) / 2;
-        int padding = 10;
-        int vehicleControlWidth = 280;
 
-        // 前轮模式下显示车辆控制区域和左右视图
         if (frameVehicleControl != null) {
             frameVehicleControl.setVisibility(View.VISIBLE);
         }
         frameLeft.setVisibility(View.VISIBLE);
         frameRight.setVisibility(View.VISIBLE);
 
-        // 前轮模式默认值
-        int defaultLeftWidth = 1120;
-        int defaultLeftHeight = 662;
-        int defaultLeftX = 10;
-        int defaultLeftY = 397;
-        int defaultLeftRotation = 270;
-        int defaultRightWidth = 1211;
-        int defaultRightHeight = 662;
-        int defaultRightX = -76;
-        int defaultRightY = 502;
-        int defaultRightRotation = 90;
+        // 画框完全不动，只操作画面纹理
 
-        // 获取保存的参数
-        int leftWidth = appConfig.getFrontWheelLeftWidth(defaultLeftWidth);
-        int leftHeight = appConfig.getFrontWheelLeftHeight(defaultLeftHeight);
-        int leftX = appConfig.getFrontWheelLeftX(defaultLeftX);
-        int leftY = appConfig.getFrontWheelLeftY(defaultLeftY);
-        int leftRotation = appConfig.getFrontWheelLeftRotation(defaultLeftRotation);
+        // 前轮模式画面默认值（相对画框内偏移 + 旋转）
+        int leftRotation  = appConfig.getFrontWheelLeftRotation(270);
+        int rightRotation = appConfig.getFrontWheelRightRotation(90);
+        int leftWidth  = appConfig.getFrontWheelLeftWidth(1200);
+        int leftHeight = appConfig.getFrontWheelLeftHeight(662);
+        int leftX      = appConfig.getFrontWheelLeftX(10);
+        int leftY      = appConfig.getFrontWheelLeftY(397);
+        int rightWidth  = appConfig.getFrontWheelRightWidth(1211);
+        int rightHeight = appConfig.getFrontWheelRightHeight(662);
+        int rightX      = appConfig.getFrontWheelRightX(-76);
+        int rightY      = appConfig.getFrontWheelRightY(502);
 
-        int rightWidth = appConfig.getFrontWheelRightWidth(defaultRightWidth);
-        int rightHeight = appConfig.getFrontWheelRightHeight(defaultRightHeight);
-        int rightX = appConfig.getFrontWheelRightX(defaultRightX);
-        int rightY = appConfig.getFrontWheelRightY(defaultRightY);
-        int rightRotation = appConfig.getFrontWheelRightRotation(defaultRightRotation);
+        applyWheelTextureTransform(textureLeft, leftWidth, leftHeight, leftRotation, leftX, leftY);
+        applyWheelTextureTransform(textureRight, rightWidth, rightHeight, rightRotation, rightX, rightY);
 
-        // 应用布局到画框（画框保持默认位置和大小）
-        setViewPosition(frameLeft, defaultLeftX, defaultLeftY, defaultLeftWidth, defaultLeftHeight);
-        setViewPosition(frameRight, defaultRightX, defaultRightY, defaultRightWidth, defaultRightHeight);
-
-        // 应用参数到画面（位置、大小、旋转）
-        // 注意：画面位置使用保存的绝对位置，与实时预览一致
-        if (textureLeft != null) {
-            textureLeft.setX(leftX);
-            textureLeft.setY(leftY);
-            android.widget.FrameLayout.LayoutParams leftParams = new android.widget.FrameLayout.LayoutParams(leftWidth, leftHeight);
-            textureLeft.setLayoutParams(leftParams);
-            // 延迟应用旋转，确保布局已更新
-            textureLeft.post(() -> applyRotationWithScale(textureLeft, leftRotation));
-        }
-        if (textureRight != null) {
-            textureRight.setX(rightX);
-            textureRight.setY(rightY);
-            android.widget.FrameLayout.LayoutParams rightParams = new android.widget.FrameLayout.LayoutParams(rightWidth, rightHeight);
-            textureRight.setLayoutParams(rightParams);
-            // 延迟应用旋转，确保布局已更新
-            textureRight.post(() -> applyRotationWithScale(textureRight, rightRotation));
-        }
-
-        AppLog.d(TAG, "前轮模式布局已应用 - 左视图: (" + leftX + "," + leftY + ") " + leftWidth + "x" + leftHeight + ", 右视图: (" + rightX + "," + rightY + ") " + rightWidth + "x" + rightHeight);
+        AppLog.d(TAG, "前轮模式布局已应用 - 左: (" + leftX + "," + leftY + ") " + leftWidth + "x" + leftHeight
+                + " rot=" + leftRotation + ", 右: (" + rightX + "," + rightY + ") " + rightWidth + "x" + rightHeight
+                + " rot=" + rightRotation);
     }
 
     /**
@@ -999,75 +943,71 @@ public class CustomLayoutManager {
 
         int containerWidth = containerCameras.getWidth();
         int containerHeight = containerCameras.getHeight();
-        
+
         AppLog.d(TAG, "后轮模式 - 容器尺寸: " + containerWidth + "x" + containerHeight);
-        
+
         if (containerWidth == 0 || containerHeight == 0) {
             AppLog.e(TAG, "后轮模式 - 容器尺寸为0，延迟重试");
             containerCameras.post(this::applyRearWheelModeLayout);
             return;
         }
-        
-        int halfHeight = (containerHeight - 20) / 2;
-        int padding = 10;
-        int vehicleControlWidth = 280;
 
-        // 后轮模式下显示车辆控制区域和左右视图
         if (frameVehicleControl != null) {
             frameVehicleControl.setVisibility(View.VISIBLE);
         }
         frameLeft.setVisibility(View.VISIBLE);
         frameRight.setVisibility(View.VISIBLE);
 
-        // 后轮模式默认值
-        int defaultLeftWidth = 1120;
-        int defaultLeftHeight = 662;
-        int defaultLeftX = 10;
-        int defaultLeftY = -624;
-        int defaultLeftRotation = 270;
-        int defaultRightWidth = 1298;
-        int defaultRightHeight = 662;
-        int defaultRightX = -164;
-        int defaultRightY = -702;
-        int defaultRightRotation = 90;
+        // 画框完全不动，只操作画面纹理
 
-        // 获取保存的参数
-        int leftWidth = appConfig.getRearWheelLeftWidth(defaultLeftWidth);
-        int leftHeight = appConfig.getRearWheelLeftHeight(defaultLeftHeight);
-        int leftX = appConfig.getRearWheelLeftX(defaultLeftX);
-        int leftY = appConfig.getRearWheelLeftY(defaultLeftY);
-        int leftRotation = appConfig.getRearWheelLeftRotation(defaultLeftRotation);
+        // 后轮模式画面默认值（相对画框内偏移 + 旋转）
+        int leftRotation  = appConfig.getRearWheelLeftRotation(270);
+        int rightRotation = appConfig.getRearWheelRightRotation(90);
+        int leftWidth  = appConfig.getRearWheelLeftWidth(1200);
+        int leftHeight = appConfig.getRearWheelLeftHeight(662);
+        int leftX      = appConfig.getRearWheelLeftX(10);
+        int leftY      = appConfig.getRearWheelLeftY(-624);
+        int rightWidth  = appConfig.getRearWheelRightWidth(1298);
+        int rightHeight = appConfig.getRearWheelRightHeight(662);
+        int rightX      = appConfig.getRearWheelRightX(-164);
+        int rightY      = appConfig.getRearWheelRightY(-702);
 
-        int rightWidth = appConfig.getRearWheelRightWidth(defaultRightWidth);
-        int rightHeight = appConfig.getRearWheelRightHeight(defaultRightHeight);
-        int rightX = appConfig.getRearWheelRightX(defaultRightX);
-        int rightY = appConfig.getRearWheelRightY(defaultRightY);
-        int rightRotation = appConfig.getRearWheelRightRotation(defaultRightRotation);
+        applyWheelTextureTransform(textureLeft, leftWidth, leftHeight, leftRotation, leftX, leftY);
+        applyWheelTextureTransform(textureRight, rightWidth, rightHeight, rightRotation, rightX, rightY);
 
-        // 应用布局到画框（画框保持默认位置和大小）
-        setViewPosition(frameLeft, defaultLeftX, defaultLeftY, defaultLeftWidth, defaultLeftHeight);
-        setViewPosition(frameRight, defaultRightX, defaultRightY, defaultRightWidth, defaultRightHeight);
+        AppLog.d(TAG, "后轮模式布局已应用 - 左: (" + leftX + "," + leftY + ") " + leftWidth + "x" + leftHeight
+                + " rot=" + leftRotation + ", 右: (" + rightX + "," + rightY + ") " + rightWidth + "x" + rightHeight
+                + " rot=" + rightRotation);
+    }
 
-        // 应用参数到画面（位置、大小、旋转）
-        // 注意：画面位置使用保存的绝对位置，与实时预览一致
-        if (textureLeft != null) {
-            textureLeft.setX(leftX);
-            textureLeft.setY(leftY);
-            android.widget.FrameLayout.LayoutParams leftParams = new android.widget.FrameLayout.LayoutParams(leftWidth, leftHeight);
-            textureLeft.setLayoutParams(leftParams);
-            // 延迟应用旋转，确保布局已更新
-            textureLeft.post(() -> applyRotationWithScale(textureLeft, leftRotation));
+    /**
+     * 轮胎模式：纯 View transform，不碰 LayoutParams，不触发 requestLayout。
+     */
+    private void applyWheelTextureTransform(TextureView tv, int w, int h, int rotation, int x, int y) {
+        if (tv == null) return;
+        tv.setRotation(rotation);
+        if (rotation == 90 || rotation == 270) {
+            float scale = Math.max((float) w / h, (float) h / w);
+            float curSx = tv.getScaleX();
+            tv.setScaleX(curSx < 0 ? -scale : scale);
+            tv.setScaleY(scale);
+        } else {
+            float curSx = tv.getScaleX();
+            tv.setScaleX(curSx < 0 ? -1f : 1f);
+            tv.setScaleY(1f);
         }
-        if (textureRight != null) {
-            textureRight.setX(rightX);
-            textureRight.setY(rightY);
-            android.widget.FrameLayout.LayoutParams rightParams = new android.widget.FrameLayout.LayoutParams(rightWidth, rightHeight);
-            textureRight.setLayoutParams(rightParams);
-            // 延迟应用旋转，确保布局已更新
-            textureRight.post(() -> applyRotationWithScale(textureRight, rightRotation));
-        }
+        tv.setX(x);
+        tv.setY(y);
+    }
 
-        AppLog.d(TAG, "后轮模式布局已应用 - 左视图: (" + leftX + "," + leftY + ") " + leftWidth + "x" + leftHeight + ", 右视图: (" + rightX + "," + rightY + ") " + rightWidth + "x" + rightHeight);
+    /**
+     * 退出轮胎模式：重置 transform 属性到普通模式。
+     */
+    private void resetWheelTextureTransform(TextureView tv, int normalRotation) {
+        if (tv == null) return;
+        applyRotationWithScale(tv, normalRotation);
+        tv.setX(0);
+        tv.setY(0);
     }
 
     /**
@@ -1079,33 +1019,27 @@ public class CustomLayoutManager {
 
         int containerWidth = containerCameras.getWidth();
         int containerHeight = containerCameras.getHeight();
-        int halfWidth = (containerWidth - 20) / 2;
-        int halfHeight = (containerHeight - 20) / 2;
-        int padding = 10;
-        int vehicleControlWidth = 280;
 
-        // 普通模式下保持车辆控制区域和左右视图可见
         if (frameVehicleControl != null) {
             frameVehicleControl.setVisibility(View.VISIBLE);
         }
         frameLeft.setVisibility(View.VISIBLE);
         frameRight.setVisibility(View.VISIBLE);
 
-        // 普通模式下左右视图宽度，右视图右边缘与后视图对齐
-        // 后视图右边缘 = containerWidth - padding
-        // 右视图右边缘 = rightX + rightWidth = containerWidth - padding
-        // rightX = padding * 3 + leftWidth + vehicleControlWidth
-        // 所以 rightWidth = containerWidth - padding - rightX = containerWidth - padding - (padding * 3 + leftWidth + vehicleControlWidth)
-        // 简化：leftWidth + rightWidth + vehicleControlWidth + padding * 4 = containerWidth
-        // 让 leftWidth = rightWidth，则 2 * leftWidth = containerWidth - vehicleControlWidth - padding * 4
-        int totalViewWidth = containerWidth - vehicleControlWidth - padding * 4;
-        int defaultLeftWidth = totalViewWidth / 2;
-        int defaultRightWidth = totalViewWidth / 2;
-        int defaultHeight = halfHeight;
-        int defaultLeftX = padding;
-        int defaultLeftY = padding * 2 + halfHeight;
-        int defaultRightX = padding * 2 + defaultLeftWidth + vehicleControlWidth;
-        int defaultRightY = padding * 2 + halfHeight;
+        int side = dp(SIDE_MARGIN_DP);
+        int gap = dp(GAP_DP);
+        int vcw = 280;
+        int topH = (containerHeight - gap) / 2;
+        int botH = containerHeight - topH - gap;
+        int botY = topH + gap;
+        int botContentW = containerWidth - side * 2 - gap * 2 - vcw;
+        int defaultLeftWidth = botContentW / 2;
+        int defaultRightWidth = botContentW - defaultLeftWidth;
+        int defaultHeight = botH;
+        int defaultLeftX = side;
+        int defaultLeftY = botY;
+        int defaultRightX = side + defaultLeftWidth + gap + vcw + gap;
+        int defaultRightY = botY;
 
         // 获取保存的参数
         int leftWidth = appConfig.getNormalLeftWidth(defaultLeftWidth);
@@ -1124,23 +1058,52 @@ public class CustomLayoutManager {
         setViewPosition(frameLeft, leftX, leftY, leftWidth, leftHeight);
         setViewPosition(frameRight, rightX, rightY, rightWidth, rightHeight);
 
-        // 应用参数到画面（位置、大小、旋转）
+        // 恢复画面到普通模式：重置所有 transform 属性
+        resetWheelTextureTransform(textureLeft, leftRotation);
         if (textureLeft != null) {
-            applyRotationWithScale(textureLeft, leftRotation);
-            textureLeft.setX(0);
-            textureLeft.setY(0);
-            android.widget.FrameLayout.LayoutParams leftParams = new android.widget.FrameLayout.LayoutParams(leftWidth, leftHeight);
-            textureLeft.setLayoutParams(leftParams);
+            textureLeft.setLayoutParams(new android.widget.FrameLayout.LayoutParams(leftWidth, leftHeight));
         }
+        resetWheelTextureTransform(textureRight, rightRotation);
         if (textureRight != null) {
-            applyRotationWithScale(textureRight, rightRotation);
-            textureRight.setX(0);
-            textureRight.setY(0);
-            android.widget.FrameLayout.LayoutParams rightParams = new android.widget.FrameLayout.LayoutParams(rightWidth, rightHeight);
-            textureRight.setLayoutParams(rightParams);
+            textureRight.setLayoutParams(new android.widget.FrameLayout.LayoutParams(rightWidth, rightHeight));
         }
 
         AppLog.d(TAG, "普通模式布局已应用");
+    }
+
+    /**
+     * 获取普通模式下左右画框的位置和大小（从 appConfig 或计算默认值）。
+     * 前/后轮模式复用这组值，确保画框位置不跳变。
+     * @return int[8]: leftX, leftY, leftW, leftH, rightX, rightY, rightW, rightH
+     */
+    private int[] getNormalFramePositions() {
+        int cw = containerCameras.getWidth();
+        int ch = containerCameras.getHeight();
+        int side = dp(SIDE_MARGIN_DP);
+        int gap = dp(GAP_DP);
+        int vcw = 280;
+        int topH = (ch - gap) / 2;
+        int botH = ch - topH - gap;
+        int botY = topH + gap;
+        int botContentW = cw - side * 2 - gap * 2 - vcw;
+        int defLW = botContentW / 2;
+        int defRW = botContentW - defLW;
+        int defH  = botH;
+        int defLX = side;
+        int defLY = botY;
+        int defRX = side + defLW + gap + vcw + gap;
+        int defRY = botY;
+
+        return new int[] {
+            appConfig.getNormalLeftX(defLX),
+            appConfig.getNormalLeftY(defLY),
+            appConfig.getNormalLeftWidth(defLW),
+            appConfig.getNormalLeftHeight(defH),
+            appConfig.getNormalRightX(defRX),
+            appConfig.getNormalRightY(defRY),
+            appConfig.getNormalRightWidth(defRW),
+            appConfig.getNormalRightHeight(defH)
+        };
     }
 
     /**
@@ -1656,9 +1619,10 @@ public class CustomLayoutManager {
     private void restartApp() {
         if (context instanceof android.app.Activity) {
             android.app.Activity activity = (android.app.Activity) context;
-            
-            // 重新创建 Activity，不关闭应用
+
             Toast.makeText(context, "正在重载界面...", Toast.LENGTH_SHORT).show();
+            // 清掉 Holder 中的旧 CameraManager，避免新 Activity 复用处于不一致状态的实例
+            com.kooo.evcam.camera.CameraManagerHolder.getInstance().setCameraManager(null);
             activity.recreate();
         }
     }
@@ -1746,58 +1710,62 @@ public class CustomLayoutManager {
     private void setupDefaultPositions() {
         int containerWidth = containerCameras.getWidth();
         int containerHeight = containerCameras.getHeight();
-        
+
         if (containerWidth == 0 || containerHeight == 0) {
             return;
         }
-        
-        int padding = 4;
-        int halfWidth = (containerWidth - padding * 3) / 2;
-        int halfHeight = (containerHeight - padding * 3) / 2;
-        
-        // 根据配置的摄像头数量设置布局
+
+        int side = dp(SIDE_MARGIN_DP);
+        int gap = dp(GAP_DP);
+
         if (cameraCount == 1) {
-            // 1摄：全屏
             if (frameFront != null) {
                 frameFront.setVisibility(View.VISIBLE);
-                setViewPosition(frameFront, padding, padding, containerWidth - padding * 2, containerHeight - padding * 2);
+                setViewPosition(frameFront, side, 0, containerWidth - side * 2, containerHeight);
             }
         } else if (cameraCount == 2) {
-            // 2摄：左右并排
+            int camW = (containerWidth - side * 2 - gap) / 2;
             if (frameFront != null) {
                 frameFront.setVisibility(View.VISIBLE);
-                setViewPosition(frameFront, padding, padding, halfWidth, containerHeight - padding * 2);
+                setViewPosition(frameFront, side, 0, camW, containerHeight);
             }
             if (frameBack != null) {
                 frameBack.setVisibility(View.VISIBLE);
-                setViewPosition(frameBack, padding * 2 + halfWidth, padding, halfWidth, containerHeight - padding * 2);
+                setViewPosition(frameBack, side + camW + gap, 0, camW, containerHeight);
             }
         } else {
-            // 4摄：四宫格，左右视图中间有车辆控制区域
+            // 4摄：上行（前/后）无外侧边距，下行（左/车控/右）左右留宽边距
+            int topH = (containerHeight - gap) / 2;
+            int botH = containerHeight - topH - gap;
+            int topW = (containerWidth - gap) / 2;
+
             if (frameFront != null) {
                 frameFront.setVisibility(View.VISIBLE);
-                setViewPosition(frameFront, padding, padding, halfWidth, halfHeight);
+                setViewPosition(frameFront, 0, 0, topW, topH);
             }
             if (frameBack != null) {
                 frameBack.setVisibility(View.VISIBLE);
-                setViewPosition(frameBack, padding * 2 + halfWidth, padding, halfWidth, halfHeight);
+                setViewPosition(frameBack, topW + gap, 0, topW, topH);
             }
-            // 左视图宽度减少120dp，为车辆控制区域留出空间
-            int leftViewWidth = halfWidth - 140;
-            int rightViewWidth = halfWidth - 140;
-            int vehicleControlWidth = 280;
+
+            int vcw = 280;
+            int botContentW = containerWidth - side * 2 - gap * 2 - vcw;
+            int leftW = botContentW / 2;
+            int rightW = botContentW - leftW;
+            int botY = topH + gap;
+
             if (frameLeft != null) {
                 frameLeft.setVisibility(View.VISIBLE);
-                setViewPosition(frameLeft, padding, padding * 2 + halfHeight, leftViewWidth, halfHeight);
+                setViewPosition(frameLeft, side, botY, leftW, botH);
             }
-            // 车辆控制区域放在左右视图中间
             if (frameVehicleControl != null) {
                 frameVehicleControl.setVisibility(View.VISIBLE);
-                setViewPosition(frameVehicleControl, padding * 2 + leftViewWidth, padding * 2 + halfHeight + (halfHeight - 520) / 2, vehicleControlWidth, 520);
+                int vcH = Math.min(520, botH);
+                setViewPosition(frameVehicleControl, side + leftW + gap, botY + (botH - vcH) / 2, vcw, vcH);
             }
             if (frameRight != null) {
                 frameRight.setVisibility(View.VISIBLE);
-                setViewPosition(frameRight, padding * 3 + leftViewWidth + vehicleControlWidth, padding * 2 + halfHeight, rightViewWidth, halfHeight);
+                setViewPosition(frameRight, side + leftW + gap + vcw + gap, botY, rightW, botH);
             }
         }
     }
@@ -1805,6 +1773,10 @@ public class CustomLayoutManager {
     /**
      * 设置视图位置和大小
      */
+    private int dp(int dp) {
+        return (int) (dp * context.getResources().getDisplayMetrics().density + 0.5f);
+    }
+
     private void setViewPosition(View view, int x, int y, int width, int height) {
         if (view == null) return;
         android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(width, height);

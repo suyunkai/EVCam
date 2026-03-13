@@ -140,6 +140,39 @@ public class BlindSpotService extends Service {
         }
     }
 
+    /**
+     * 检查信号观察者是否存活，若已死亡则重新初始化。
+     * 由 onStartCommand（即 update()）调用，修复观察者因连接断开、
+     * 初始化失败等原因静默死亡后无法自愈的问题。
+     */
+    private void ensureSignalObserversAlive() {
+        if (!appConfig.isBlindSpotGlobalEnabled() && !appConfig.isCustomKeyWakeupEnabled()) return;
+        if (!appConfig.isTurnSignalLinkageEnabled() && !appConfig.isDoorLinkageEnabled()
+                && !appConfig.isCustomKeyWakeupEnabled()) return;
+
+        boolean needReinit = false;
+        if (appConfig.isCarSignalManagerTriggerMode()) {
+            if (carSignalManagerObserver == null || !carSignalManagerObserver.isAlive()) {
+                AppLog.w(TAG, "CarSignalManager observer dead, reinitializing");
+                needReinit = true;
+            }
+        } else if (appConfig.isVhalGrpcTriggerMode()) {
+            if (vhalSignalObserver == null || !vhalSignalObserver.isAlive()) {
+                AppLog.w(TAG, "VHAL observer dead, reinitializing");
+                needReinit = true;
+            }
+        } else {
+            if (logcatSignalObserver == null || !logcatSignalObserver.isAlive()) {
+                AppLog.w(TAG, "Logcat observer dead, reinitializing");
+                needReinit = true;
+            }
+        }
+
+        if (needReinit) {
+            initSignalObserver();
+        }
+    }
+
     private void initVhalSignalObserver() {
         AppLog.d(TAG, "Using vehicle API trigger mode");
 
@@ -1078,6 +1111,7 @@ public class BlindSpotService extends Service {
         }
         // 重新初始化新功能（设置变更时通过 update() 触发）
         appConfig = new AppConfig(this);
+        ensureSignalObserversAlive();
         initAvmAvoidance();
         initCustomKeyWakeup();
         updateWindows();

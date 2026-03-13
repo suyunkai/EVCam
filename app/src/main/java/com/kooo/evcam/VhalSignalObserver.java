@@ -75,6 +75,7 @@ public class VhalSignalObserver {
 
     // 重连参数
     private static final long RECONNECT_DELAY_MS = 3000;
+    private static final long STREAM_TIMEOUT_MS = 120_000; // gRPC stream 最大沉默时间
 
     public VhalSignalObserver(TurnSignalListener listener) {
         this.listener = listener;
@@ -144,6 +145,13 @@ public class VhalSignalObserver {
      */
     public boolean isConnected() {
         return connected;
+    }
+
+    /**
+     * 观察者是否存活（线程仍在运行）
+     */
+    public boolean isAlive() {
+        return running && connectThread != null && connectThread.isAlive();
     }
 
     /**
@@ -316,8 +324,10 @@ public class VhalSignalObserver {
                 }
             }, "VehicleApiSendAll").start();
 
-            // 等待流结束
-            latch.await();
+            // 等待流结束（带超时，防止半开连接卡死 reconnect 循环）
+            if (!latch.await(STREAM_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+                AppLog.w(TAG, "Stream idle timeout (" + STREAM_TIMEOUT_MS + "ms), forcing reconnect");
+            }
 
         } catch (UnsatisfiedLinkError e) {
             AppLog.e(TAG, "Native method not found: " + e.getMessage());

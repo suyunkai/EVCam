@@ -4705,13 +4705,19 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        
+
+        // Activity 被重建（主题切换、recreate 等）而非永久销毁时，
+        // 清掉 Holder 中的旧 CameraManager，确保新 Activity 从头初始化摄像头
+        if (!isFinishing()) {
+            com.kooo.evcam.camera.CameraManagerHolder.getInstance().setCameraManager(null);
+        }
+
         // 关闭预览矫正悬浮窗
         dismissPreviewCorrectionFloating();
-        
+
         // 停止调试信息更新
         stopDebugUpdates();
-        
+
         // 清除静态实例引用
         if (instance == this) {
             instance = null;

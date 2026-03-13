@@ -21,6 +21,8 @@ public class CarSignalManagerObserver {
     
     private static final String TAG = "CarSignalManagerObserver";
     private static final long POLL_INTERVAL_MS = 200; // 200ms轮询一次
+    private static final long INIT_RETRY_DELAY_MS = 5000; // 初始化失败重试间隔
+    private static final int MAX_INIT_RETRIES = 3;
     
     /**
      * 转向灯信号回调接口
@@ -73,17 +75,28 @@ public class CarSignalManagerObserver {
     public void start() {
         if (running) return;
         running = true;
-        lastTurnSignalState = -1; // 重置状态，确保首次读取会触发回调
-        
+        lastTurnSignalState = -1;
+        attemptInit(0);
+    }
+
+    private void attemptInit(int attempt) {
         new Thread(() -> {
             boolean success = initCarSignalManager();
-            
+
             if (listener != null) {
                 handler.post(() -> listener.onConnectionStateChanged(success));
             }
-            
+
             if (success) {
                 handler.post(pollRunnable);
+            } else if (running && attempt < MAX_INIT_RETRIES) {
+                AppLog.w(TAG, "Init failed, retry " + (attempt + 1) + "/" + MAX_INIT_RETRIES
+                        + " in " + INIT_RETRY_DELAY_MS + "ms");
+                handler.postDelayed(() -> {
+                    if (running) attemptInit(attempt + 1);
+                }, INIT_RETRY_DELAY_MS);
+            } else if (running) {
+                AppLog.e(TAG, "Init failed after " + MAX_INIT_RETRIES + " retries, observer inactive");
             }
         }).start();
     }
@@ -104,6 +117,13 @@ public class CarSignalManagerObserver {
      */
     public boolean isConnected() {
         return connected;
+    }
+
+    /**
+     * 观察者是否存活（已初始化且轮询中）
+     */
+    public boolean isAlive() {
+        return running && connected;
     }
     
     /**

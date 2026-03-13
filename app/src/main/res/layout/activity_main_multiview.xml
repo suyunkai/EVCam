@@ -52,58 +52,34 @@
                             app:cardElevation="0dp"
                             app:cardPreventCornerOverlap="false">
 
-                            <LinearLayout
+                            <FrameLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"
-                                android:orientation="vertical"
-                                android:padding="2dp"
                                 android:clipChildren="true"
-                                android:clipToPadding="false">
+                                android:clipToPadding="true">
 
-                                <!-- 状态栏 -->
-                                <LinearLayout
-                                    android:id="@+id/status_bar_front"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="30dp"
-                                    android:background="#4D000000"
-                                    android:orientation="horizontal"
-                                    android:gravity="center_vertical"
-                                    android:clipChildren="true"
-                                    android:clipToPadding="true">
-
-                                    <TextView
-                                        android:id="@+id/status_prefix_front"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:layout_marginStart="15dp"
-                                        android:text="前摄"
-                                        android:textColor="#B0B0B0"
-                                        android:textSize="14sp" />
-
-                                    <TextView
-                                        android:id="@+id/status_text_front"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:text="摄像头"
-                                        android:textColor="#B0B0B0"
-                                        android:textSize="14sp" />
-                                </LinearLayout>
-
-                                <!-- 摄像头预览容器 - 用于裁剪旋转后的画面 -->
-                                <FrameLayout
+                                <com.kooo.evcam.AutoFitTextureView
+                                    android:id="@+id/texture_front"
                                     android:layout_width="match_parent"
                                     android:layout_height="match_parent"
-                                    android:clipChildren="true"
-                                    android:clipToPadding="true">
+                                    android:layout_gravity="center"
+                                    android:clipToOutline="true" />
 
-                                    <com.kooo.evcam.AutoFitTextureView
-                                        android:id="@+id/texture_front"
-                                        android:layout_width="match_parent"
-                                        android:layout_height="match_parent"
-                                        android:layout_gravity="center"
-                                        android:clipToOutline="true" />
-                                </FrameLayout>
-                            </LinearLayout>
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="top|end"
+                                    android:layout_marginEnd="6dp"
+                                    android:layout_marginTop="6dp"
+                                    android:paddingStart="8dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingTop="2dp"
+                                    android:paddingBottom="2dp"
+                                    android:text="前"
+                                    android:textColor="#C8C8D0"
+                                    android:textSize="11sp"
+                                    android:background="@drawable/camera_corner_label_bg" />
+                            </FrameLayout>
                         </androidx.cardview.widget.CardView>
 
                         <!-- 摄像头控制按钮（居中显示，两行布局） -->
@@ -376,58 +352,34 @@
                             app:cardElevation="0dp"
                             app:cardPreventCornerOverlap="false">
 
-                            <LinearLayout
+                            <FrameLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"
-                                android:orientation="vertical"
-                                android:padding="2dp"
                                 android:clipChildren="true"
-                                android:clipToPadding="false">
+                                android:clipToPadding="true">
 
-                                <!-- 状态栏 -->
-                                <LinearLayout
-                                    android:id="@+id/status_bar_back"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="30dp"
-                                    android:background="#4D000000"
-                                    android:orientation="horizontal"
-                                    android:gravity="center_vertical"
-                                    android:clipChildren="true"
-                                    android:clipToPadding="true">
-
-                                    <TextView
-                                        android:id="@+id/status_prefix_back"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:layout_marginStart="15dp"
-                                        android:text="后摄"
-                                        android:textColor="#B0B0B0"
-                                        android:textSize="14sp" />
-
-                                    <TextView
-                                        android:id="@+id/status_text_back"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:text="摄像头"
-                                        android:textColor="#B0B0B0"
-                                        android:textSize="14sp" />
-                                </LinearLayout>
-
-                                <!-- 摄像头预览容器 - 用于裁剪旋转后的画面 -->
-                                <FrameLayout
+                                <com.kooo.evcam.AutoFitTextureView
+                                    android:id="@+id/texture_back"
                                     android:layout_width="match_parent"
                                     android:layout_height="match_parent"
-                                    android:clipChildren="true"
-                                    android:clipToPadding="true">
+                                    android:layout_gravity="center"
+                                    android:clipToOutline="true" />
 
-                                    <com.kooo.evcam.AutoFitTextureView
-                                        android:id="@+id/texture_back"
-                                        android:layout_width="match_parent"
-                                        android:layout_height="match_parent"
-                                        android:layout_gravity="center"
-                                        android:clipToOutline="true" />
-                                </FrameLayout>
-                            </LinearLayout>
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="top|start"
+                                    android:layout_marginStart="6dp"
+                                    android:layout_marginTop="6dp"
+                                    android:paddingStart="8dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingTop="2dp"
+                                    android:paddingBottom="2dp"
+                                    android:text="后"
+                                    android:textColor="#C8C8D0"
+                                    android:textSize="11sp"
+                                    android:background="@drawable/camera_corner_label_bg" />
+                            </FrameLayout>
                         </androidx.cardview.widget.CardView>
 
                         <!-- 摄像头控制按钮（居中显示，两行布局） -->
@@ -698,58 +650,34 @@
                             app:cardElevation="0dp"
                             app:cardPreventCornerOverlap="false">
 
-                            <LinearLayout
+                            <FrameLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"
-                                android:orientation="vertical"
-                                android:padding="2dp"
                                 android:clipChildren="true"
-                                android:clipToPadding="false">
+                                android:clipToPadding="true">
 
-                                <!-- 状态栏 -->
-                                <LinearLayout
-                                    android:id="@+id/status_bar_left"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="30dp"
-                                    android:background="#4D000000"
-                                    android:orientation="horizontal"
-                                    android:gravity="center_vertical"
-                                    android:clipChildren="true"
-                                    android:clipToPadding="true">
-
-                                    <TextView
-                                        android:id="@+id/status_prefix_left"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:layout_marginStart="15dp"
-                                        android:text="左摄"
-                                        android:textColor="#B0B0B0"
-                                        android:textSize="14sp" />
-
-                                    <TextView
-                                        android:id="@+id/status_text_left"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:text="摄像头"
-                                        android:textColor="#B0B0B0"
-                                        android:textSize="14sp" />
-                                </LinearLayout>
-
-                                <!-- 摄像头预览容器 - 用于裁剪旋转后的画面 -->
-                                <FrameLayout
+                                <com.kooo.evcam.AutoFitTextureView
+                                    android:id="@+id/texture_left"
                                     android:layout_width="match_parent"
                                     android:layout_height="match_parent"
-                                    android:clipChildren="true"
-                                    android:clipToPadding="true">
+                                    android:layout_gravity="center"
+                                    android:clipToOutline="true" />
 
-                                    <com.kooo.evcam.AutoFitTextureView
-                                        android:id="@+id/texture_left"
-                                        android:layout_width="match_parent"
-                                        android:layout_height="match_parent"
-                                        android:layout_gravity="center"
-                                        android:clipToOutline="true" />
-                                </FrameLayout>
-                            </LinearLayout>
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="top|end"
+                                    android:layout_marginEnd="6dp"
+                                    android:layout_marginTop="6dp"
+                                    android:paddingStart="8dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingTop="2dp"
+                                    android:paddingBottom="2dp"
+                                    android:text="左"
+                                    android:textColor="#C8C8D0"
+                                    android:textSize="11sp"
+                                    android:background="@drawable/camera_corner_label_bg" />
+                            </FrameLayout>
                         </androidx.cardview.widget.CardView>
 
                         <!-- 摄像头控制按钮（居中显示，两行布局） -->
@@ -1026,7 +954,7 @@
                                 android:layout_height="70dp"
                                 android:text="前轮"
                                 android:textSize="17sp"
-                                android:textColor="#808080"
+                                android:textColor="#9898B0"
                                 android:backgroundTint="#00000000"
                                 app:cornerRadius="8dp" />
 
@@ -1048,7 +976,7 @@
                                 android:layout_height="70dp"
                                 android:text="后轮"
                                 android:textSize="17sp"
-                                android:textColor="#808080"
+                                android:textColor="#9898B0"
                                 android:backgroundTint="#00000000"
                                 app:cornerRadius="8dp" />
 
@@ -1074,58 +1002,34 @@
                             app:cardElevation="0dp"
                             app:cardPreventCornerOverlap="false">
 
-                            <LinearLayout
+                            <FrameLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"
-                                android:orientation="vertical"
-                                android:padding="2dp"
                                 android:clipChildren="true"
-                                android:clipToPadding="false">
+                                android:clipToPadding="true">
 
-                                <!-- 状态栏 -->
-                                <LinearLayout
-                                    android:id="@+id/status_bar_right"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="30dp"
-                                    android:background="#4D000000"
-                                    android:orientation="horizontal"
-                                    android:gravity="center_vertical"
-                                    android:clipChildren="true"
-                                    android:clipToPadding="true">
-
-                                    <TextView
-                                        android:id="@+id/status_prefix_right"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:layout_marginStart="15dp"
-                                        android:text="右摄"
-                                        android:textColor="#B0B0B0"
-                                        android:textSize="14sp" />
-
-                                    <TextView
-                                        android:id="@+id/status_text_right"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:text="摄像头"
-                                        android:textColor="#B0B0B0"
-                                        android:textSize="14sp" />
-                                </LinearLayout>
-
-                                <!-- 摄像头预览容器 - 用于裁剪旋转后的画面 -->
-                                <FrameLayout
+                                <com.kooo.evcam.AutoFitTextureView
+                                    android:id="@+id/texture_right"
                                     android:layout_width="match_parent"
                                     android:layout_height="match_parent"
-                                    android:clipChildren="true"
-                                    android:clipToPadding="true">
+                                    android:layout_gravity="center"
+                                    android:clipToOutline="true" />
 
-                                    <com.kooo.evcam.AutoFitTextureView
-                                        android:id="@+id/texture_right"
-                                        android:layout_width="match_parent"
-                                        android:layout_height="match_parent"
-                                        android:layout_gravity="center"
-                                        android:clipToOutline="true" />
-                                </FrameLayout>
-                            </LinearLayout>
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="top|start"
+                                    android:layout_marginStart="6dp"
+                                    android:layout_marginTop="6dp"
+                                    android:paddingStart="8dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingTop="2dp"
+                                    android:paddingBottom="2dp"
+                                    android:text="右"
+                                    android:textColor="#C8C8D0"
+                                    android:textSize="11sp"
+                                    android:background="@drawable/camera_corner_label_bg" />
+                            </FrameLayout>
                         </androidx.cardview.widget.CardView>
 
                         <!-- 摄像头控制按钮（居中显示，两行布局） -->

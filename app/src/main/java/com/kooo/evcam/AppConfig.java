@@ -121,6 +121,9 @@ public class AppConfig {
 
     // 补盲悬浮窗动效
     private static final String KEY_FLOATING_WINDOW_ANIMATION_ENABLED = "floating_window_animation_enabled"; // 悬浮窗开启/关闭动效
+    private static final String KEY_BLIND_SPOT_STATUS_BAR_STYLE = "blind_spot_status_bar_style";             // 状态栏动效样式 (0=关, 1-5=五种动效)
+    private static final String KEY_BLIND_SPOT_STATUS_BAR_COLOR = "blind_spot_status_bar_color";             // 状态栏动效颜色 (ARGB int)
+    private static final String KEY_BLIND_SPOT_STATUS_BAR_BG_OPACITY = "blind_spot_status_bar_bg_opacity";   // 状态栏底色不透明度 0-100
 
     // 主屏悬浮窗比例锁定
     private static final String KEY_MAIN_FLOATING_ASPECT_RATIO_LOCKED = "main_floating_aspect_ratio_locked";
@@ -2161,6 +2164,42 @@ public class AppConfig {
         return prefs.getBoolean(KEY_FLOATING_WINDOW_ANIMATION_ENABLED, false);
     }
 
+    public void setBlindSpotStatusBarStyle(int style) {
+        prefs.edit().putInt(KEY_BLIND_SPOT_STATUS_BAR_STYLE, style).apply();
+    }
+
+    /**
+     * @return 0=关闭, 1=序贯灯段, 2=流光彗尾, 3=波纹扩散, 4=呼吸渐变填充, 5=箭头涟漪
+     */
+    public int getBlindSpotStatusBarStyle() {
+        return prefs.getInt(KEY_BLIND_SPOT_STATUS_BAR_STYLE, 1);
+    }
+
+    public void setBlindSpotStatusBarColor(int color) {
+        prefs.edit().putInt(KEY_BLIND_SPOT_STATUS_BAR_COLOR, color).apply();
+    }
+
+    /**
+     * @return ARGB color for status bar effect. Default: amber 0xFFFFBF40
+     */
+    public int getBlindSpotStatusBarColor() {
+        return prefs.getInt(KEY_BLIND_SPOT_STATUS_BAR_COLOR, 0xFFFFBF40);
+    }
+
+    /**
+     * @param opacity 0-100, 0=完全透明, 100=完全不透明
+     */
+    public void setBlindSpotStatusBarBgOpacity(int opacity) {
+        prefs.edit().putInt(KEY_BLIND_SPOT_STATUS_BAR_BG_OPACITY, opacity).apply();
+    }
+
+    /**
+     * @return 0-100, default 31 (约 31% 不透明)
+     */
+    public int getBlindSpotStatusBarBgOpacity() {
+        return prefs.getInt(KEY_BLIND_SPOT_STATUS_BAR_BG_OPACITY, 31);
+    }
+
     // ==================== 时间角标配置相关方法 ====================
     
     /**
@@ -3074,29 +3113,19 @@ public class AppConfig {
 
     /**
      * 重置前轮模式视图参数为默认值
-     * 默认值与普通模式相同
      */
-    public void resetFrontWheelViewParams(int defaultLeftWidth, int defaultLeftHeight, int defaultRightWidth, int defaultRightHeight, int containerHeight) {
-        int halfHeight = (containerHeight - 20) / 2;
-        int padding = 10;
-        int vehicleControlWidth = 280;
-
-        setFrontWheelLeftViewParams(defaultLeftWidth, halfHeight, padding, padding * 2 + halfHeight, 0);
-        setFrontWheelRightViewParams(defaultRightWidth, halfHeight, padding * 2 + defaultLeftWidth + vehicleControlWidth, padding * 2 + halfHeight, 0);
+    public void resetFrontWheelViewParams() {
+        setFrontWheelLeftViewParams(1120, 662, 10, 397, 270);
+        setFrontWheelRightViewParams(1211, 662, -76, 502, 90);
         AppLog.d(TAG, "前轮模式视图参数已重置为默认值");
     }
 
     /**
      * 重置后轮模式视图参数为默认值
-     * 默认值与普通模式相同
      */
-    public void resetRearWheelViewParams(int defaultLeftWidth, int defaultLeftHeight, int defaultRightWidth, int defaultRightHeight, int containerHeight) {
-        int halfHeight = (containerHeight - 20) / 2;
-        int padding = 10;
-        int vehicleControlWidth = 280;
-
-        setRearWheelLeftViewParams(defaultLeftWidth, halfHeight, padding, padding * 2 + halfHeight, 0);
-        setRearWheelRightViewParams(defaultRightWidth, halfHeight, padding * 2 + defaultLeftWidth + vehicleControlWidth, padding * 2 + halfHeight, 0);
+    public void resetRearWheelViewParams() {
+        setRearWheelLeftViewParams(1120, 662, 10, -624, 270);
+        setRearWheelRightViewParams(1298, 662, -164, -702, 90);
         AppLog.d(TAG, "后轮模式视图参数已重置为默认值");
     }
 

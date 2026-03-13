@@ -643,8 +643,9 @@ public class CustomCameraConfigFragment extends Fragment {
      */
     private void restartApp() {
         if (getActivity() == null) return;
-        
+
         android.widget.Toast.makeText(getContext(), "正在重载界面...", android.widget.Toast.LENGTH_SHORT).show();
+        com.kooo.evcam.camera.CameraManagerHolder.getInstance().setCameraManager(null);
         getActivity().recreate();
     }
 }

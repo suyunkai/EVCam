@@ -51,6 +51,7 @@ public class AutoFitTextureView extends TextureView {
         requestLayout();
     }
 
+
     /**
      * 根据旋转角度设置宽高比
      * 当旋转角度为90°或270°时，会自动交换宽高
@@ -100,7 +101,6 @@ public class AutoFitTextureView extends TextureView {
         int height = MeasureSpec.getSize(heightMeasureSpec);
 
         if (ratioWidth == 0 || ratioHeight == 0) {
-            // 如果没有设置宽高比，使用默认测量
             setMeasuredDimension(width, height);
         } else {
             // 根据宽高比调整尺寸

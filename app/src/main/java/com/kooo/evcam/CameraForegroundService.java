@@ -262,11 +262,12 @@ public class CameraForegroundService extends Service {
     @Override
     public void onDestroy() {
         AppLog.d(TAG, "Service destroyed - 尝试重启...");
+        isForegroundReady = false;
         stopCameraRepairLoop();
-        
+
         // 服务被杀时，发送延迟重启广播
         scheduleServiceRestart();
-        
+
         super.onDestroy();
     }
 

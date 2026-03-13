@@ -612,7 +612,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="• 摄像头数量：选择您设备实际连接的摄像头数量\n\n• 摄像头编号：每个摄像头在系统中的唯一标识（通常为 0、1、2、3），可以在系统日志中查看\n\n• 位置名称：用于标识摄像头的显示名称，会显示在预览画面和文件名中\n\n• 所有更改会自动保存，重启应用后生效"
+                    android:text="• 摄像头数量：选择您设备实际连接的摄像头数量\n\n• 摄像头编号：每个摄像头在系统中的唯一标识（通常为 0、1、2、3），可以在系统日志中查看\n\n• 位置名称：用于标识摄像头的显示名称，会显示在预览画面和文件名中\n\n• 前/后轮视角调整：在主界面长按「前轮」或「后轮」按钮，可打开参数调节面板，实时调整画面的位置、大小和旋转角度\n\n• 所有更改会自动保存，重启应用后生效"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:lineSpacingExtra="4dp" />

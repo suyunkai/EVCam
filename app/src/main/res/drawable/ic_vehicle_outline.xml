@@ -5,87 +5,46 @@
     android:viewportWidth="120"
     android:viewportHeight="200">
 
-    <!-- 车辆轮廓 - 俯视示意图 -->
     <!-- 车顶轮廓 -->
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#808080"
-        android:strokeWidth="3"
-        android:pathData="M30,10
-                         L90,10
-                         A20,20 0 0 1 110,30
-                         L110,170
-                         A20,20 0 0 1 90,190
-                         L30,190
-                         A20,20 0 0 1 10,170
-                         L10,30
-                         A20,20 0 0 1 30,10 Z" />
+        android:strokeColor="#787890"
+        android:strokeWidth="2.5"
+        android:pathData="M30,10 L90,10 A20,20 0 0 1 110,30 L110,170 A20,20 0 0 1 90,190 L30,190 A20,20 0 0 1 10,170 L10,30 A20,20 0 0 1 30,10 Z" />
 
     <!-- 前轮 - 左 -->
     <path
-        android:fillColor="#A0A0A0"
-        android:strokeColor="#808080"
-        android:strokeWidth="2"
-        android:pathData="M5,45
-                         L25,45
-                         A3,3 0 0 1 28,48
-                         L28,80
-                         A3,3 0 0 1 25,83
-                         L5,83
-                         A3,3 0 0 1 2,80
-                         L2,48
-                         A3,3 0 0 1 5,45 Z" />
+        android:fillColor="#606078"
+        android:strokeColor="#787890"
+        android:strokeWidth="1.5"
+        android:pathData="M5,45 L25,45 A3,3 0 0 1 28,48 L28,80 A3,3 0 0 1 25,83 L5,83 A3,3 0 0 1 2,80 L2,48 A3,3 0 0 1 5,45 Z" />
 
     <!-- 前轮 - 右 -->
     <path
-        android:fillColor="#A0A0A0"
-        android:strokeColor="#808080"
-        android:strokeWidth="2"
-        android:pathData="M95,45
-                         L115,45
-                         A3,3 0 0 1 118,48
-                         L118,80
-                         A3,3 0 0 1 115,83
-                         L95,83
-                         A3,3 0 0 1 92,80
-                         L92,48
-                         A3,3 0 0 1 95,45 Z" />
+        android:fillColor="#606078"
+        android:strokeColor="#787890"
+        android:strokeWidth="1.5"
+        android:pathData="M95,45 L115,45 A3,3 0 0 1 118,48 L118,80 A3,3 0 0 1 115,83 L95,83 A3,3 0 0 1 92,80 L92,48 A3,3 0 0 1 95,45 Z" />
 
     <!-- 后轮 - 左 -->
     <path
-        android:fillColor="#A0A0A0"
-        android:strokeColor="#808080"
-        android:strokeWidth="2"
-        android:pathData="M5,120
-                         L25,120
-                         A3,3 0 0 1 28,123
-                         L28,155
-                         A3,3 0 0 1 25,158
-                         L5,158
-                         A3,3 0 0 1 2,155
-                         L2,123
-                         A3,3 0 0 1 5,120 Z" />
+        android:fillColor="#606078"
+        android:strokeColor="#787890"
+        android:strokeWidth="1.5"
+        android:pathData="M5,120 L25,120 A3,3 0 0 1 28,123 L28,155 A3,3 0 0 1 25,158 L5,158 A3,3 0 0 1 2,155 L2,123 A3,3 0 0 1 5,120 Z" />
 
     <!-- 后轮 - 右 -->
     <path
-        android:fillColor="#A0A0A0"
-        android:strokeColor="#808080"
-        android:strokeWidth="2"
-        android:pathData="M95,120
-                         L115,120
-                         A3,3 0 0 1 118,123
-                         L118,155
-                         A3,3 0 0 1 115,158
-                         L95,158
-                         A3,3 0 0 1 92,155
-                         L92,123
-                         A3,3 0 0 1 95,120 Z" />
+        android:fillColor="#606078"
+        android:strokeColor="#787890"
+        android:strokeWidth="1.5"
+        android:pathData="M95,120 L115,120 A3,3 0 0 1 118,123 L118,155 A3,3 0 0 1 115,158 L95,158 A3,3 0 0 1 92,155 L92,123 A3,3 0 0 1 95,120 Z" />
 
     <!-- 车身中线 -->
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#808080"
-        android:strokeWidth="2"
+        android:strokeColor="#606078"
+        android:strokeWidth="1.5"
         android:pathData="M60,30 L60,170" />
 
 </vector>

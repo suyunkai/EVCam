@@ -14,8 +14,6 @@ import android.view.TextureView;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
-import android.widget.ImageView;
-import android.widget.TextView;
 
 import com.kooo.evcam.camera.CameraManagerHolder;
 import com.kooo.evcam.camera.MultiCameraManager;
@@ -69,10 +67,7 @@ public class MainFloatingWindowView extends FrameLayout {
         } catch (Exception ignored) {}
     };
 
-    private TextView statusPrefixText;
-    private TextView statusText;
-    private ImageView triangleLeft;
-    private ImageView triangleRight;
+    private BlindSpotStatusBarView statusBar;
 
     public MainFloatingWindowView(Context context) {
         this(context, new AppConfig(context));
@@ -94,14 +89,11 @@ public class MainFloatingWindowView extends FrameLayout {
         LayoutInflater.from(getContext()).inflate(layoutRes, this);
         textureView = findViewById(R.id.secondary_texture_view);
 
-        // 初始化状态栏控件（仅多视角布局有这些控件）
-        statusPrefixText = findViewById(R.id.status_prefix_secondary);
-        statusText = findViewById(R.id.status_text_secondary);
-        triangleLeft = findViewById(R.id.iv_triangle_left);
-        triangleRight = findViewById(R.id.iv_triangle_right);
+        statusBar = findViewById(R.id.blind_spot_status_bar);
+        applyStatusBarStyle();
 
         // 圆角裁切
-        float cornerRadius = (isMultiview ? 20 : 8) * getContext().getResources().getDisplayMetrics().density;
+        float cornerRadius = 8 * getContext().getResources().getDisplayMetrics().density;
         setOutlineProvider(new android.view.ViewOutlineProvider() {
             @Override
             public void getOutline(View view, android.graphics.Outline outline) {
@@ -670,33 +662,24 @@ public class MainFloatingWindowView extends FrameLayout {
         retryBindCount = 0;
     }
 
-    /**
-     * 更新状态栏标签和三角标
-     * @param cameraPos 摄像头位置 ("left" 或 "right")
-     */
-    public void updateStatusLabel(String cameraPos) {
-        if (statusPrefixText == null || statusText == null || triangleLeft == null || triangleRight == null) {
-            return;
-        }
-
-        if ("left".equals(cameraPos)) {
-            // 左转补盲
-            statusPrefixText.setText("左转");
-            statusText.setText("补盲视图");
-            triangleLeft.setVisibility(View.VISIBLE);
-            triangleRight.setVisibility(View.GONE);
-        } else if ("right".equals(cameraPos)) {
-            // 右转补盲
-            statusPrefixText.setText("右转");
-            statusText.setText("补盲视图");
-            triangleLeft.setVisibility(View.GONE);
-            triangleRight.setVisibility(View.VISIBLE);
+    private void applyStatusBarStyle() {
+        if (statusBar == null) return;
+        int style = appConfig.getBlindSpotStatusBarStyle();
+        if (style == BlindSpotStatusBarView.STYLE_OFF) {
+            statusBar.setVisibility(View.GONE);
         } else {
-            // 默认状态
-            statusPrefixText.setText("补盲");
-            statusText.setText("摄像头");
-            triangleLeft.setVisibility(View.GONE);
-            triangleRight.setVisibility(View.GONE);
+            statusBar.setVisibility(View.VISIBLE);
+            statusBar.setAnimationStyle(style);
+            statusBar.setEffectColor(appConfig.getBlindSpotStatusBarColor());
+            int alpha = (int) (appConfig.getBlindSpotStatusBarBgOpacity() / 100f * 255);
+            statusBar.setBackgroundColor(android.graphics.Color.argb(alpha, 0x1A, 0x1A, 0x1A));
+        }
+    }
+
+    public void updateStatusLabel(String cameraPos) {
+        if (statusBar != null) {
+            applyStatusBarStyle();
+            statusBar.setDirection(cameraPos);
         }
     }
 }

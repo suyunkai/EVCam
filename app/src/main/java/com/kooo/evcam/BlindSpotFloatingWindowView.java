@@ -15,8 +15,6 @@ import android.view.TextureView;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
-import android.widget.ImageView;
-import android.widget.TextView;
 
 import com.kooo.evcam.camera.CameraManagerHolder;
 import com.kooo.evcam.camera.MultiCameraManager;
@@ -56,10 +54,7 @@ public class BlindSpotFloatingWindowView extends FrameLayout {
     private boolean isCurrentlySwapped = false;
     private boolean hasUnsavedResize = false;
 
-    private TextView statusPrefixText;
-    private TextView statusText;
-    private ImageView triangleLeft;
-    private ImageView triangleRight;
+    private BlindSpotStatusBarView statusBar;
 
     public BlindSpotFloatingWindowView(Context context, boolean isSetupMode) {
         super(context);
@@ -79,11 +74,8 @@ public class BlindSpotFloatingWindowView extends FrameLayout {
         View saveButton = findViewById(R.id.btn_save_blind_spot_config);
         View rotateButton = findViewById(R.id.btn_rotate_blind_spot);
 
-        // 初始化状态栏控件
-        statusPrefixText = findViewById(R.id.status_prefix_blind_spot);
-        statusText = findViewById(R.id.status_text_blind_spot);
-        triangleLeft = findViewById(R.id.iv_triangle_left);
-        triangleRight = findViewById(R.id.iv_triangle_right);
+        statusBar = findViewById(R.id.blind_spot_status_bar);
+        applyStatusBarStyle();
 
         currentRotation = appConfig.getTurnSignalFloatingRotation();
         applyTransformNow();
@@ -579,33 +571,24 @@ public class BlindSpotFloatingWindowView extends FrameLayout {
         retryBindCount = 0;
     }
 
-    /**
-     * 更新状态栏标签和三角标
-     * @param cameraPos 摄像头位置 ("left" 或 "right")
-     */
-    public void updateStatusLabel(String cameraPos) {
-        if (statusPrefixText == null || statusText == null || triangleLeft == null || triangleRight == null) {
-            return;
-        }
-
-        if ("left".equals(cameraPos)) {
-            // 左转补盲
-            statusPrefixText.setText("左转");
-            statusText.setText("补盲视图");
-            triangleLeft.setVisibility(View.VISIBLE);
-            triangleRight.setVisibility(View.GONE);
-        } else if ("right".equals(cameraPos)) {
-            // 右转补盲
-            statusPrefixText.setText("右转");
-            statusText.setText("补盲视图");
-            triangleLeft.setVisibility(View.GONE);
-            triangleRight.setVisibility(View.VISIBLE);
+    private void applyStatusBarStyle() {
+        if (statusBar == null) return;
+        int style = appConfig.getBlindSpotStatusBarStyle();
+        if (style == BlindSpotStatusBarView.STYLE_OFF) {
+            statusBar.setVisibility(View.GONE);
         } else {
-            // 默认状态
-            statusPrefixText.setText("补盲");
-            statusText.setText("摄像头");
-            triangleLeft.setVisibility(View.GONE);
-            triangleRight.setVisibility(View.GONE);
+            statusBar.setVisibility(View.VISIBLE);
+            statusBar.setAnimationStyle(style);
+            statusBar.setEffectColor(appConfig.getBlindSpotStatusBarColor());
+            int alpha = (int) (appConfig.getBlindSpotStatusBarBgOpacity() / 100f * 255);
+            statusBar.setBackgroundColor(android.graphics.Color.argb(alpha, 0x1A, 0x1A, 0x1A));
+        }
+    }
+
+    public void updateStatusLabel(String cameraPos) {
+        if (statusBar != null) {
+            applyStatusBarStyle();
+            statusBar.setDirection(cameraPos);
         }
     }
 }

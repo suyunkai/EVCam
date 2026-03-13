@@ -187,6 +187,10 @@ public class LogcatSignalObserver {
         return sb.toString();
     }
 
+    public boolean isAlive() {
+        return isRunning && logcatThread != null && logcatThread.isAlive();
+    }
+
     public void stop() {
         isRunning = false;
         // 先销毁进程，使 readLine() 立即返回 null 从而退出循环
