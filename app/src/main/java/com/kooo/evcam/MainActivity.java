@@ -2053,6 +2053,11 @@ public class MainActivity extends AppCompatActivity {
         // 检查 Holder 中是否已有后台初始化的实例
         com.kooo.evcam.camera.CameraManagerHolder holder = com.kooo.evcam.camera.CameraManagerHolder.getInstance();
         MultiCameraManager existingManager = holder.getCameraManager();
+        if (existingManager != null && existingManager.isReleased()) {
+            AppLog.w(TAG, "Holder 中的 CameraManager 已被 release，丢弃");
+            holder.setCameraManager(null);
+            existingManager = null;
+        }
         if (existingManager != null) {
             // 后台已初始化，复用实例并绑定 TextureView
             AppLog.d(TAG, "复用后台已初始化的摄像头管理器，绑定 TextureView");
@@ -4706,11 +4711,10 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
 
-        // Activity 被重建（主题切换、recreate 等）而非永久销毁时，
-        // 清掉 Holder 中的旧 CameraManager，确保新 Activity 从头初始化摄像头
-        if (!isFinishing()) {
-            com.kooo.evcam.camera.CameraManagerHolder.getInstance().setCameraManager(null);
-        }
+        // 无论是 recreate 还是 finishing，都清掉 Holder 中的旧引用。
+        // isFinishing()=true 时（如从最近任务划掉），release() 会清空 cameras map，
+        // 但进程可能因 Service 存活而不退出，导致 Holder 持有已清空的实例被复用。
+        com.kooo.evcam.camera.CameraManagerHolder.getInstance().setCameraManager(null);
 
         // 关闭预览矫正悬浮窗
         dismissPreviewCorrectionFloating();

@@ -1920,6 +1920,13 @@ public class MultiCameraManager {
     }
 
     /**
+     * release() 后 cameras map 为空，此方法用于外部判断实例是否已失效。
+     */
+    public boolean isReleased() {
+        return cameras.isEmpty();
+    }
+
+    /**
      * 是否正在录制
      */
     public boolean isRecording() {

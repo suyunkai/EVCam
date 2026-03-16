@@ -31,8 +31,13 @@ public class CameraManagerHolder {
      * 可从 Service 或 Activity 调用。
      */
     public synchronized MultiCameraManager getOrInit(Context context) {
-        if (cameraManager != null) {
+        if (cameraManager != null && !cameraManager.isReleased()) {
             return cameraManager;
+        }
+
+        if (cameraManager != null) {
+            AppLog.w(TAG, "Holder 中的 CameraManager 已被 release，丢弃并重新创建");
+            cameraManager = null;
         }
 
         AppLog.d(TAG, "后台初始化摄像头（无 TextureView）...");
