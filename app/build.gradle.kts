@@ -20,8 +20,8 @@ android {
         applicationId = "com.kooo.evcam"
         minSdk = 28
         targetSdk = 36
-        versionCode = 35
-        versionName = "1.2.4"
+        versionCode = 68
+        versionName = "1.5.8"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -73,6 +73,9 @@ dependencies {
 
     // ZXing 二维码生成
     implementation("com.google.zxing:core:3.5.1")
+
+    // NanoHTTPD - 轻量级 HTTP 服务器
+    implementation("org.nanohttpd:nanohttpd:2.3.1")
 
     // Glide 图片加载库（用于缓存和优化缩略图加载）
     implementation("com.github.bumptech.glide:glide:4.16.0")

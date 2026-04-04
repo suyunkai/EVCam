@@ -1,41 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/black"
-    android:clipChildren="true"
-    android:clipToPadding="true">
+    android:background="@android:color/black">
 
-    <androidx.cardview.widget.CardView
+    <!-- 摄像头预览 -->
+    <TextureView
+        android:id="@+id/blind_spot_texture_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:cardBackgroundColor="@android:color/transparent"
-        app:cardCornerRadius="8dp"
-        app:cardElevation="0dp"
-        app:cardPreventCornerOverlap="false">
+        android:layout_gravity="center" />
 
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipChildren="true"
-            android:clipToPadding="false">
-
-            <TextureView
-                android:id="@+id/blind_spot_texture_view"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_gravity="center"
-                android:clipToOutline="true" />
-
-            <com.kooo.evcam.BlindSpotStatusBarView
-                android:id="@+id/blind_spot_status_bar"
-                android:layout_width="match_parent"
-                android:layout_height="30dp"
-                android:layout_gravity="top"
-                android:background="#501A1A1A" />
-        </FrameLayout>
-    </androidx.cardview.widget.CardView>
+    <!-- 状态栏 -->
+    <com.kooo.evcam.BlindSpotStatusBarView
+        android:id="@+id/blind_spot_status_bar"
+        android:layout_width="match_parent"
+        android:layout_height="30dp"
+        android:layout_gravity="top"
+        android:background="#501A1A1A" />
 
     <!-- 设置模式下的保存按钮容器 -->
     <LinearLayout
@@ -66,5 +48,31 @@
             android:backgroundTint="@color/button_accent"
             android:textColor="@color/white" />
     </LinearLayout>
+
+    <!-- 转向灯箭头视图 - 显示在画面中心 -->
+    <com.kooo.evcam.TurnSignalArrowView
+        android:id="@+id/turn_signal_arrow_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
+    <!-- 关闭按钮 - 放在最后确保在最上层 -->
+    <TextView
+        android:id="@+id/btn_close_supervision"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="2dp"
+        android:background="#FF0000"
+        android:text="X"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true"
+        android:elevation="100dp" />
 
 </FrameLayout>

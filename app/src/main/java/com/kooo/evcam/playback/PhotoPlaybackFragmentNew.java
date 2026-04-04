@@ -1,7 +1,10 @@
 package com.kooo.evcam.playback;
 
+import android.content.Intent;
 import android.content.res.Configuration;
+import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -11,9 +14,11 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.FileProvider;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
@@ -31,6 +36,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.kooo.evcam.MainActivity;
 import com.kooo.evcam.R;
 import com.kooo.evcam.StorageHelper;
+import com.kooo.evcam.transfer.QrTransferDialog;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -57,8 +63,9 @@ public class PhotoPlaybackFragmentNew extends Fragment {
     private TextView currentDatetime;
     private View noSelectionHint;
     private Button btnMenu, btnRefresh, btnMultiSelect, btnHome;
-    private Button btnSelectAll, btnDeleteSelected, btnCancelSelect;
+    private Button btnSelectAll, btnDeleteSelected, btnCancelSelect, btnShareSelected;
     private TextView selectedCount;
+    private static final String TAG = "PhotoPlaybackFragmentNew";
     private View toolbar, multiSelectToolbar;
 
     // 预览区组件
@@ -108,6 +115,7 @@ public class PhotoPlaybackFragmentNew extends Fragment {
         btnSelectAll = view.findViewById(R.id.btn_select_all);
         btnDeleteSelected = view.findViewById(R.id.btn_delete_selected);
         btnCancelSelect = view.findViewById(R.id.btn_cancel_select);
+        btnShareSelected = view.findViewById(R.id.btn_share_selected);
         selectedCount = view.findViewById(R.id.selected_count);
 
         // 列表
@@ -199,6 +207,7 @@ public class PhotoPlaybackFragmentNew extends Fragment {
         btnSelectAll.setOnClickListener(v -> selectAll());
         btnCancelSelect.setOnClickListener(v -> exitMultiSelectMode());
         btnDeleteSelected.setOnClickListener(v -> deleteSelected());
+        btnShareSelected.setOnClickListener(v -> shareSelected());
 
         // 列表项点击
         adapter.setOnItemClickListener((group, position) -> {
@@ -207,6 +216,17 @@ public class PhotoPlaybackFragmentNew extends Fragment {
 
         adapter.setOnItemSelectedListener(group -> {
             updateSelectedCount();
+        });
+
+        // 列表项长按 - 分享图片
+        adapter.setOnItemLongClickListener((group, position) -> {
+            if (adapter.isMultiSelectMode()) {
+                // 多选模式下，分享所有已选中的图片
+                shareSelected();
+            } else {
+                // 单选模式下，分享当前长按的图片组
+                showPhotoShareDialog(group);
+            }
         });
 
         // 摄像头切换按钮（循环切换）
@@ -591,6 +611,222 @@ public class PhotoPlaybackFragmentNew extends Fragment {
                 return insets;
             });
             androidx.core.view.ViewCompat.requestApplyInsets(toolbarView);
+        }
+    }
+
+    /**
+     * 分享选中的图片
+     */
+    private void shareSelected() {
+        Set<PhotoGroup> selectedGroups = adapter.getSelectedGroups();
+        if (selectedGroups.isEmpty()) {
+            Toast.makeText(getContext(), "请先选择要分享的图片", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 收集所有选中的图片文件
+        List<File> allPhotoFiles = new ArrayList<>();
+        String[] positions = {PhotoGroup.POSITION_FRONT, PhotoGroup.POSITION_BACK,
+                              PhotoGroup.POSITION_LEFT, PhotoGroup.POSITION_RIGHT};
+
+        for (PhotoGroup group : selectedGroups) {
+            for (String position : positions) {
+                File photoFile = group.getPhotoFile(position);
+                if (photoFile != null && photoFile.exists() && photoFile.length() > 0) {
+                    allPhotoFiles.add(photoFile);
+                }
+            }
+        }
+
+        if (allPhotoFiles.isEmpty()) {
+            Toast.makeText(getContext(), "没有可分享的图片文件", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 显示分享选项对话框
+        showPhotoShareOptionsDialog("分享选中的图片",
+            "已选择 " + selectedGroups.size() + " 组图片，共 " + allPhotoFiles.size() + " 个文件",
+            allPhotoFiles);
+    }
+
+    /**
+     * 显示单组图片分享对话框
+     */
+    private void showPhotoShareDialog(PhotoGroup group) {
+        if (getContext() == null) return;
+
+        // 获取所有可用的图片文件
+        List<File> photoFiles = new ArrayList<>();
+        String[] positions = {PhotoGroup.POSITION_FRONT, PhotoGroup.POSITION_BACK,
+                              PhotoGroup.POSITION_LEFT, PhotoGroup.POSITION_RIGHT};
+
+        for (String position : positions) {
+            File photoFile = group.getPhotoFile(position);
+            if (photoFile != null && photoFile.exists() && photoFile.length() > 0) {
+                photoFiles.add(photoFile);
+            }
+        }
+
+        if (photoFiles.isEmpty()) {
+            Toast.makeText(getContext(), "没有可分享的图片文件", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        showPhotoShareOptionsDialog("分享图片",
+            "共 " + photoFiles.size() + " 个图片文件",
+            photoFiles);
+    }
+
+    /**
+     * 显示图片分享选项对话框（使用与视频相同的布局）
+     */
+    private void showPhotoShareOptionsDialog(String title, String message, List<File> photoFiles) {
+        if (getContext() == null) return;
+
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(getContext());
+
+        // 加载自定义布局
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_share_options, null);
+        TextView titleView = dialogView.findViewById(R.id.dialog_title);
+        TextView messageView = dialogView.findViewById(R.id.dialog_message);
+        View btnQr = dialogView.findViewById(R.id.btn_qr);
+        View btnShare = dialogView.findViewById(R.id.btn_share);
+        View btnClose = dialogView.findViewById(R.id.btn_close);
+
+        titleView.setText(title);
+        messageView.setText(message);
+
+        builder.setView(dialogView);
+        builder.setCancelable(true);
+
+        android.app.AlertDialog dialog = builder.create();
+
+        // 设置按钮点击事件
+        btnQr.setOnClickListener(v -> {
+            Log.d(TAG, "用户选择扫码互传图片");
+            dialog.dismiss();
+            showQrTransferDialog(photoFiles);
+        });
+
+        btnShare.setOnClickListener(v -> {
+            Log.d(TAG, "用户选择系统分享图片");
+            dialog.dismiss();
+            sharePhotos(photoFiles);
+        });
+
+        btnClose.setOnClickListener(v -> {
+            Log.d(TAG, "用户取消图片分享");
+            dialog.dismiss();
+        });
+
+        dialog.show();
+        Log.d(TAG, "图片分享选项对话框已显示");
+    }
+
+    /**
+     * 显示扫码互传对话框
+     */
+    private void showQrTransferDialog(List<File> photoFiles) {
+        // 使用 getActivity() 获取 Activity 上下文，避免 Fragment detached 问题
+        android.app.Activity activity = getActivity();
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+            Log.e(TAG, "无法显示对话框: activity 不可用");
+            return;
+        }
+
+        if (!isAdded()) {
+            Log.e(TAG, "无法显示对话框: Fragment 未 attached");
+            return;
+        }
+
+        Log.d(TAG, "准备显示扫码互传对话框，文件数: " + (photoFiles != null ? photoFiles.size() : 0));
+
+        try {
+            // 使用 Activity 上下文而不是 Fragment 上下文，确保对话框在 Activity 生命周期内
+            QrTransferDialog dialog = new QrTransferDialog(activity, photoFiles);
+            dialog.show();
+            Log.d(TAG, "扫码互传对话框已显示");
+        } catch (Exception e) {
+            Log.e(TAG, "显示扫码互传对话框失败", e);
+            Toast.makeText(activity, "无法显示分享对话框: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /**
+     * 分享图片文件
+     */
+    private void sharePhotos(List<File> photoFiles) {
+        if (getContext() == null || photoFiles.isEmpty()) return;
+
+        try {
+            String authority = getContext().getPackageName() + ".fileprovider";
+
+            if (photoFiles.size() == 1) {
+                // 分享单个图片
+                File photoFile = photoFiles.get(0);
+
+                // 检查文件是否存在且可读
+                if (!photoFile.exists() || !photoFile.canRead()) {
+                    Toast.makeText(getContext(), "文件不存在或无法读取", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                Uri photoUri = FileProvider.getUriForFile(getContext(), authority, photoFile);
+
+                Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                shareIntent.setType("image/jpeg");
+                shareIntent.putExtra(Intent.EXTRA_STREAM, photoUri);
+                shareIntent.putExtra(Intent.EXTRA_SUBJECT, "分享图片");
+                shareIntent.putExtra(Intent.EXTRA_TEXT, "来自 EVCam 的图片分享");
+                shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+                // 创建选择器
+                Intent chooser = Intent.createChooser(shareIntent, "分享图片到");
+                if (chooser.resolveActivity(getContext().getPackageManager()) != null) {
+                    startActivity(chooser);
+                } else {
+                    Toast.makeText(getContext(), "没有找到可以分享的应用", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                // 分享多个图片
+                ArrayList<Uri> photoUris = new ArrayList<>();
+                for (File photoFile : photoFiles) {
+                    // 检查文件是否存在且可读
+                    if (!photoFile.exists() || !photoFile.canRead()) {
+                        continue;
+                    }
+                    Uri photoUri = FileProvider.getUriForFile(getContext(), authority, photoFile);
+                    photoUris.add(photoUri);
+                }
+
+                if (photoUris.isEmpty()) {
+                    Toast.makeText(getContext(), "没有可分享的文件", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                Intent shareIntent = new Intent(Intent.ACTION_SEND_MULTIPLE);
+                shareIntent.setType("image/jpeg");
+                shareIntent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, photoUris);
+                shareIntent.putExtra(Intent.EXTRA_SUBJECT, "分享图片");
+                shareIntent.putExtra(Intent.EXTRA_TEXT, "来自 EVCam 的图片分享 (" + photoUris.size() + "个图片)");
+                shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+                // 创建选择器
+                Intent chooser = Intent.createChooser(shareIntent, "分享图片到");
+                if (chooser.resolveActivity(getContext().getPackageManager()) != null) {
+                    startActivity(chooser);
+                } else {
+                    Toast.makeText(getContext(), "没有找到可以分享的应用", Toast.LENGTH_SHORT).show();
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "分享图片失败: FileProvider 无法处理该文件路径", e);
+            Toast.makeText(getContext(), "分享失败: 文件路径不受支持，请使用扫码互传功能", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Log.e(TAG, "分享图片失败", e);
+            Toast.makeText(getContext(), "分享失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 }

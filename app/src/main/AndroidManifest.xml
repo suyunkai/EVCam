@@ -18,9 +18,10 @@
     <!-- Android 11+ 所有文件访问权限（用于访问U盘公共目录） -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage" />
-    <!-- 网络权限（用于钉钉远程查看） -->
+    <!-- 网络权限（用于钉钉远程查看和扫码互传） -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- 前台服务权限（Android 9+） -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <!-- 前台服务类型：摄像头（Android 10+） -->
@@ -124,6 +125,25 @@
         <!-- 补盲选项服务 (副屏显示+主屏悬浮窗) -->
         <service
             android:name=".BlindSpotService"
+            android:exported="false" />
+
+        <!-- 摄像头录制服务 (D:\yuan重构新增) -->
+        <service
+            android:name=".service.CameraRecordingService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="camera" />
+
+        <!-- 补盲悬浮窗服务 (D:\yuan重构新增) -->
+        <service
+            android:name=".service.BlindSpotOverlayService"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- 录制悬浮按钮服务 (后台录制控制) -->
+        <service
+            android:name=".service.RecordingFloatingService"
+            android:enabled="true"
             android:exported="false" />
 
         <activity

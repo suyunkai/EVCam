@@ -1,7 +1,13 @@
 package com.kooo.evcam.playback;
 
+import android.content.ClipData;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.net.Uri;
 import android.content.res.Configuration;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -12,9 +18,11 @@ import android.widget.FrameLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.VideoView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.FileProvider;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
@@ -28,6 +36,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.kooo.evcam.MainActivity;
 import com.kooo.evcam.R;
 import com.kooo.evcam.StorageHelper;
+import com.kooo.evcam.transfer.QrTransferDialog;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -48,6 +57,7 @@ import java.util.Set;
  * 支持左右分栏、四宫格预览、单路/多路切换、倍速播放
  */
 public class PlaybackFragmentNew extends Fragment {
+    private static final String TAG = "PlaybackFragmentNew";
 
     // UI 组件
     private RecyclerView videoList;
@@ -55,7 +65,7 @@ public class PlaybackFragmentNew extends Fragment {
     private TextView currentDatetime;
     private View noSelectionHint;
     private Button btnMenu, btnRefresh, btnMultiSelect, btnHome;
-    private Button btnSelectAll, btnDeleteSelected, btnCancelSelect;
+    private Button btnSelectAll, btnDeleteSelected, btnCancelSelect, btnShareSelected;
     private TextView selectedCount;
     private View toolbar, multiSelectToolbar;
 
@@ -114,6 +124,7 @@ public class PlaybackFragmentNew extends Fragment {
         btnSelectAll = view.findViewById(R.id.btn_select_all);
         btnDeleteSelected = view.findViewById(R.id.btn_delete_selected);
         btnCancelSelect = view.findViewById(R.id.btn_cancel_select);
+        btnShareSelected = view.findViewById(R.id.btn_share_selected);
         selectedCount = view.findViewById(R.id.selected_count);
 
         // 列表
@@ -187,10 +198,17 @@ public class PlaybackFragmentNew extends Fragment {
             @Override
             public void onPrepared(int duration) {
                 if (getActivity() == null) return;
+                Log.d(TAG, "onPrepared: duration=" + duration);
                 getActivity().runOnUiThread(() -> {
-                    seekBar.setMax(duration);
-                    totalTime.setText(formatTime(duration));
-                    currentTime.setText(formatTime(0));
+                    if (duration > 0) {
+                        seekBar.setMax(duration);
+                        totalTime.setText(formatTime(duration));
+                        currentTime.setText(formatTime(0));
+                    } else {
+                        Log.w(TAG, "Invalid duration: " + duration);
+                        totalTime.setText("--:--");
+                        currentTime.setText("00:00");
+                    }
                 });
             }
 
@@ -268,6 +286,7 @@ public class PlaybackFragmentNew extends Fragment {
         btnSelectAll.setOnClickListener(v -> selectAll());
         btnCancelSelect.setOnClickListener(v -> exitMultiSelectMode());
         btnDeleteSelected.setOnClickListener(v -> deleteSelected());
+        btnShareSelected.setOnClickListener(v -> shareSelected());
 
         // 列表项点击
         adapter.setOnItemClickListener((group, position) -> {
@@ -276,6 +295,17 @@ public class PlaybackFragmentNew extends Fragment {
 
         adapter.setOnItemSelectedListener(group -> {
             updateSelectedCount();
+        });
+
+        // 列表项长按 - 分享视频
+        adapter.setOnItemLongClickListener((group, position) -> {
+            if (adapter.isMultiSelectMode()) {
+                // 多选模式下，分享所有已选中的视频
+                shareSelected();
+            } else {
+                // 单选模式下，分享当前长按的视频
+                showShareDialog(group);
+            }
         });
 
         // 播放控制
@@ -714,6 +744,52 @@ public class PlaybackFragmentNew extends Fragment {
     }
 
     /**
+     * 分享选中的视频
+     */
+    private void shareSelected() {
+        Set<VideoGroup> selectedGroups = adapter.getSelectedGroups();
+        if (selectedGroups.isEmpty()) {
+            Toast.makeText(getContext(), "请先选择要分享的视频", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 收集所有选中的视频文件
+        List<File> allVideoFiles = new ArrayList<>();
+        String[] positions = {VideoGroup.POSITION_FRONT, VideoGroup.POSITION_BACK, 
+                              VideoGroup.POSITION_LEFT, VideoGroup.POSITION_RIGHT};
+        
+        for (VideoGroup group : selectedGroups) {
+            for (String position : positions) {
+                File videoFile = group.getVideoFile(position);
+                if (videoFile != null && videoFile.exists() && videoFile.length() > 0) {
+                    allVideoFiles.add(videoFile);
+                }
+            }
+        }
+
+        if (allVideoFiles.isEmpty()) {
+            Toast.makeText(getContext(), "没有可分享的视频文件", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Log.d(TAG, "准备分享: " + selectedGroups.size() + " 组, " + allVideoFiles.size() + " 个文件");
+        for (int i = 0; i < Math.min(allVideoFiles.size(), 5); i++) {
+            Log.d(TAG, "文件 " + i + ": " + allVideoFiles.get(i).getAbsolutePath());
+        }
+
+        // 显示分享选项对话框
+        String[] options = {
+            "📱 扫码互传（推荐）",
+            "📤 系统分享（" + allVideoFiles.size() + "个文件）"
+        };
+
+        Log.d(TAG, "创建分享对话框");
+        showShareOptionsDialog("分享选中的视频", 
+            "已选择 " + selectedGroups.size() + " 组视频，共 " + allVideoFiles.size() + " 个文件",
+            allVideoFiles);
+    }
+
+    /**
      * 格式化时间（毫秒 -> mm:ss）
      */
     private String formatTime(int milliseconds) {
@@ -749,6 +825,209 @@ public class PlaybackFragmentNew extends Fragment {
         super.onDestroyView();
         if (playerManager != null) {
             playerManager.release();
+        }
+    }
+
+    /**
+     * 显示分享对话框
+     */
+    private void showShareDialog(VideoGroup group) {
+        if (getContext() == null) return;
+
+        // 获取所有可用的视频文件
+        List<File> videoFiles = new ArrayList<>();
+        String[] positions = {VideoGroup.POSITION_FRONT, VideoGroup.POSITION_BACK, 
+                              VideoGroup.POSITION_LEFT, VideoGroup.POSITION_RIGHT};
+        String[] positionNames = {"前视", "后视", "左视", "右视"};
+        
+        for (int i = 0; i < positions.length; i++) {
+            File videoFile = group.getVideoFile(positions[i]);
+            if (videoFile != null && videoFile.exists() && videoFile.length() > 0) {
+                videoFiles.add(videoFile);
+            }
+        }
+
+        if (videoFiles.isEmpty()) {
+            Toast.makeText(getContext(), "没有可分享的视频文件", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 构建选项
+        String[] options = new String[videoFiles.size() + 2];
+        options[0] = "📱 扫码互传（推荐）";
+        options[1] = "📤 分享所有路视频";
+        for (int i = 0; i < videoFiles.size(); i++) {
+            File file = videoFiles.get(i);
+            String positionName = getPositionName(file.getName());
+            options[i + 2] = "📤 仅分享" + positionName + "视频";
+        }
+
+        showShareOptionsDialog("分享视频", 
+            "共 " + videoFiles.size() + " 个视频文件",
+            videoFiles);
+    }
+
+    /**
+     * 显示分享选项对话框（自定义布局）
+     */
+    private void showShareOptionsDialog(String title, String message, List<File> videoFiles) {
+        if (getContext() == null) return;
+
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(getContext());
+        
+        // 加载自定义布局
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_share_options, null);
+        TextView titleView = dialogView.findViewById(R.id.dialog_title);
+        TextView messageView = dialogView.findViewById(R.id.dialog_message);
+        View btnQr = dialogView.findViewById(R.id.btn_qr);
+        View btnShare = dialogView.findViewById(R.id.btn_share);
+        View btnClose = dialogView.findViewById(R.id.btn_close);
+        
+        titleView.setText(title);
+        messageView.setText(message);
+        
+        builder.setView(dialogView);
+        builder.setCancelable(true);
+        
+        android.app.AlertDialog dialog = builder.create();
+        
+        // 设置按钮点击事件
+        btnQr.setOnClickListener(v -> {
+            Log.d(TAG, "用户选择扫码互传");
+            dialog.dismiss();
+            showQrTransferDialog(videoFiles);
+        });
+        
+        btnShare.setOnClickListener(v -> {
+            Log.d(TAG, "用户选择系统分享");
+            dialog.dismiss();
+            shareVideos(videoFiles);
+        });
+        
+        btnClose.setOnClickListener(v -> {
+            Log.d(TAG, "用户取消分享");
+            dialog.dismiss();
+        });
+        
+        dialog.show();
+        Log.d(TAG, "分享选项对话框已显示");
+    }
+
+    /**
+     * 显示扫码互传对话框
+     */
+    private void showQrTransferDialog(List<File> videoFiles) {
+        // 使用 getActivity() 获取 Activity 上下文，避免 Fragment detached 问题
+        android.app.Activity activity = getActivity();
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+            Log.e(TAG, "无法显示对话框: activity 不可用");
+            return;
+        }
+        
+        if (!isAdded()) {
+            Log.e(TAG, "无法显示对话框: Fragment 未 attached");
+            return;
+        }
+        
+        Log.d(TAG, "准备显示扫码互传对话框，文件数: " + (videoFiles != null ? videoFiles.size() : 0));
+        
+        try {
+            // 使用 Activity 上下文而不是 Fragment 上下文，确保对话框在 Activity 生命周期内
+            QrTransferDialog dialog = new QrTransferDialog(activity, videoFiles);
+            dialog.show();
+            Log.d(TAG, "扫码互传对话框已显示");
+        } catch (Exception e) {
+            Log.e(TAG, "显示扫码互传对话框失败", e);
+            Toast.makeText(activity, "无法显示分享对话框: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /**
+     * 根据文件名获取位置名称
+     */
+    private String getPositionName(String fileName) {
+        if (fileName.contains("front")) return "前视";
+        if (fileName.contains("back")) return "后视";
+        if (fileName.contains("left")) return "左视";
+        if (fileName.contains("right")) return "右视";
+        return "未知";
+    }
+
+    /**
+     * 分享视频文件
+     */
+    private void shareVideos(List<File> videoFiles) {
+        if (getContext() == null || videoFiles.isEmpty()) return;
+
+        try {
+            String authority = getContext().getPackageName() + ".fileprovider";
+            
+            if (videoFiles.size() == 1) {
+                // 分享单个视频
+                File videoFile = videoFiles.get(0);
+                
+                // 检查文件是否存在且可读
+                if (!videoFile.exists() || !videoFile.canRead()) {
+                    Toast.makeText(getContext(), "文件不存在或无法读取", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                Uri videoUri = FileProvider.getUriForFile(getContext(), authority, videoFile);
+                
+                Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                shareIntent.setType("video/mp4");
+                shareIntent.putExtra(Intent.EXTRA_STREAM, videoUri);
+                shareIntent.putExtra(Intent.EXTRA_SUBJECT, "分享视频");
+                shareIntent.putExtra(Intent.EXTRA_TEXT, "来自 EVCam 的视频分享");
+                shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                
+                // 创建选择器
+                Intent chooser = Intent.createChooser(shareIntent, "分享视频到");
+                if (chooser.resolveActivity(getContext().getPackageManager()) != null) {
+                    startActivity(chooser);
+                } else {
+                    Toast.makeText(getContext(), "没有找到可以分享的应用", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                // 分享多个视频
+                ArrayList<Uri> videoUris = new ArrayList<>();
+                for (File videoFile : videoFiles) {
+                    // 检查文件是否存在且可读
+                    if (!videoFile.exists() || !videoFile.canRead()) {
+                        continue;
+                    }
+                    Uri videoUri = FileProvider.getUriForFile(getContext(), authority, videoFile);
+                    videoUris.add(videoUri);
+                }
+                
+                if (videoUris.isEmpty()) {
+                    Toast.makeText(getContext(), "没有可分享的文件", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                Intent shareIntent = new Intent(Intent.ACTION_SEND_MULTIPLE);
+                shareIntent.setType("video/mp4");
+                shareIntent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, videoUris);
+                shareIntent.putExtra(Intent.EXTRA_SUBJECT, "分享视频");
+                shareIntent.putExtra(Intent.EXTRA_TEXT, "来自 EVCam 的视频分享 (" + videoUris.size() + "个视频)");
+                shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                
+                // 创建选择器
+                Intent chooser = Intent.createChooser(shareIntent, "分享视频到");
+                if (chooser.resolveActivity(getContext().getPackageManager()) != null) {
+                    startActivity(chooser);
+                } else {
+                    Toast.makeText(getContext(), "没有找到可以分享的应用", Toast.LENGTH_SHORT).show();
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "分享视频失败: FileProvider 无法处理该文件路径", e);
+            Toast.makeText(getContext(), "分享失败: 文件路径不受支持，请使用扫码互传功能", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Log.e(TAG, "分享视频失败", e);
+            Toast.makeText(getContext(), "分享失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 }

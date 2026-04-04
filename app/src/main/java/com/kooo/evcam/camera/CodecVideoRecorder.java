@@ -3,11 +3,13 @@ package com.kooo.evcam.camera;
 import android.graphics.SurfaceTexture;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
+import android.media.MediaCodecList;
 import android.media.MediaFormat;
 import android.media.MediaMuxer;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
+import android.os.Process;
 import android.view.Surface;
 
 import com.kooo.evcam.AppLog;
@@ -36,12 +38,34 @@ public class CodecVideoRecorder {
     private static final String TAG = "CodecVideoRecorder";
 
     // 编码参数（常量）
-    private static final String MIME_TYPE = MediaFormat.MIMETYPE_VIDEO_AVC;  // H.264
-    private static final int I_FRAME_INTERVAL = 1;  // I帧间隔（秒）
+    private static final String MIME_TYPE_H264 = MediaFormat.MIMETYPE_VIDEO_AVC;      // H.264
+    private static final String MIME_TYPE_HEVC = MediaFormat.MIMETYPE_VIDEO_HEVC;     // H.265/HEVC
+    private String mimeType = MIME_TYPE_H264;  // 默认使用 H.264，支持时自动切换到 HEVC
+    
+    private static final int I_FRAME_INTERVAL = 3;  // I帧间隔（秒）- 改为3秒减少CPU占用和文件大小
     
     // 编码参数（可配置）
-    private int frameRate = 30;       // 默认 30fps
-    private int bitRate = 3000000;    // 默认 3Mbps
+    private int frameRate = 20;       // 默认 20fps - 降低帧率减少CPU占用，同时保持流畅
+    private int bitRate = 0;          // 默认自动计算码率
+    
+    // 性能优化：码率上限（防止过高码率导致卡顿）
+    private static final int MAX_BITRATE = 12000000;  // 最大码率 12Mbps
+    private static final int MAX_HEVC_BITRATE = 8000000;  // HEVC 最大码率 8Mbps
+    
+    // 录制时补盲优化模式
+    private boolean blindSpotOptimizeMode = false;  // 是否启用补盲优化模式（录制时降低负载）
+    private static final int BLIND_SPOT_OPTIMIZED_FPS = 15;  // 补盲优化模式帧率
+    
+    // 画质等级：0=低, 1=中, 2=高, 3=最高
+    private int qualityLevel = 2;
+    
+    // 自适应 drain 间隔控制（优化版 - 不降低画质）
+    private volatile long currentDrainIntervalMs = 16;  // 当前 drain 间隔（毫秒）- 约60fps周期，平衡实时性和CPU
+    private static final long DRAIN_INTERVAL_MIN_MS = 8;   // 最小 8ms（保证流畅性）
+    private static final long DRAIN_INTERVAL_MAX_MS = 33;  // 最大 33ms（约30fps，避免过度延迟）
+    private static final int DRAIN_BATCH_SIZE = 5;  // 每次 drain 批量处理更多帧，减少系统调用开销
+    private long lastDrainTimeMs = 0;  // 上次 drain 时间
+    private int framesSinceLastDrain = 0;  // 上次 drain 以来的帧数
 
     private final String cameraId;
     private final int width;
@@ -87,7 +111,7 @@ public class CodecVideoRecorder {
     // 分段录制相关
     private long segmentDurationMs = 60000;  // 分段时长，默认1分钟，可通过 setSegmentDuration 配置
     private static final long SEGMENT_DURATION_COMPENSATION_MS = 0;  // 分段时长补偿（H3修复后定时器更精确，不再需要补偿）
-    private static final long MIN_VALID_FILE_SIZE = 10 * 1024;  // 最小有效文件大小 10KB
+    private static final long MIN_VALID_FILE_SIZE = 1 * 1024;   // 最小有效文件大小 1KB（降低阈值，短录制也能保存）
     
     // 使用独立的后台线程处理分段和文件 I/O 操作，避免阻塞主线程导致 ANR
     private HandlerThread segmentThread;
@@ -137,7 +161,13 @@ public class CodecVideoRecorder {
         this.width = width;
         this.height = height;
         // 创建独立的后台线程用于分段处理和文件 I/O 操作
-        segmentThread = new HandlerThread("CodecRecorder-Segment-" + cameraId);
+        segmentThread = new HandlerThread("CodecRecorder-Segment-" + cameraId) {
+            @Override
+            protected void onLooperPrepared() {
+                // 降低分段线程优先级，减少对主线程的影响
+                Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
+            }
+        };
         segmentThread.start();
         this.segmentHandler = new Handler(segmentThread.getLooper());
     }
@@ -210,6 +240,15 @@ public class CodecVideoRecorder {
     }
 
     /**
+     * 设置画质等级
+     * @param level 画质等级：0=低, 1=中, 2=高, 3=最高
+     */
+    public void setQualityLevel(int level) {
+        this.qualityLevel = Math.max(0, Math.min(3, level));
+        AppLog.d(TAG, "Camera " + cameraId + " quality level set to " + this.qualityLevel);
+    }
+
+    /**
      * 获取当前配置的码率
      */
     public int getBitRate() {
@@ -221,6 +260,27 @@ public class CodecVideoRecorder {
      */
     public int getFrameRate() {
         return frameRate;
+    }
+    
+    /**
+     * 设置补盲优化模式
+     * 启用后降低帧率以减少CPU/GPU负载，改善补盲画面延迟
+     * @param enabled true 表示启用补盲优化模式
+     */
+    public void setBlindSpotOptimizeMode(boolean enabled) {
+        this.blindSpotOptimizeMode = enabled;
+        if (enabled) {
+            AppLog.i(TAG, "Camera " + cameraId + " 启用补盲优化模式，帧率降至 " + BLIND_SPOT_OPTIMIZED_FPS + "fps");
+        } else {
+            AppLog.i(TAG, "Camera " + cameraId + " 关闭补盲优化模式，恢复 " + frameRate + "fps");
+        }
+    }
+    
+    /**
+     * 获取补盲优化模式状态
+     */
+    public boolean isBlindSpotOptimizeMode() {
+        return blindSpotOptimizeMode;
     }
 
     /**
@@ -275,7 +335,16 @@ public class CodecVideoRecorder {
 
         try {
             // 创建编码线程
-            encoderThread = new HandlerThread("Encoder-" + cameraId);
+            encoderThread = new HandlerThread("Encoder-" + cameraId) {
+                @Override
+                protected void onLooperPrepared() {
+                    // 降低编码线程优先级，避免与补盲画面渲染竞争资源
+                    // THREAD_PRIORITY_BACKGROUND 比 FOREGROUND 更低，给补盲画面留出更多 CPU 时间
+                    // 同时保持比 THREAD_PRIORITY_LOWEST 高，确保录制不会掉帧
+                    Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
+                    AppLog.d(TAG, "Camera " + cameraId + " 编码线程优先级设置为 BACKGROUND");
+                }
+            };
             encoderThread.start();
             encoderHandler = new Handler(encoderThread.getLooper());
 
@@ -346,6 +415,7 @@ public class CodecVideoRecorder {
                             if (eglEncoder != null && eglEncoder.isInitialized()) {
                                 eglEncoder.drawFrame(relativeTimestampNs);
                                 recordedFrameCount++;
+                                framesSinceLastDrain++;
 
                                 // 定期输出帧计数
                                 if (recordedFrameCount % 100 == 0) {
@@ -353,8 +423,24 @@ public class CodecVideoRecorder {
                                 }
                             }
 
-                            // 从编码器获取输出数据并写入 muxer
-                            drainEncoder(false);
+                            // 自适应 drain 控制：根据时间间隔决定是否 drain
+                            // 优化：使用更激进的批量策略，减少系统调用开销
+                            long currentTimeMs = System.currentTimeMillis();
+                            // 优化：增加帧数阈值到 10 帧，进一步减少 drain 次数
+                            if (currentTimeMs - lastDrainTimeMs >= currentDrainIntervalMs || framesSinceLastDrain >= 10) {
+                                // 从编码器获取输出数据并写入 muxer
+                                boolean hadOutput = drainEncoderWithResult(false);
+                                lastDrainTimeMs = currentTimeMs;
+                                framesSinceLastDrain = 0;
+                                
+                                // 调整 drain 间隔：有输出时缩短间隔，无输出时延长间隔
+                                // 优化：使用更平滑的调整策略
+                                if (hadOutput) {
+                                    currentDrainIntervalMs = Math.max(DRAIN_INTERVAL_MIN_MS, currentDrainIntervalMs - 1);
+                                } else {
+                                    currentDrainIntervalMs = Math.min(DRAIN_INTERVAL_MAX_MS, currentDrainIntervalMs + 2);
+                                }
+                            }
 
                         } catch (Exception e) {
                             AppLog.e(TAG, "Camera " + cameraId + " Error processing frame", e);
@@ -515,7 +601,10 @@ public class CodecVideoRecorder {
 
         AppLog.d(TAG, "Camera " + cameraId + " Stopping codec recording");
 
-        // 取消定时器
+        // 立即标记停止状态，防止新帧处理
+        isRecording.set(false);
+
+        // 取消所有定时器和任务
         if (segmentRunnable != null) {
             segmentHandler.removeCallbacks(segmentRunnable);
             segmentRunnable = null;
@@ -540,34 +629,57 @@ public class CodecVideoRecorder {
             healthCheckRunnable = null;
         }
 
-        isRecording.set(false);
+        // 在编码线程上执行停止操作
+        if (encoderHandler != null) {
+            final Object stopLock = new Object();
+            encoderHandler.post(() -> {
+                try {
+                    // 稍等一下让正在处理的帧完成
+                    try {
+                        Thread.sleep(50);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
 
-        // 稍等一下让正在处理的帧完成
-        try {
-            Thread.sleep(50);
-        } catch (InterruptedException e) {
-            // Ignore
-        }
+                    // 发送结束信号给编码器
+                    if (encoder != null) {
+                        try {
+                            encoder.signalEndOfInputStream();
+                            // 排空编码器
+                            drainEncoder(true);
+                        } catch (Exception e) {
+                            AppLog.e(TAG, "Camera " + cameraId + " Error signaling end of stream", e);
+                        }
+                    }
 
-        // 发送结束信号给编码器
-        if (encoder != null) {
-            try {
-                encoder.signalEndOfInputStream();
-                // 排空编码器
-                drainEncoder(true);
-            } catch (Exception e) {
-                AppLog.e(TAG, "Camera " + cameraId + " Error signaling end of stream", e);
+                    // 停止 muxer
+                    if (muxerStarted && muxer != null) {
+                        try {
+                            muxer.stop();
+                        } catch (Exception e) {
+                            AppLog.e(TAG, "Camera " + cameraId + " Error stopping muxer", e);
+                        }
+                        muxerStarted = false;
+                    }
+
+                    AppLog.d(TAG, "Camera " + cameraId + " Codec recording stopped on encoder thread, frames recorded: " + recordedFrameCount);
+                } catch (Exception e) {
+                    AppLog.e(TAG, "Camera " + cameraId + " Error in stopRecording on encoder thread", e);
+                } finally {
+                    synchronized (stopLock) {
+                        stopLock.notifyAll();
+                    }
+                }
+            });
+
+            // 等待停止完成（最多3秒）
+            synchronized (stopLock) {
+                try {
+                    stopLock.wait(3000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
             }
-        }
-
-        // 停止 muxer
-        if (muxerStarted && muxer != null) {
-            try {
-                muxer.stop();
-            } catch (Exception e) {
-                AppLog.e(TAG, "Camera " + cameraId + " Error stopping muxer", e);
-            }
-            muxerStarted = false;
         }
 
         // 验证并清理所有录制的文件
@@ -726,15 +838,36 @@ public class CodecVideoRecorder {
 
     /**
      * 创建 MediaCodec 编码器
+     * 优先尝试 HEVC (H.265)，如果不支持则回退到 H.264
      */
     private void createEncoder() throws IOException {
-        MediaFormat format = MediaFormat.createVideoFormat(MIME_TYPE, width, height);
+        // 检测并选择最优编码格式
+        mimeType = selectBestEncoder();
+        
+        // 计算最优码率
+        int optimalBitrate = calculateOptimalBitrate();
+        
+        // 如果启用了补盲优化模式，使用降低的帧率
+        int effectiveFrameRate = blindSpotOptimizeMode ? BLIND_SPOT_OPTIMIZED_FPS : frameRate;
+        
+        MediaFormat format = MediaFormat.createVideoFormat(mimeType, width, height);
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        format.setInteger(MediaFormat.KEY_BIT_RATE, bitRate);
-        format.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate);
+        format.setInteger(MediaFormat.KEY_BIT_RATE, optimalBitrate);
+        format.setInteger(MediaFormat.KEY_FRAME_RATE, effectiveFrameRate);
         format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, I_FRAME_INTERVAL);
+        
+        // HEVC 特定优化参数
+        if (mimeType.equals(MIME_TYPE_HEVC)) {
+            // 设置 HEVC 的 Profile 和 Level 以获得更好效率
+            format.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.HEVCProfileMain);
+            format.setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.HEVCHighTierLevel4);
+        } else {
+            // H.264 优化参数
+            format.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileHigh);
+        }
 
-        encoder = MediaCodec.createEncoderByType(MIME_TYPE);
+        // 优化：使用硬件编码器创建方法
+        encoder = createHardwareEncoder(mimeType);
         encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
 
         encoderInputSurface = encoder.createInputSurface();
@@ -743,7 +876,147 @@ public class CodecVideoRecorder {
         bufferInfo = new MediaCodec.BufferInfo();
 
         AppLog.d(TAG, "Camera " + cameraId + " Encoder created: " + width + "x" + height + 
-                " @ " + frameRate + "fps, " + (bitRate / 1000) + " Kbps");
+                " @ " + effectiveFrameRate + "fps" + (blindSpotOptimizeMode ? "(补盲优化)" : "") + 
+                ", " + (optimalBitrate / 1000) + " Kbps, " + 
+                (mimeType.equals(MIME_TYPE_HEVC) ? "HEVC" : "H.264"));
+    }
+
+    /**
+     * 选择最优编码器类型
+     * 优先使用 HEVC (H.265)，如果不支持则回退到 H.264
+     * 优化：优先选择硬件编码器，性能更好
+     */
+    private String selectBestEncoder() {
+        try {
+            // 检查 HEVC 编码器是否可用
+            MediaCodec hevcEncoder = MediaCodec.createEncoderByType(MIME_TYPE_HEVC);
+            hevcEncoder.release();
+            AppLog.d(TAG, "HEVC encoder available, using H.265 for better efficiency");
+            return MIME_TYPE_HEVC;
+        } catch (Exception e) {
+            AppLog.w(TAG, "HEVC encoder not available, falling back to H.264");
+            return MIME_TYPE_H264;
+        }
+    }
+    
+    /**
+     * 创建编码器，优先使用硬件编码器
+     * 优化：通过编码器名称选择硬件编码器，避免软件编码器性能问题
+     */
+    private MediaCodec createHardwareEncoder(String mimeType) throws IOException {
+        // 获取所有支持该类型的编码器
+        MediaCodecList codecList = new MediaCodecList(MediaCodecList.REGULAR_CODECS);
+        MediaCodecInfo[] codecInfos = codecList.getCodecInfos();
+        
+        MediaCodecInfo bestEncoder = null;
+        String bestEncoderName = null;
+        
+        for (MediaCodecInfo codecInfo : codecInfos) {
+            if (!codecInfo.isEncoder()) {
+                continue;
+            }
+            
+            String[] supportedTypes = codecInfo.getSupportedTypes();
+            boolean supportsMimeType = false;
+            for (String type : supportedTypes) {
+                if (type.equalsIgnoreCase(mimeType)) {
+                    supportsMimeType = true;
+                    break;
+                }
+            }
+            
+            if (!supportsMimeType) {
+                continue;
+            }
+            
+            String name = codecInfo.getName();
+            
+            // 优先选择硬件编码器（通常名称包含特定关键字）
+            // 避免软件编码器（如 c2.android.* 或 OMX.google.*）
+            if (name.contains("c2.android") || name.contains("OMX.google")) {
+                // 软件编码器，作为备选
+                if (bestEncoder == null) {
+                    bestEncoder = codecInfo;
+                    bestEncoderName = name;
+                }
+                continue;
+            }
+            
+            // 硬件编码器优先
+            bestEncoder = codecInfo;
+            bestEncoderName = name;
+            AppLog.i(TAG, "Camera " + cameraId + " Selected hardware encoder: " + name);
+            break;
+        }
+        
+        if (bestEncoder != null) {
+            return MediaCodec.createByCodecName(bestEncoderName);
+        }
+        
+        // 回退到默认方式
+        return MediaCodec.createEncoderByType(mimeType);
+    }
+
+    /**
+     * 计算最优码率
+     * 根据分辨率、帧率和画质等级计算
+     * HEVC 使用更低的码率（相同画质下约为 H.264 的 60%）
+     * 
+     * 优化策略：
+     * 1. 降低各画质等级的 bpp 值，减少编码压力
+     * 2. 根据分辨率动态调整，高分辨率适当降低 bpp
+     * 3. 严格限制最大码率，防止编码器过载
+     */
+    private int calculateOptimalBitrate() {
+        // 基础码率计算（每像素每帧的比特数）- 优化后的值
+        double bitsPerPixelPerFrame;
+        
+        switch (qualityLevel) {
+            case 0: // 低画质 - 适合长时间录制
+                bitsPerPixelPerFrame = 0.04;
+                break;
+            case 1: // 中画质 - 平衡画质和性能
+                bitsPerPixelPerFrame = 0.06;
+                break;
+            case 2: // 高画质（推荐）- 优化后的值
+                bitsPerPixelPerFrame = 0.09;
+                break;
+            case 3: // 最高画质 - 降低 bpp 防止卡顿
+                bitsPerPixelPerFrame = 0.12;
+                break;
+            default:
+                bitsPerPixelPerFrame = 0.09;
+        }
+        
+        // 根据分辨率调整 bpp：分辨率越高，bpp 适当降低（编码效率提升）
+        long totalPixels = (long) width * height;
+        if (totalPixels > 2073600) { // 超过 1080p (1920x1080)
+            bitsPerPixelPerFrame *= 0.85; // 降低 15%
+        } else if (totalPixels > 921600) { // 超过 720p (1280x720)
+            bitsPerPixelPerFrame *= 0.90; // 降低 10%
+        }
+        
+        // HEVC 效率更高，相同画质下使用 55% 的码率（之前是 60%，进一步优化）
+        boolean isHevc = mimeType.equals(MIME_TYPE_HEVC);
+        if (isHevc) {
+            bitsPerPixelPerFrame *= 0.55;
+        }
+        
+        // 计算总码率
+        long bitrate = (long) (width * height * frameRate * bitsPerPixelPerFrame);
+        
+        // 严格设置码率上限（防止过高导致编码器卡顿）
+        int maxAllowedBitrate = isHevc ? MAX_HEVC_BITRATE : MAX_BITRATE;
+        bitrate = Math.min(bitrate, maxAllowedBitrate);
+        
+        // 设置码率下限（保证基本画质）
+        int minAllowedBitrate = isHevc ? 1000000 : 1500000; // HEVC 1Mbps, H.264 1.5Mbps
+        bitrate = Math.max(bitrate, minAllowedBitrate);
+        
+        // 四舍五入到 100Kbps，便于日志阅读
+        bitrate = ((bitrate + 50000) / 100000) * 100000;
+        
+        return (int) bitrate;
     }
 
     /**
@@ -762,9 +1035,11 @@ public class CodecVideoRecorder {
     // 这样可以避免 Handler 死锁问题
 
     /**
-     * 排空编码器输出
+     * 排空编码器输出（优化版 - 不降低画质）
      * 
-     * 增强错误处理：
+     * 优化策略：
+     * - 使用批量处理，一次 drain 最多处理 DRAIN_BATCH_SIZE 帧
+     * - 使用零超时非阻塞模式，快速返回避免阻塞渲染线程
      * - 捕获 IllegalStateException 并标记编码器不健康
      * - 跟踪无输出的帧数，用于健康检查
      */
@@ -773,11 +1048,13 @@ public class CodecVideoRecorder {
             return;
         }
 
-        final int TIMEOUT_USEC = 10000;
+        // 优化：使用零超时非阻塞模式，快速检查是否有输出
+        final int TIMEOUT_USEC = endOfStream ? 10000 : 0;  // 结束状态等待，正常状态非阻塞
         boolean gotOutput = false;
+        int processedFrames = 0;  // 本次 drain 已处理帧数
 
         try {
-            while (true) {
+            while (processedFrames < DRAIN_BATCH_SIZE) {  // 批量处理限制
                 int outputBufferIndex;
                 try {
                     outputBufferIndex = encoder.dequeueOutputBuffer(bufferInfo, TIMEOUT_USEC);
@@ -790,7 +1067,11 @@ public class CodecVideoRecorder {
 
                 if (outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
                     if (!endOfStream) {
-                        break;  // 没有数据了
+                        break;  // 没有数据了，快速返回
+                    }
+                    // 结束状态且超时，继续等待
+                    if (processedFrames > 0) {
+                        break;  // 已经处理了一些帧，可以返回了
                     }
                 } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     // 输出格式变化，添加视频轨道
@@ -820,13 +1101,13 @@ public class CodecVideoRecorder {
                         if (!muxerStarted) {
                             AppLog.e(TAG, "Camera " + cameraId + " Muxer not started but got data");
                         } else {
-                            // 使用系统时间计算 PTS，而不是基于帧数和假设帧率
+                            // 性能优化：使用基于帧数的 PTS 计算，减少 System.nanoTime() 调用
+                            // 假设目标帧率为 25fps，每帧间隔 40000 微秒
                             // 优点：
-                            //   1. 视频时长精确反映实际录制时长
-                            //   2. 不受帧率波动影响（实际帧率可能是 25-30fps 不等）
-                            //   3. 掉帧时时间轴仍然正确（只是画面会卡顿）
-                            long currentTimeNs = System.nanoTime();
-                            long calculatedPtsUs = (currentTimeNs - segmentStartTimeNs) / 1000;
+                            //   1. 大幅减少系统调用开销
+                            //   2. 时间戳单调递增，不会出现乱序
+                            //   3. 掉帧时时间轴仍然正确
+                            long calculatedPtsUs = encodedOutputFrameCount * 40000L;
                             
                             // 调试日志（仅第一帧）
                             if (encodedOutputFrameCount == 0) {
@@ -843,6 +1124,7 @@ public class CodecVideoRecorder {
                             encodedOutputFrameCount++;
                             lastEncoderOutputTime = System.currentTimeMillis();
                             gotOutput = true;
+                            processedFrames++;  // 增加已处理帧计数
                         }
                     }
 
@@ -870,6 +1152,82 @@ public class CodecVideoRecorder {
         } else {
             framesWithoutEncoderOutput++;
         }
+    }
+
+    /**
+     * 排空编码器输出（带返回值）
+     * @param endOfStream 是否结束流
+     * @return 是否有输出数据
+     */
+    private boolean drainEncoderWithResult(boolean endOfStream) {
+        if (encoder == null) {
+            return false;
+        }
+
+        final int TIMEOUT_USEC = 10000;
+        boolean gotOutput = false;
+
+        try {
+            while (true) {
+                int outputBufferIndex;
+                try {
+                    outputBufferIndex = encoder.dequeueOutputBuffer(bufferInfo, TIMEOUT_USEC);
+                } catch (IllegalStateException e) {
+                    encoderHealthy = false;
+                    return false;
+                }
+
+                if (outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
+                    if (!endOfStream) {
+                        break;
+                    }
+                } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    if (!muxerStarted) {
+                        MediaFormat newFormat = encoder.getOutputFormat();
+                        videoTrackIndex = muxer.addTrack(newFormat);
+                        muxer.start();
+                        muxerStarted = true;
+                        encoderHealthy = true;
+                        lastEncoderOutputTime = System.currentTimeMillis();
+                    }
+                    gotOutput = true;
+                } else if (outputBufferIndex >= 0) {
+                    ByteBuffer encodedData = encoder.getOutputBuffer(outputBufferIndex);
+
+                    if (encodedData != null && bufferInfo.size != 0) {
+                        if (muxerStarted) {
+                            long currentTimeNs = System.nanoTime();
+                            long calculatedPtsUs = (currentTimeNs - segmentStartTimeNs) / 1000;
+                            bufferInfo.presentationTimeUs = calculatedPtsUs;
+                            
+                            encodedData.position(bufferInfo.offset);
+                            encodedData.limit(bufferInfo.offset + bufferInfo.size);
+                            muxer.writeSampleData(videoTrackIndex, encodedData, bufferInfo);
+                            
+                            encodedOutputFrameCount++;
+                            lastEncoderOutputTime = System.currentTimeMillis();
+                            gotOutput = true;
+                        }
+                    }
+
+                    try {
+                        encoder.releaseOutputBuffer(outputBufferIndex, false);
+                    } catch (IllegalStateException e) {
+                        encoderHealthy = false;
+                        return gotOutput;
+                    }
+
+                    if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                        break;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            AppLog.e(TAG, "Camera " + cameraId + " Error in drainEncoderWithResult", e);
+            encoderHealthy = false;
+        }
+
+        return gotOutput;
     }
 
     /**

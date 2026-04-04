@@ -4,6 +4,7 @@
     android:layout_height="match_parent"
     android:background="@android:color/black">
 
+    <!-- 摄像头预览 -->
     <TextureView
         android:id="@+id/blind_spot_texture_view"
         android:layout_width="match_parent"
@@ -39,5 +40,31 @@
             android:backgroundTint="@color/button_accent"
             android:textColor="@color/white" />
     </LinearLayout>
+
+    <!-- 转向灯箭头视图 - 显示在画面中心 -->
+    <com.kooo.evcam.TurnSignalArrowView
+        android:id="@+id/turn_signal_arrow_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
+    <!-- 关闭按钮 - 放在最后确保在最上层 -->
+    <TextView
+        android:id="@+id/btn_close_supervision"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="2dp"
+        android:background="#FF0000"
+        android:text="X"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true"
+        android:elevation="100dp" />
 
 </FrameLayout>

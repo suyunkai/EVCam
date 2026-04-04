@@ -3,6 +3,9 @@ package com.kooo.evcam;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import com.kooo.evcam.config.BlindSpotConfig;
+import com.kooo.evcam.config.RecordingConfig;
+
 /**
  * 应用配置管理类
  * 管理应用级别的配置项
@@ -52,6 +55,20 @@ public class AppConfig {
     
     // 补盲功能全局开关
     private static final String KEY_BLIND_SPOT_GLOBAL_ENABLED = "blind_spot_global_enabled";  // 补盲功能总开关
+    
+    // 超视模式配置
+    private static final String KEY_SUPERVISION_MODE_ENABLED = "supervision_mode_enabled";  // 超视模式开关
+    private static final String KEY_SUPERVISION_LEFT_WIDTH = "supervision_left_width";      // 左视悬浮窗宽度
+    private static final String KEY_SUPERVISION_LEFT_HEIGHT = "supervision_left_height";    // 左视悬浮窗高度
+    private static final String KEY_SUPERVISION_LEFT_X = "supervision_left_x";              // 左视悬浮窗X位置
+    private static final String KEY_SUPERVISION_LEFT_Y = "supervision_left_y";              // 左视悬浮窗Y位置
+    private static final String KEY_SUPERVISION_RIGHT_WIDTH = "supervision_right_width";    // 右视悬浮窗宽度
+    private static final String KEY_SUPERVISION_RIGHT_HEIGHT = "supervision_right_height";  // 右视悬浮窗高度
+    private static final String KEY_SUPERVISION_RIGHT_X = "supervision_right_x";            // 右视悬浮窗X位置
+    private static final String KEY_SUPERVISION_RIGHT_Y = "supervision_right_y";            // 右视悬浮窗Y位置
+    
+    // 长视模式配置（转向灯触发双画面模式）
+    private static final String KEY_LONG_VIEW_MODE_ENABLED = "long_view_mode_enabled";  // 长视模式开关
     
     // 补盲选项配置 (原副屏显示)
     private static final String KEY_SECONDARY_DISPLAY_ENABLED = "secondary_display_enabled";  // 副屏显示开关
@@ -107,6 +124,9 @@ public class AppConfig {
     // 全景影像避让配置
     private static final String KEY_AVM_AVOIDANCE_ENABLED = "avm_avoidance_enabled";  // 全景影像避让开关
     private static final String KEY_AVM_AVOIDANCE_ACTIVITY = "avm_avoidance_activity"; // 全景影像避让的Activity名
+    
+    // 中转写入配置
+    private static final String KEY_RELAY_WRITE_ENABLED = "relay_write_enabled";  // 中转写入开关（U盘存储时）
 
     // 定制键唤醒配置
     private static final String KEY_CUSTOM_KEY_WAKEUP_ENABLED = "custom_key_wakeup_enabled"; // 定制键唤醒开关
@@ -152,6 +172,12 @@ public class AppConfig {
     private static final String KEY_RECORDING_CAMERA_BACK_ENABLED = "recording_camera_back_enabled";    // 后摄像头参与录制
     private static final String KEY_RECORDING_CAMERA_LEFT_ENABLED = "recording_camera_left_enabled";    // 左摄像头参与录制
     private static final String KEY_RECORDING_CAMERA_RIGHT_ENABLED = "recording_camera_right_enabled";  // 右摄像头参与录制
+    
+    // 摄像头画面显示配置（与录制开关分离）
+    private static final String KEY_CAMERA_FRONT_VISIBLE = "camera_front_visible";  // 前摄像头画面显示
+    private static final String KEY_CAMERA_BACK_VISIBLE = "camera_back_visible";    // 后摄像头画面显示
+    private static final String KEY_CAMERA_LEFT_VISIBLE = "camera_left_visible";    // 左摄像头画面显示
+    private static final String KEY_CAMERA_RIGHT_VISIBLE = "camera_right_visible";  // 右摄像头画面显示
     
     // 亮度/降噪调节配置
     private static final String KEY_IMAGE_ADJUST_ENABLED = "image_adjust_enabled";  // 是否启用亮度/降噪调节
@@ -333,9 +359,11 @@ public class AppConfig {
     public static final String CAR_MODEL_MULTIVIEW = "multiview";  // 多视角布局
     
     private final SharedPreferences prefs;
-    
+    private final Context context;
+
     public AppConfig(Context context) {
-        prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        this.context = context.getApplicationContext();
+        this.prefs = this.context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
     }
     
     // ==================== 首次启动相关方法 ====================
@@ -1265,11 +1293,33 @@ public class AppConfig {
     
     /**
      * 检查当前是否应该使用中转写入
-     * 当选择U盘存储时，始终使用中转写入以避免U盘慢速写入导致录制卡顿
+     * 当选择U盘存储且启用了中转写入时，使用中转写入以避免U盘慢速写入导致录制卡顿
      * @return true 表示应该使用中转写入
      */
     public boolean shouldUseRelayWrite() {
-        return isUsingExternalSdCard();
+        // 只有使用U盘存储时才考虑中转写入
+        if (!isUsingExternalSdCard()) {
+            return false;
+        }
+        // 检查用户是否启用了中转写入（默认启用）
+        return prefs.getBoolean(KEY_RELAY_WRITE_ENABLED, true);
+    }
+    
+    /**
+     * 设置中转写入开关
+     * @param enabled true 表示启用中转写入
+     */
+    public void setRelayWriteEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_RELAY_WRITE_ENABLED, enabled).apply();
+        AppLog.d(TAG, "中转写入设置: " + (enabled ? "启用" : "禁用"));
+    }
+    
+    /**
+     * 获取中转写入开关状态
+     * @return true 表示中转写入已启用
+     */
+    public boolean isRelayWriteEnabled() {
+        return prefs.getBoolean(KEY_RELAY_WRITE_ENABLED, true);
     }
     
     // ==================== 悬浮窗配置相关方法 ====================
@@ -1462,6 +1512,154 @@ public class AppConfig {
      */
     public boolean isBlindSpotGlobalEnabled() {
         return prefs.getBoolean(KEY_BLIND_SPOT_GLOBAL_ENABLED, false);
+    }
+    
+    // ==================== 超视模式配置相关方法 ====================
+    
+    /**
+     * 设置超视模式开关
+     * @param enabled true 表示启用超视模式
+     */
+    public void setSupervisionModeEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_SUPERVISION_MODE_ENABLED, enabled).apply();
+        AppLog.d(TAG, "超视模式设置: " + (enabled ? "启用" : "禁用"));
+    }
+    
+    /**
+     * 获取超视模式开关状态
+     * @return true 表示超视模式已启用
+     */
+    public boolean isSupervisionModeEnabled() {
+        return prefs.getBoolean(KEY_SUPERVISION_MODE_ENABLED, false);
+    }
+    
+    /**
+     * 设置左视悬浮窗位置和大小
+     */
+    public void setSupervisionLeftBounds(int x, int y, int width, int height) {
+        AppLog.i(TAG, "💾 保存左视窗: x=" + x + ", y=" + y + ", w=" + width + ", h=" + height);
+        prefs.edit()
+            .putInt(KEY_SUPERVISION_LEFT_X, x)
+            .putInt(KEY_SUPERVISION_LEFT_Y, y)
+            .putInt(KEY_SUPERVISION_LEFT_WIDTH, width)
+            .putInt(KEY_SUPERVISION_LEFT_HEIGHT, height)
+            .commit(); // 使用commit()同步保存
+        AppLog.i(TAG, "💾 保存左视窗完成，当前读取: x=" + getSupervisionLeftX());
+    }
+    
+    public int getSupervisionLeftX() {
+        int val = prefs.getInt(KEY_SUPERVISION_LEFT_X, 100);
+        AppLog.d(TAG, "📍 读取左视窗X: " + val + " (key=" + KEY_SUPERVISION_LEFT_X + ")");
+        return val;
+    }
+
+    public int getSupervisionLeftY() {
+        int val = prefs.getInt(KEY_SUPERVISION_LEFT_Y, 100);
+        AppLog.d(TAG, "📍 读取左视窗Y: " + val);
+        return val;
+    }
+
+    public int getSupervisionLeftWidth() {
+        int val = prefs.getInt(KEY_SUPERVISION_LEFT_WIDTH, 800);
+        AppLog.d(TAG, "📍 读取左视窗Width: " + val);
+        return val;
+    }
+
+    public int getSupervisionLeftHeight() {
+        int val = prefs.getInt(KEY_SUPERVISION_LEFT_HEIGHT, 600);
+        AppLog.d(TAG, "📍 读取左视窗Height: " + val);
+        return val;
+    }
+    
+    /**
+     * 设置右视悬浮窗位置和大小
+     */
+    public void setSupervisionRightBounds(int x, int y, int width, int height) {
+        AppLog.i(TAG, "💾 保存右视窗: x=" + x + ", y=" + y + ", w=" + width + ", h=" + height);
+        prefs.edit()
+            .putInt(KEY_SUPERVISION_RIGHT_X, x)
+            .putInt(KEY_SUPERVISION_RIGHT_Y, y)
+            .putInt(KEY_SUPERVISION_RIGHT_WIDTH, width)
+            .putInt(KEY_SUPERVISION_RIGHT_HEIGHT, height)
+            .commit(); // 使用commit()同步保存
+        AppLog.i(TAG, "💾 保存右视窗完成，当前读取: x=" + getSupervisionRightX());
+    }
+
+    public int getSupervisionRightX() {
+        // 右视窗X默认值：左视窗默认X(100) + 默认宽度(800) + 10 = 910
+        int val = prefs.getInt(KEY_SUPERVISION_RIGHT_X, 910);
+        AppLog.d(TAG, "📍 读取右视窗X: " + val + " (key=" + KEY_SUPERVISION_RIGHT_X + ")");
+        return val;
+    }
+    
+    public int getSupervisionRightY() {
+        // 右视窗Y默认值：与左视窗默认Y相同
+        return prefs.getInt(KEY_SUPERVISION_RIGHT_Y, 100);
+    }
+    
+    public int getSupervisionRightWidth() {
+        return prefs.getInt(KEY_SUPERVISION_RIGHT_WIDTH, 800);
+    }
+    
+    public int getSupervisionRightHeight() {
+        return prefs.getInt(KEY_SUPERVISION_RIGHT_HEIGHT, 600);
+    }
+    
+    /**
+     * 设置长视模式开关
+     * @param enabled true 表示启用长视模式
+     */
+    public void setLongViewModeEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_LONG_VIEW_MODE_ENABLED, enabled).apply();
+        AppLog.d(TAG, "长视模式设置: " + (enabled ? "启用" : "禁用"));
+    }
+    
+    /**
+     * 获取长视模式开关状态
+     * @return true 表示长视模式已启用
+     */
+    public boolean isLongViewModeEnabled() {
+        return prefs.getBoolean(KEY_LONG_VIEW_MODE_ENABLED, false);
+    }
+    
+    /**
+     * 重置超视模式悬浮窗位置和大小为默认值
+     * 左右两个画面在同一水平线上，相距10dp
+     */
+    public void resetSupervisionBounds() {
+        // 使用补盲画面尺寸作为默认尺寸
+        int width = getTurnSignalFloatingWidth();
+        int height = getTurnSignalFloatingHeight();
+        // 使用补盲画面位置作为右窗口默认位置
+        int rightX = getTurnSignalFloatingX();
+        int rightY = getTurnSignalFloatingY();
+        int gap = 10; // 10dp间距
+        // 左窗口在右窗口左侧，水平对齐（Y坐标相同）
+        int leftX = rightX - width - gap;
+        int leftY = rightY;
+        
+        prefs.edit()
+            .putInt(KEY_SUPERVISION_LEFT_X, leftX)
+            .putInt(KEY_SUPERVISION_LEFT_Y, leftY)
+            .putInt(KEY_SUPERVISION_LEFT_WIDTH, width)
+            .putInt(KEY_SUPERVISION_LEFT_HEIGHT, height)
+            .putInt(KEY_SUPERVISION_RIGHT_X, rightX)
+            .putInt(KEY_SUPERVISION_RIGHT_Y, rightY)
+            .putInt(KEY_SUPERVISION_RIGHT_WIDTH, width)
+            .putInt(KEY_SUPERVISION_RIGHT_HEIGHT, height)
+            .apply();
+        
+        AppLog.i(TAG, "🎯 重置超视模式默认位置: 左窗口(" + leftX + "," + leftY + "), 右窗口(" + rightX + "," + rightY + "), 尺寸=" + width + "x" + height);
+    }
+    
+    /**
+     * 强制将所有待处理的SharedPreferences写入磁盘
+     * 用于确保保存操作立即生效
+     */
+    public void forceSave() {
+        // 调用apply()已经将数据写入内存，等待异步写入磁盘
+        // 这里可以添加日志确认
+        AppLog.i(TAG, "forceSave() called - 数据应该已保存");
     }
     
     // ==================== 补盲选项配置相关方法 (原副屏显示) ====================
@@ -2351,6 +2549,59 @@ public class AppConfig {
     }
     
     /**
+     * 获取某个摄像头画面是否显示（与录制开关分离）
+     * @param position 位置（front/back/left/right）
+     * @return true 表示显示画面，默认为 true
+     */
+    public boolean isCameraVisible(String position) {
+        String key;
+        switch (position) {
+            case "front":
+                key = KEY_CAMERA_FRONT_VISIBLE;
+                break;
+            case "back":
+                key = KEY_CAMERA_BACK_VISIBLE;
+                break;
+            case "left":
+                key = KEY_CAMERA_LEFT_VISIBLE;
+                break;
+            case "right":
+                key = KEY_CAMERA_RIGHT_VISIBLE;
+                break;
+            default:
+                return true;  // 未知位置默认显示
+        }
+        // 默认显示（开启）
+        return prefs.getBoolean(key, true);
+    }
+    
+    /**
+     * 设置某个摄像头画面是否显示（与录制开关分离）
+     * @param position 位置（front/back/left/right）
+     * @param visible true 表示显示画面
+     */
+    public void setCameraVisible(String position, boolean visible) {
+        String key;
+        switch (position) {
+            case "front":
+                key = KEY_CAMERA_FRONT_VISIBLE;
+                break;
+            case "back":
+                key = KEY_CAMERA_BACK_VISIBLE;
+                break;
+            case "left":
+                key = KEY_CAMERA_LEFT_VISIBLE;
+                break;
+            case "right":
+                key = KEY_CAMERA_RIGHT_VISIBLE;
+                break;
+            default:
+                return;  // 未知位置不处理
+        }
+        prefs.edit().putBoolean(key, visible).apply();
+    }
+    
+    /**
      * 获取用于显示的摄像头名称（用于录制摄像头选择等设置界面）
      * 使用配置中的名称，如果为空则返回"位置N"
      * @param position 位置（front/back/left/right）
@@ -3174,5 +3425,106 @@ public class AppConfig {
         setNormalLeftViewParams(leftViewWidth, halfHeight, padding, padding * 2 + halfHeight, 0);
         setNormalRightViewParams(rightViewWidth, halfHeight, padding * 2 + leftViewWidth + vehicleControlWidth, padding * 2 + halfHeight, 0);
         AppLog.d(TAG, "普通模式视图参数已重置为默认值");
+    }
+
+    // ==================== 录制配置访问方法 (D:\yuan重构新增) ====================
+
+    /**
+     * 获取录制配置实例
+     */
+    public RecordingConfig getRecordingConfig() {
+        return new RecordingConfig(
+                context.getSharedPreferences("recording_config", Context.MODE_PRIVATE),
+                new RecordingConfig.CarModelProvider() {
+                    @Override
+                    public String getCarModel() {
+                        return getCarModel();
+                    }
+
+                    @Override
+                    public boolean isPanoramicMode() {
+                        return getCameraCount() >= 4;
+                    }
+                }
+        );
+    }
+
+    /**
+     * 获取补盲配置实例
+     */
+    public BlindSpotConfig getBlindSpotConfig() {
+        return new BlindSpotConfig(
+                context.getSharedPreferences("blind_spot_config", Context.MODE_PRIVATE)
+        );
+    }
+
+    /**
+     * 检查是否使用新的录制架构（D:\yuan方案）
+     */
+    public boolean useNewRecordingArchitecture() {
+        // 默认启用新的录制架构
+        return prefs.getBoolean("use_new_recording_architecture", true);
+    }
+
+    /**
+     * 设置是否使用新的录制架构
+     */
+    public void setUseNewRecordingArchitecture(boolean enabled) {
+        prefs.edit().putBoolean("use_new_recording_architecture", enabled).apply();
+        AppLog.d(TAG, "新录制架构设置: " + (enabled ? "启用" : "禁用"));
+    }
+
+    // ==================== 录制悬浮按钮配置 ====================
+
+    private static final String KEY_RECORDING_FLOATING_ENABLED = "recording_floating_enabled";
+    private static final String KEY_RECORDING_FLOATING_BUTTON_SIZE = "recording_floating_button_size";
+    private static final String KEY_RECORDING_FLOATING_TIME_TEXT_SIZE = "recording_floating_time_text_size";
+    private static final boolean DEFAULT_RECORDING_FLOATING_ENABLED = true;  // 默认开启
+    private static final int DEFAULT_BUTTON_SIZE_DP = 64;
+    private static final int DEFAULT_TIME_TEXT_SIZE_SP = 14;
+
+    /**
+     * 是否启用录制悬浮按钮
+     */
+    public boolean isRecordingFloatingEnabled() {
+        return prefs.getBoolean(KEY_RECORDING_FLOATING_ENABLED, DEFAULT_RECORDING_FLOATING_ENABLED);
+    }
+
+    /**
+     * 设置录制悬浮按钮启用状态
+     */
+    public void setRecordingFloatingEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_RECORDING_FLOATING_ENABLED, enabled).apply();
+        AppLog.d(TAG, "录制悬浮按钮设置: " + (enabled ? "启用" : "禁用"));
+    }
+
+    /**
+     * 获取录制悬浮按钮大小（dp）
+     */
+    public int getRecordingFloatingButtonSizeDp() {
+        return prefs.getInt(KEY_RECORDING_FLOATING_BUTTON_SIZE, DEFAULT_BUTTON_SIZE_DP);
+    }
+
+    /**
+     * 设置录制悬浮按钮大小（dp）
+     */
+    public void setRecordingFloatingButtonSizeDp(int sizeDp) {
+        prefs.edit().putInt(KEY_RECORDING_FLOATING_BUTTON_SIZE, sizeDp).apply();
+        AppLog.d(TAG, "录制悬浮按钮大小设置: " + sizeDp + "dp");
+    }
+
+    /**
+     * 获取录制悬浮按钮时间文字大小（sp）
+     */
+    public int getRecordingFloatingTimeTextSizeSp() {
+        return prefs.getInt(KEY_RECORDING_FLOATING_TIME_TEXT_SIZE, DEFAULT_TIME_TEXT_SIZE_SP);
+    }
+
+    /**
+     * 设置录制悬浮按钮时间文字大小（sp）
+     */
+    public void setRecordingFloatingTimeTextSizeSp(int sizeSp) {
+        prefs.edit().putInt(KEY_RECORDING_FLOATING_TIME_TEXT_SIZE, sizeSp).apply();
+        AppLog.d(TAG, "录制悬浮按钮时间文字大小设置: " + sizeSp + "sp");
     }
 }

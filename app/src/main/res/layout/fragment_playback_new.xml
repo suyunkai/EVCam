@@ -122,6 +122,17 @@
             android:gravity="center" />
 
         <Button
+            android:id="@+id/btn_share_selected"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="分享"
+            android:textSize="20sp"
+            android:minHeight="48dp"
+            android:layout_marginEnd="8dp"
+            android:backgroundTint="@color/button_accent"
+            android:textColor="@android:color/white" />
+
+        <Button
             android:id="@+id/btn_delete_selected"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

@@ -46,7 +46,7 @@
     <color name="nav_version_text">#FF999999</color>
 
     <!-- 多选模式选中背景 - 日间模式 -->
-    <color name="item_selected_background">#40000000</color>
+    <color name="item_selected_background">#E3F2FD</color>  <!-- 改为浅蓝色背景 -->
 
     <!-- 视频预览区配色 - 日间模式（使用页面底色） -->
     <color name="preview_background">@color/page_background</color>

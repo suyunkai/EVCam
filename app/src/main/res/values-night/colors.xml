@@ -36,7 +36,7 @@
     <color name="nav_version_text">#FF666666</color>
 
     <!-- 多选模式选中背景 - 夜间模式 -->
-    <color name="item_selected_background">#40FFFFFF</color>
+    <color name="item_selected_background">#1565C0</color>  <!-- 改为深蓝色背景 -->
 
     <!-- 视频预览区配色 - 夜间模式（使用页面底色） -->
     <color name="preview_background">@color/page_background</color>

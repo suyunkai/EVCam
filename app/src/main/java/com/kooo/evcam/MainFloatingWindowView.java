@@ -68,6 +68,7 @@ public class MainFloatingWindowView extends FrameLayout {
     };
 
     private BlindSpotStatusBarView statusBar;
+    private TurnSignalArrowView turnSignalArrowView;
 
     public MainFloatingWindowView(Context context) {
         this(context, new AppConfig(context));
@@ -90,17 +91,26 @@ public class MainFloatingWindowView extends FrameLayout {
         textureView = findViewById(R.id.secondary_texture_view);
 
         statusBar = findViewById(R.id.blind_spot_status_bar);
+        turnSignalArrowView = findViewById(R.id.turn_signal_arrow_view);
         applyStatusBarStyle();
 
-        // 圆角裁切
-        float cornerRadius = 8 * getContext().getResources().getDisplayMetrics().density;
+        // 圆角裁切 - 30dp
+        final float cornerRadius = 30 * getContext().getResources().getDisplayMetrics().density;
         setOutlineProvider(new android.view.ViewOutlineProvider() {
             @Override
             public void getOutline(View view, android.graphics.Outline outline) {
-                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), cornerRadius);
+                int width = view.getWidth();
+                int height = view.getHeight();
+                if (width > 0 && height > 0) {
+                    outline.setRoundRect(0, 0, width, height, cornerRadius);
+                }
             }
         });
         setClipToOutline(true);
+        // 确保子视图也被裁剪，防止画面超出圆角
+        setClipChildren(true);
+        // 设置背景色，确保圆角区域显示黑色而不是透明
+        setBackgroundColor(android.graphics.Color.BLACK);
 
         params = new WindowManager.LayoutParams(
                 appConfig.getMainFloatingWidth(),
@@ -680,6 +690,25 @@ public class MainFloatingWindowView extends FrameLayout {
         if (statusBar != null) {
             applyStatusBarStyle();
             statusBar.setDirection(cameraPos);
+        }
+    }
+
+    /**
+     * 显示转向箭头
+     * @param direction "left" 表示左转，"right" 表示右转
+     */
+    public void showTurnSignalArrow(String direction) {
+        if (turnSignalArrowView != null) {
+            turnSignalArrowView.showArrow(direction);
+        }
+    }
+
+    /**
+     * 隐藏转向箭头
+     */
+    public void hideTurnSignalArrow() {
+        if (turnSignalArrowView != null) {
+            turnSignalArrowView.hideArrow();
         }
     }
 }

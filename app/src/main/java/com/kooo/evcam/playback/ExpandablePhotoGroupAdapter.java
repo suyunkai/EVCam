@@ -46,6 +46,7 @@ public class ExpandablePhotoGroupAdapter extends RecyclerView.Adapter<RecyclerVi
     private OnItemClickListener itemClickListener;
     private OnItemSelectedListener itemSelectedListener;
     private OnDateHeaderClickListener dateHeaderClickListener;
+    private OnItemLongClickListener itemLongClickListener;
 
     public interface OnItemClickListener {
         void onItemClick(PhotoGroup group, int position);
@@ -57,6 +58,10 @@ public class ExpandablePhotoGroupAdapter extends RecyclerView.Adapter<RecyclerVi
 
     public interface OnDateHeaderClickListener {
         void onDateHeaderClick(DateSection<PhotoGroup> section, int position);
+    }
+
+    public interface OnItemLongClickListener {
+        void onItemLongClick(PhotoGroup group, int position);
     }
 
     public ExpandablePhotoGroupAdapter(Context context, List<DateSection<PhotoGroup>> dateSections) {
@@ -89,6 +94,10 @@ public class ExpandablePhotoGroupAdapter extends RecyclerView.Adapter<RecyclerVi
 
     public void setOnDateHeaderClickListener(OnDateHeaderClickListener listener) {
         this.dateHeaderClickListener = listener;
+    }
+
+    public void setOnItemLongClickListener(OnItemLongClickListener listener) {
+        this.itemLongClickListener = listener;
     }
 
     public void setMultiSelectMode(boolean multiSelectMode) {
@@ -215,13 +224,18 @@ public class ExpandablePhotoGroupAdapter extends RecyclerView.Adapter<RecyclerVi
         loadThumbnail(group.getRightPhoto(), holder.thumbRight);
 
         // 选中状态样式
-        boolean isSelected = selectedGroups.contains(group);
+        boolean isSelected;
+        if (isMultiSelectMode) {
+            isSelected = selectedGroups.contains(group);
+        } else {
+            isSelected = (position == selectedPosition);
+        }
         updateSelectionStyle(holder, isSelected);
 
         // 多选模式的选中指示器
         if (isMultiSelectMode) {
             holder.checkIndicator.setVisibility(View.VISIBLE);
-            holder.checkIndicator.setChecked(isSelected);
+            holder.checkIndicator.setChecked(selectedGroups.contains(group));
         } else {
             holder.checkIndicator.setVisibility(View.GONE);
         }
@@ -240,11 +254,27 @@ public class ExpandablePhotoGroupAdapter extends RecyclerView.Adapter<RecyclerVi
                     itemSelectedListener.onItemSelected(group);
                 }
             } else {
-                // 单选模式：选中并显示
+                // 单选模式：更新选中位置并显示
+                int oldPosition = selectedPosition;
+                selectedPosition = position;
+                // 刷新旧选中项和新选中项
+                if (oldPosition != -1 && oldPosition != position) {
+                    notifyItemChanged(oldPosition);
+                }
+                notifyItemChanged(position);
                 if (itemClickListener != null) {
                     itemClickListener.onItemClick(group, position);
                 }
             }
+        });
+
+        // 长按事件 - 分享图片
+        holder.itemView.setOnLongClickListener(v -> {
+            if (itemLongClickListener != null) {
+                itemLongClickListener.onItemLongClick(group, position);
+                return true;
+            }
+            return false;
         });
     }
 

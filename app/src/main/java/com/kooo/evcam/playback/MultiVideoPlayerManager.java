@@ -63,6 +63,9 @@ public class MultiVideoPlayerManager {
     /** 播放状态监听器 */
     private OnPlaybackListener playbackListener;
 
+    /** 进度更新任务 */
+    private Runnable progressUpdateRunnable;
+
     public interface OnPlaybackListener {
         void onPrepared(int duration);
         void onProgressUpdate(int currentPosition);
@@ -160,14 +163,17 @@ public class MultiVideoPlayerManager {
 
                 // 记录最长时长
                 int videoDuration = mp.getDuration();
+                Log.d(TAG, "Video duration: " + position + " = " + videoDuration + "ms");
                 if (videoDuration > duration) {
                     duration = videoDuration;
+                    Log.d(TAG, "Updated max duration: " + duration + "ms");
                 }
 
                 // 设置倍速
                 setMediaPlayerSpeed(mp, currentSpeed);
 
                 preparedCount++;
+                Log.d(TAG, "Prepared count: " + preparedCount + "/" + totalVideos);
                 checkAllPrepared();
             });
 
@@ -287,7 +293,7 @@ public class MultiVideoPlayerManager {
     public void stopAll() {
         isPlaying = false;
         isPrepared = false;
-        handler.removeCallbacksAndMessages(null);
+        stopProgressUpdate();
         isStopping = true;
 
         try {
@@ -617,7 +623,12 @@ public class MultiVideoPlayerManager {
      * 开始进度更新
      */
     private void startProgressUpdate() {
-        handler.postDelayed(new Runnable() {
+        // 移除之前的更新任务，避免重复
+        if (progressUpdateRunnable != null) {
+            handler.removeCallbacks(progressUpdateRunnable);
+        }
+
+        progressUpdateRunnable = new Runnable() {
             @Override
             public void run() {
                 if (isPlaying && playbackListener != null) {
@@ -628,7 +639,19 @@ public class MultiVideoPlayerManager {
                     handler.postDelayed(this, 200);
                 }
             }
-        }, 200);
+        };
+
+        handler.postDelayed(progressUpdateRunnable, 200);
+    }
+
+    /**
+     * 停止进度更新
+     */
+    private void stopProgressUpdate() {
+        if (progressUpdateRunnable != null) {
+            handler.removeCallbacks(progressUpdateRunnable);
+            progressUpdateRunnable = null;
+        }
     }
 
     /**

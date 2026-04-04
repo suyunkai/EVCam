@@ -83,6 +83,23 @@
         <item name="materialAlertDialogBodyTextStyle">@style/MaterialAlertDialog.Cam.Body</item>
     </style>
 
+    <!-- 原生 AlertDialog 样式（确保文字可见） -->
+    <style name="AlertDialogTheme" parent="Theme.Material3.Light.Dialog.Alert">
+        <item name="android:windowBackground">#FFFFFF</item>
+        <item name="android:textColorPrimary">#1A1A1A</item>
+        <item name="android:textColorSecondary">#666666</item>
+        <item name="colorPrimary">#1976D2</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="buttonBarPositiveButtonStyle">@style/AlertDialogButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/AlertDialogButton</item>
+        <item name="buttonBarNeutralButtonStyle">@style/AlertDialogButton</item>
+    </style>
+
+    <style name="AlertDialogButton" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">#1976D2</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+
     <!-- 对话框标题字号 -->
     <style name="MaterialAlertDialog.Cam.Title" parent="MaterialAlertDialog.Material3.Title.Text">
         <item name="android:textSize">22sp</item>

@@ -77,7 +77,7 @@ public class VideoRecorder {
     private static final long SEGMENT_DURATION_COMPENSATION_MS = 0;  // 分段时长补偿（H3修复后定时器更精确，不再需要补偿）
     private static final long FILE_SIZE_CHECK_INTERVAL_MS = 3000;  // 每3秒检查一次文件大小（加快检测）
     private static final long FIRST_CHECK_DELAY_MS = 500;  // 首次检查延迟（更快检测首次写入）
-    private static final long MIN_VALID_FILE_SIZE = 10 * 1024;  // 最小有效文件大小 10KB
+    private static final long MIN_VALID_FILE_SIZE = 1 * 1024;   // 最小有效文件大小 1KB（降低阈值，短录制也能保存）
     
     // 使用独立的后台线程处理分段和文件 I/O 操作，避免阻塞主线程导致 ANR
     private HandlerThread segmentThread;

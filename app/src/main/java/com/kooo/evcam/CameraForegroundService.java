@@ -408,23 +408,25 @@ public class CameraForegroundService extends Service {
         intent.putExtra("content", content);
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // Android 13+ 对摄像头前台服务有特殊要求
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                // 检查应用是否在前台
-                if (!isAppInForeground(context)) {
-                    // 应用不在前台，无法启动摄像头前台服务
-                    // 记录日志，等待应用进入前台后再启动
-                    AppLog.d(TAG, "应用不在前台，跳过启动摄像头前台服务（等待进入前台）");
-                    return;
+            // Android 13+ 对前台服务启动有限制，但录制时需要强制启动
+            // 使用 startForegroundService 启动，服务必须在 5 秒内调用 startForeground
+            try {
+                context.startForegroundService(intent);
+                AppLog.d(TAG, "Starting foreground service: " + title);
+            } catch (Exception e) {
+                AppLog.e(TAG, "启动前台服务失败: " + e.getMessage(), e);
+                // 如果失败，尝试普通启动
+                try {
+                    context.startService(intent);
+                    AppLog.d(TAG, "尝试普通服务启动");
+                } catch (Exception e2) {
+                    AppLog.e(TAG, "普通启动也失败: " + e2.getMessage(), e2);
                 }
-                context.startForegroundService(intent);
-            } else {
-                context.startForegroundService(intent);
             }
         } else {
             context.startService(intent);
+            AppLog.d(TAG, "Starting service: " + title);
         }
-        AppLog.d(TAG, "Starting foreground service: " + title);
     }
     
     /**

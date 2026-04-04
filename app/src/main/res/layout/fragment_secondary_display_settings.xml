@@ -337,6 +337,57 @@
                         android:layout_marginStart="16dp" />
                 </LinearLayout>
 
+                <!-- 长视模式开关 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="16dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="长视模式"
+                            android:textColor="@color/text_primary"
+                            android:textSize="16sp" />
+
+                        <TextView
+                            android:id="@+id/tv_long_view_mode_desc"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="打转向灯时同时显示左右两侧补盲画面，停止转向灯时自动退出"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="14sp"
+                            android:layout_marginTop="4dp" />
+                    </LinearLayout>
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switch_long_view_mode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp" />
+                </LinearLayout>
+
+                <!-- 长视模式位置和大小调整按钮 -->
+                <Button
+                    android:id="@+id/btn_long_view_adjust"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="调整位置和大小"
+                    android:textSize="14sp"
+                    android:minHeight="40dp"
+                    android:backgroundTint="@color/button_background"
+                    android:textColor="@color/button_text"
+                    android:layout_marginTop="8dp"
+                    android:visibility="gone" />
+
                 <!-- 悬浮窗动效开关 -->
                 <LinearLayout
                     android:layout_width="match_parent"

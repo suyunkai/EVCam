@@ -1,5 +1,6 @@
 package com.kooo.evcam;
 
+import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
@@ -43,6 +44,11 @@ public class BlindSpotSettingsFragment extends Fragment {
     // 车门联动UI控件
     private LinearLayout doorLinkageSectionLayout; // 车门联动区域
     private SwitchMaterial doorLinkageSwitch; // 车门联动开关
+
+    // 长视模式UI控件
+    private SwitchMaterial longViewModeSwitch; // 长视模式开关
+    private TextView tvLongViewModeDesc; // 长视模式描述
+    private Button longViewAdjustButton; // 长视模式位置和大小调整按钮
 
     // 全景影像避让UI控件
     private SwitchMaterial avmAvoidanceSwitch;
@@ -121,6 +127,24 @@ public class BlindSpotSettingsFragment extends Fragment {
         doorLinkageSectionLayout = view.findViewById(R.id.ll_door_linkage_section);
         doorLinkageSwitch = view.findViewById(R.id.switch_door_linkage);
 
+        // 长视模式UI初始化
+        longViewModeSwitch = view.findViewById(R.id.switch_long_view_mode);
+        tvLongViewModeDesc = view.findViewById(R.id.tv_long_view_mode_desc);
+        longViewAdjustButton = view.findViewById(R.id.btn_long_view_adjust);
+        
+        // 长视模式调整按钮点击事件
+        if (longViewAdjustButton != null) {
+            longViewAdjustButton.setOnClickListener(v -> {
+                if (!WakeUpHelper.hasOverlayPermission(requireContext())) {
+                    Toast.makeText(requireContext(), "请先授予悬浮窗权限", Toast.LENGTH_SHORT).show();
+                    WakeUpHelper.requestOverlayPermission(requireContext());
+                    return;
+                }
+                // 打开长视模式设置界面（使用超视模式的配置）
+                openLongViewSetupMode();
+            });
+        }
+
         // 全景影像避让UI初始化
         avmAvoidanceSwitch = view.findViewById(R.id.switch_avm_avoidance);
         avmAvoidanceDetailLayout = view.findViewById(R.id.layout_avm_avoidance_detail);
@@ -183,6 +207,13 @@ public class BlindSpotSettingsFragment extends Fragment {
         String currentRight = appConfig.getTurnSignalRightTriggerLog();
         turnSignalLeftLogEditText.setText(currentLeft);
         turnSignalRightLogEditText.setText(currentRight);
+        
+        // 长视模式配置加载
+        boolean longViewEnabled = appConfig.isLongViewModeEnabled();
+        longViewModeSwitch.setChecked(longViewEnabled);
+        if (longViewAdjustButton != null) {
+            longViewAdjustButton.setVisibility(longViewEnabled ? View.VISIBLE : View.GONE);
+        }
 
         // 根据触发模式和当前关键词匹配预设
         if (appConfig.isCarSignalManagerTriggerMode()) {
@@ -312,6 +343,26 @@ public class BlindSpotSettingsFragment extends Fragment {
                 return;
             }
             appConfig.setTurnSignalLinkageEnabled(isChecked);
+            BlindSpotService.update(requireContext());
+        });
+
+        // 长视模式监听器
+        longViewModeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked && !WakeUpHelper.hasOverlayPermission(requireContext())) {
+                longViewModeSwitch.setChecked(false);
+                Toast.makeText(requireContext(), "请先授予悬浮窗权限", Toast.LENGTH_SHORT).show();
+                WakeUpHelper.requestOverlayPermission(requireContext());
+                return;
+            }
+            appConfig.setLongViewModeEnabled(isChecked);
+            // 显示/隐藏调整按钮
+            if (longViewAdjustButton != null) {
+                longViewAdjustButton.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+            }
+            // 长视模式启用时，显示提示
+            if (isChecked) {
+                Toast.makeText(requireContext(), "长视模式已启用：打转向灯将显示双画面", Toast.LENGTH_SHORT).show();
+            }
             BlindSpotService.update(requireContext());
         });
 
@@ -711,5 +762,43 @@ public class BlindSpotSettingsFragment extends Fragment {
                     BlindSpotService.update(requireContext());
                 })
                 .show();
+    }
+    
+    /**
+     * 打开长视模式设置界面
+     * 使用超视模式的配置，显示左右两个画面供用户调整位置和大小
+     */
+    private void openLongViewSetupMode() {
+        if (getContext() == null) return;
+        
+        Context context = getContext();
+        
+        // 创建左视悬浮窗（设置模式）
+        BlindSpotFloatingWindowView leftWindow = new BlindSpotFloatingWindowView(context, true);
+        leftWindow.setCameraPos("left");
+        leftWindow.show();
+        leftWindow.setCamera("left");
+        leftWindow.updateStatusLabel("left");
+        leftWindow.setSupervisionMode(true); // 启用超视模式交互
+        
+        // 创建右视悬浮窗（设置模式）
+        BlindSpotFloatingWindowView rightWindow = new BlindSpotFloatingWindowView(context, true);
+        rightWindow.setCameraPos("right");
+        rightWindow.show();
+        rightWindow.setCamera("right");
+        rightWindow.updateStatusLabel("right");
+        rightWindow.setSupervisionMode(true); // 启用超视模式交互
+        
+        // 设置配对关系，确保调整时同步
+        leftWindow.setSupervisionPartner(rightWindow);
+        rightWindow.setSupervisionPartner(leftWindow);
+        
+        // 启动前台服务（确保摄像头可用）
+        CameraForegroundService.start(context, "长视模式设置", "正在调整长视模式位置和大小");
+        
+        // 确保摄像头已初始化
+        com.kooo.evcam.camera.CameraManagerHolder.getInstance().getOrInit(context);
+        
+        Toast.makeText(context, "拖动窗口调整位置，拖动边缘调整大小\n调整完成后点击保存按钮", Toast.LENGTH_LONG).show();
     }
 }

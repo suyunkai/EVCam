@@ -47,6 +47,7 @@ import com.kooo.evcam.remote.RemoteCommandDispatcher;
 import com.kooo.evcam.remote.handler.RemoteCommandHandler;
 import com.kooo.evcam.playback.PlaybackFragmentNew;
 import com.kooo.evcam.playback.PhotoPlaybackFragmentNew;
+import com.kooo.evcam.view.MacOSToggleButton;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -147,6 +148,7 @@ public class MainActivity extends AppCompatActivity {
     // 息屏录制相关
     private android.content.BroadcastReceiver screenStateReceiver;  // 屏幕状态广播接收器
     private android.content.BroadcastReceiver backgroundCommandReceiver;  // 后台切换广播接收器
+    private android.content.BroadcastReceiver toggleRecordingReceiver;  // 录制切换广播接收器（来自悬浮窗）
     private android.os.Handler screenStateHandler;  // 息屏/亮屏延迟处理
     private Runnable screenOffStopRunnable;  // 息屏停止录制的延迟任务
     private Runnable screenOnStartRunnable;  // 亮屏恢复录制的延迟任务
@@ -429,7 +431,7 @@ public class MainActivity extends AppCompatActivity {
         if (autoStartFromBoot) {
             // 清除标志，避免后续重复检测
             getIntent().removeExtra("auto_start_from_boot");
-            
+
             // 判断是否需要移到后台：
             // - 如果开启了自动录制：不移到后台，显示主界面并开始录制
             // - 如果未开启自动录制（只开启悬浮窗/推送等）：移到后台
@@ -442,6 +444,43 @@ public class MainActivity extends AppCompatActivity {
                 // 这确保 Activity 完全初始化后再执行，避免中断初始化过程
                 shouldMoveToBackgroundOnReady = true;
             }
+        }
+
+        // 检查是否是从录制悬浮按钮启动（需要自动开始录制）
+        boolean autoStartRecording = getIntent().getBooleanExtra("auto_start_recording", false);
+        if (autoStartRecording) {
+            getIntent().removeExtra("auto_start_recording");
+            AppLog.d(TAG, "从录制悬浮按钮启动，准备自动开始录制");
+            // 标记自动录制等待中，防止 onPause 关闭摄像头
+            isAutoRecordingPending = true;
+            // 延迟等待摄像头初始化完成（需要更长时间确保摄像头完全准备好）
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                if (cameraManager != null && !cameraManager.isRecording()) {
+                    // 确保摄像头已连接
+                    if (!cameraManager.hasConnectedCameras()) {
+                        AppLog.d(TAG, "摄像头未连接，先打开摄像头");
+                        cameraManager.openAllCameras();
+                    }
+                    // 再等待一段时间确保摄像头完全准备好
+                    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                        if (cameraManager != null && cameraManager.hasConnectedCameras() && !cameraManager.isRecording()) {
+                            AppLog.d(TAG, "摄像头已准备好，自动开始录制");
+                            startRecording();
+                            // 录制开始后，延迟将 Activity 移到后台（让用户看到录制已开始）
+                            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                                if (isRecording) {
+                                    AppLog.d(TAG, "录制已开始，将 Activity 移到后台");
+                                    moveTaskToBack(true);
+                                }
+                            }, 1500);
+                        } else {
+                            AppLog.w(TAG, "摄像头未准备好，无法开始录制");
+                            isAutoRecordingPending = false;
+                            Toast.makeText(this, "摄像头未准备好，请重试", Toast.LENGTH_SHORT).show();
+                        }
+                    }, 2000);
+                }
+            }, 1000);
         }
 
         // 检查是否有启动时传入的远程命令（冷启动）
@@ -459,6 +498,14 @@ public class MainActivity extends AppCompatActivity {
                 // 应用在前台，隐藏悬浮窗
                 FloatingWindowService.sendAppForegroundState(this, true);
             }, 500);
+        }
+
+        // 启动录制悬浮按钮服务（如果已启用，默认开启）
+        if (appConfig.isRecordingFloatingEnabled() && WakeUpHelper.hasOverlayPermission(this)) {
+            Intent intent = new Intent(this, com.kooo.evcam.service.RecordingFloatingService.class);
+            intent.setAction(com.kooo.evcam.service.RecordingFloatingService.ACTION_SHOW);
+            startService(intent);
+            AppLog.d(TAG, "录制悬浮按钮服务已启动");
         }
 
         // 启动补盲选项服务 (副屏/主屏悬浮窗/转向灯联动/模拟按钮/全景避让)
@@ -481,9 +528,46 @@ public class MainActivity extends AppCompatActivity {
         super.onNewIntent(intent);
         setIntent(intent);
         AppLog.d(TAG, "onNewIntent called");
-        
+
         // 处理远程命令
         handleRemoteCommandFromIntent(intent);
+
+        // 处理从录制悬浮按钮启动（需要自动开始录制）
+        boolean autoStartRecording = intent.getBooleanExtra("auto_start_recording", false);
+        if (autoStartRecording) {
+            intent.removeExtra("auto_start_recording");
+            AppLog.d(TAG, "从录制悬浮按钮启动（onNewIntent），准备自动开始录制");
+            // 标记自动录制等待中，防止 onPause 关闭摄像头
+            isAutoRecordingPending = true;
+            // 延迟等待摄像头准备好
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                if (cameraManager != null && !cameraManager.isRecording()) {
+                    // 确保摄像头已连接
+                    if (!cameraManager.hasConnectedCameras()) {
+                        AppLog.d(TAG, "摄像头未连接，先打开摄像头");
+                        cameraManager.openAllCameras();
+                    }
+                    // 再等待一段时间确保摄像头完全准备好
+                    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                        if (cameraManager != null && cameraManager.hasConnectedCameras() && !cameraManager.isRecording()) {
+                            AppLog.d(TAG, "摄像头已准备好，自动开始录制");
+                            startRecording();
+                            // 录制开始后，延迟将 Activity 移到后台
+                            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                                if (isRecording) {
+                                    AppLog.d(TAG, "录制已开始，将 Activity 移到后台");
+                                    moveTaskToBack(true);
+                                }
+                            }, 1500);
+                        } else {
+                            AppLog.w(TAG, "摄像头未准备好，无法开始录制");
+                            isAutoRecordingPending = false;
+                            Toast.makeText(this, "摄像头未准备好，请重试", Toast.LENGTH_SHORT).show();
+                        }
+                    }, 2000);
+                }
+            }, 500);
+        }
     }
 
     @Override
@@ -1192,7 +1276,131 @@ public class MainActivity extends AppCompatActivity {
                 buttonContainer, editControls, containerCameras,
                 textureFront, textureBack, textureLeft, textureRight);
 
+        // 初始化摄像头录制开关
+        initCameraToggleButtons();
+
         AppLog.d(TAG, "自定义布局管理器初始化完成");
+    }
+
+    /**
+     * 初始化摄像头开关（多视角布局）
+     * 在每个画面右上角显示macOS风格开关，同时控制画面显示/隐藏和录制
+     */
+    private void initCameraToggleButtons() {
+        // 获取摄像头画面容器
+        android.widget.FrameLayout frameFront = findViewById(R.id.frame_front);
+        android.widget.FrameLayout frameBack = findViewById(R.id.frame_back);
+        android.widget.FrameLayout frameLeft = findViewById(R.id.frame_left);
+        android.widget.FrameLayout frameRight = findViewById(R.id.frame_right);
+
+        // 前摄像头开关 - 控制画面显示和录制
+        MacOSToggleButton toggleFront = findViewById(R.id.toggle_front);
+        if (toggleFront != null) {
+            boolean frontEnabled = appConfig.isRecordingCameraEnabled("front");
+            toggleFront.setChecked(frontEnabled);
+            // 初始化时设置画面可见性（只隐藏CardView，不隐藏整个frame）
+            setCameraFrameVisible(frameFront, frontEnabled);
+            toggleFront.setOnCheckedChangeListener((button, isChecked) -> {
+                appConfig.setRecordingCameraEnabled("front", isChecked);
+                setCameraFrameVisible(frameFront, isChecked);
+                updateRequiredTextureCount();
+                AppLog.d(TAG, "前摄像头开关: " + isChecked + ", 画面和录制: " + isChecked);
+            });
+        }
+
+        // 后摄像头开关 - 控制画面显示和录制
+        MacOSToggleButton toggleBack = findViewById(R.id.toggle_back);
+        if (toggleBack != null) {
+            boolean backEnabled = appConfig.isRecordingCameraEnabled("back");
+            toggleBack.setChecked(backEnabled);
+            // 初始化时设置画面可见性
+            setCameraFrameVisible(frameBack, backEnabled);
+            toggleBack.setOnCheckedChangeListener((button, isChecked) -> {
+                appConfig.setRecordingCameraEnabled("back", isChecked);
+                setCameraFrameVisible(frameBack, isChecked);
+                updateRequiredTextureCount();
+                AppLog.d(TAG, "后摄像头开关: " + isChecked + ", 画面和录制: " + isChecked);
+            });
+        }
+
+        // 左摄像头开关 - 控制画面显示和录制
+        MacOSToggleButton toggleLeft = findViewById(R.id.toggle_left);
+        if (toggleLeft != null) {
+            boolean leftEnabled = appConfig.isRecordingCameraEnabled("left");
+            toggleLeft.setChecked(leftEnabled);
+            // 初始化时设置画面可见性
+            setCameraFrameVisible(frameLeft, leftEnabled);
+            toggleLeft.setOnCheckedChangeListener((button, isChecked) -> {
+                appConfig.setRecordingCameraEnabled("left", isChecked);
+                setCameraFrameVisible(frameLeft, isChecked);
+                updateRequiredTextureCount();
+                AppLog.d(TAG, "左摄像头开关: " + isChecked + ", 画面和录制: " + isChecked);
+            });
+        }
+
+        // 右摄像头开关 - 控制画面显示和录制
+        MacOSToggleButton toggleRight = findViewById(R.id.toggle_right);
+        if (toggleRight != null) {
+            boolean rightEnabled = appConfig.isRecordingCameraEnabled("right");
+            toggleRight.setChecked(rightEnabled);
+            // 初始化时设置画面可见性
+            setCameraFrameVisible(frameRight, rightEnabled);
+            toggleRight.setOnCheckedChangeListener((button, isChecked) -> {
+                appConfig.setRecordingCameraEnabled("right", isChecked);
+                setCameraFrameVisible(frameRight, isChecked);
+                updateRequiredTextureCount();
+                AppLog.d(TAG, "右摄像头开关: " + isChecked + ", 画面和录制: " + isChecked);
+            });
+        }
+
+        // 根据开关状态调整 requiredTextureCount
+        updateRequiredTextureCount();
+
+        AppLog.d(TAG, "摄像头开关初始化完成，requiredTextureCount=" + requiredTextureCount);
+    }
+
+    /**
+     * 根据可见的画面数量更新 requiredTextureCount
+     */
+    private void updateRequiredTextureCount() {
+        int visibleCount = 0;
+        if (appConfig.isRecordingCameraEnabled("front")) visibleCount++;
+        if (appConfig.isRecordingCameraEnabled("back")) visibleCount++;
+        if (appConfig.isRecordingCameraEnabled("left")) visibleCount++;
+        if (appConfig.isRecordingCameraEnabled("right")) visibleCount++;
+        
+        // 至少需要一个可见的画面来初始化摄像头
+        requiredTextureCount = Math.max(1, visibleCount);
+        AppLog.d(TAG, "更新 requiredTextureCount: " + requiredTextureCount + " (可见画面: " + visibleCount + ")");
+    }
+
+    /**
+     * 设置摄像头画面的可见性（只隐藏画面内容，保留开关可见）
+     * @param frame 摄像头FrameLayout
+     * @param visible 是否可见
+     */
+    private void setCameraFrameVisible(android.widget.FrameLayout frame, boolean visible) {
+        if (frame == null) return;
+        // 只隐藏第一个子View（CardView，包含画面内容）
+        // 开关是第二个子View，保持可见
+        for (int i = 0; i < frame.getChildCount(); i++) {
+            View child = frame.getChildAt(i);
+            // 如果是CardView（画面内容），控制其可见性
+            if (child instanceof androidx.cardview.widget.CardView) {
+                child.setVisibility(visible ? View.VISIBLE : View.GONE);
+                break; // 只处理第一个CardView
+            }
+        }
+        
+        // 当画面变为可见时，检查是否需要更新摄像头预览
+        if (visible && cameraManager != null) {
+            // 延迟一点等待TextureView准备好
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                if (cameraManager != null) {
+                    cameraManager.updatePreviewTextureViews(textureFront, textureBack, textureLeft, textureRight);
+                }
+            }, 100);
+        }
     }
 
     /**
@@ -1693,6 +1901,9 @@ public class MainActivity extends AppCompatActivity {
             } else if (itemId == R.id.nav_secondary_display) {
                 // 显示补盲选项界面
                 showBlindSpotInterface();
+            } else if (itemId == R.id.nav_supervision_mode) {
+                // 切换超视模式
+                toggleSupervisionMode();
             } else if (itemId == R.id.nav_settings) {
                 showSettingsInterface();
             }
@@ -2004,6 +2215,38 @@ public class MainActivity extends AppCompatActivity {
         transaction.commit();
     }
 
+    /**
+     * 切换超视模式
+     * 超视模式会同时显示左右两个补盲悬浮窗
+     */
+    private void toggleSupervisionMode() {
+        AppConfig appConfig = new AppConfig(this);
+        boolean currentEnabled = appConfig.isSupervisionModeEnabled();
+        boolean newEnabled = !currentEnabled;
+        
+        // 更新配置
+        appConfig.setSupervisionModeEnabled(newEnabled);
+        
+        // 显示提示
+        String message = newEnabled ? "超视模式已开启" : "超视模式已关闭";
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+        
+        // 发送广播通知BlindSpotService
+        Intent intent = new Intent("com.kooo.evcam.SUPERVISION_MODE_CHANGED");
+        intent.putExtra("enabled", newEnabled);
+        sendBroadcast(intent);
+        
+        // 启动或停止服务
+        Intent serviceIntent = new Intent(this, BlindSpotService.class);
+        if (newEnabled) {
+            serviceIntent.setAction("START_SUPERVISION_MODE");
+        } else {
+            serviceIntent.setAction("STOP_SUPERVISION_MODE");
+        }
+        startService(serviceIntent);
+        
+        AppLog.d(TAG, "超视模式切换: " + newEnabled);
+    }
 
     private boolean checkPermissions() {
         for (String permission : getRequiredPermissions()) {
@@ -2112,6 +2355,22 @@ public class MainActivity extends AppCompatActivity {
                 }
                 if (remoteCommandDispatcher != null) {
                     remoteCommandDispatcher.onTimestampUpdated(newTimestamp);
+                }
+            });
+
+            // 录制状态回调（监听录制成功或失败）
+            cameraManager.setRecordingStatusCallback((activeCameras, failedCameras) -> {
+                AppLog.d(TAG, "录制状态回调: 成功=" + activeCameras.size() + ", 失败=" + failedCameras.size());
+                if (activeCameras.isEmpty()) {
+                    // 所有摄像头都启动失败
+                    runOnUiThread(() -> {
+                        AppLog.e(TAG, "所有摄像头启动录制失败");
+                        isRecording = false;
+                        isAutoRecordingPending = false;
+                        isPreparingRecording = false;
+                        hidePreparingIndicator();
+                        Toast.makeText(this, "录制启动失败，请重试", Toast.LENGTH_SHORT).show();
+                    });
                 }
             });
 
@@ -2246,6 +2505,22 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // 设置录制状态回调（监听录制成功或失败）
+        cameraManager.setRecordingStatusCallback((activeCameras, failedCameras) -> {
+            AppLog.d(TAG, "录制状态回调: 成功=" + activeCameras.size() + ", 失败=" + failedCameras.size());
+            if (activeCameras.isEmpty()) {
+                // 所有摄像头都启动失败
+                runOnUiThread(() -> {
+                    AppLog.e(TAG, "所有摄像头启动录制失败");
+                    isRecording = false;
+                    isAutoRecordingPending = false;
+                    isPreparingRecording = false;
+                    hidePreparingIndicator();
+                    Toast.makeText(this, "录制启动失败，请重试", Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+
         // 设置首次数据写入回调
         // 用于在摄像头真正开始输出数据后启动计时器（分段计时、钉钉录制计时等）
         cameraManager.setFirstDataWrittenCallback(() -> {
@@ -2257,7 +2532,7 @@ public class MainActivity extends AppCompatActivity {
                     hidePreparingIndicator();
                     AppLog.d(TAG, "准备状态结束，录制进入正常状态");
                 }
-                
+
                 // 启动录制计时器（从首次写入开始计时，而不是从录制请求开始）
                 // 这样右上角显示的时间是"有效录制时长"
                 if (isRecording && !isRemoteRecording) {
@@ -2275,12 +2550,12 @@ public class MainActivity extends AppCompatActivity {
                         AppLog.d(TAG, "手动录制计时器已启动（首次写入后）");
                     }
                 }
-                
+
                 // 如果是远程录制，通知 RemoteCommandDispatcher 启动定时器
                 if (remoteCommandDispatcher != null) {
                     remoteCommandDispatcher.onFirstDataWritten();
                 }
-                
+
                 // 兼容旧逻辑：如果是远程录制，现在才启动定时器
                 if (isRemoteRecording && pendingRemoteDurationSeconds > 0) {
                     AppLog.d(TAG, "远程录制首次写入成功，启动 " + pendingRemoteDurationSeconds + " 秒定时器");
@@ -3277,6 +3552,35 @@ public class MainActivity extends AppCompatActivity {
         
         // 初始化后台切换广播接收器
         initBackgroundCommandReceiver();
+        
+        // 初始化录制切换广播接收器（来自悬浮窗）
+        initToggleRecordingReceiver();
+    }
+    
+    /**
+     * 初始化录制切换广播接收器
+     * 用于接收录制悬浮按钮的录制切换指令
+     */
+    private void initToggleRecordingReceiver() {
+        toggleRecordingReceiver = new android.content.BroadcastReceiver() {
+            @Override
+            public void onReceive(android.content.Context context, android.content.Intent intent) {
+                String action = intent.getAction();
+                if ("com.kooo.evcam.action.TOGGLE_RECORDING".equals(action)) {
+                    AppLog.d(TAG, "收到录制切换广播（来自悬浮窗）");
+                    // 在主线程执行录制切换
+                    runOnUiThread(() -> {
+                        toggleRecording();
+                    });
+                }
+            }
+        };
+        
+        android.content.IntentFilter filter = new android.content.IntentFilter();
+        filter.addAction("com.kooo.evcam.action.TOGGLE_RECORDING");
+        registerReceiver(toggleRecordingReceiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED);
+        
+        AppLog.d(TAG, "录制切换广播接收器已注册");
     }
     
     /**
@@ -3621,6 +3925,7 @@ public class MainActivity extends AppCompatActivity {
             if (success) {
                 isRecording = true;
                 isPreparingRecording = true;  // 标记为准备中状态
+                isAutoRecordingPending = false;  // 录制成功，清除等待标记
 
                 // 启动前台服务保护（防止后台录制被中断）
                 CameraForegroundService.start(this, "正在录制视频", "录制进行中，点击返回应用");
@@ -4689,6 +4994,12 @@ public class MainActivity extends AppCompatActivity {
                             }
                         }, 1500);  // 等待摄像头准备好
                     }
+                    
+                    // 重新启动超视模式窗口的摄像头预览
+                    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                        AppLog.d(TAG, "重新启动超视模式摄像头预览");
+                        BlindSpotService.restartSupervisionCameraPreview();
+                    }, 500);  // 等待摄像头打开后
                 } else {
                     AppLog.d(TAG, "Recording in progress, cameras should still be connected");
                 }
@@ -4776,6 +5087,16 @@ public class MainActivity extends AppCompatActivity {
                 AppLog.w(TAG, "注销后台切换广播接收器时出错: " + e.getMessage());
             }
             backgroundCommandReceiver = null;
+        }
+        
+        // 清理录制切换广播接收器
+        if (toggleRecordingReceiver != null) {
+            try {
+                unregisterReceiver(toggleRecordingReceiver);
+            } catch (Exception e) {
+                AppLog.w(TAG, "注销录制切换广播接收器时出错: " + e.getMessage());
+            }
+            toggleRecordingReceiver = null;
         }
         if (screenStateHandler != null) {
             if (screenOffStopRunnable != null) {

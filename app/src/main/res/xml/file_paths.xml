@@ -1,11 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- DCIM directory for recorded videos -->
+    <!-- DCIM directory for recorded videos (内部存储) -->
     <external-path
         name="videos"
         path="DCIM/EVCam_Video/" />
-    <!-- DCIM directory for photos -->
+    <!-- DCIM directory for photos (内部存储) -->
     <external-path
         name="photos"
         path="DCIM/EVCam_Photo/" />
+    
+    <!-- 外部存储根目录 (用于兼容不同存储路径) -->
+    <external-path
+        name="external_root"
+        path="." />
+    
+    <!-- 外部存储DCIM目录 -->
+    <external-path
+        name="external_dcim"
+        path="DCIM/" />
+    
+    <!-- 应用私有缓存目录 -->
+    <cache-path
+        name="cache"
+        path="." />
+    
+    <!-- 应用私有文件目录 -->
+    <files-path
+        name="files"
+        path="." />
 </paths>

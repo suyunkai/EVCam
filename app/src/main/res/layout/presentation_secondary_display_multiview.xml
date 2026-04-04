@@ -46,4 +46,12 @@
         android:background="@drawable/secondary_display_border"
         android:visibility="gone" />
 
+    <!-- 转向灯箭头视图 - 显示在画面中心，放在最上层（在CardView之外） -->
+    <com.kooo.evcam.TurnSignalArrowView
+        android:id="@+id/turn_signal_arrow_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
 </FrameLayout>

@@ -811,6 +811,22 @@ public class MultiCameraManager {
         
         // 获取录制目录（可能是临时目录或最终目录）
         File saveDir = StorageHelper.getRecordingDir(context);
+        
+        // 如果不使用中转写入（直接写入U盘），检查U盘是否可用
+        if (!useRelayWrite) {
+            File sdCard = StorageHelper.getExternalSdCardRoot(context);
+            if (sdCard == null || !sdCard.exists() || !sdCard.canWrite()) {
+                AppLog.e(TAG, "U盘不可用，无法直接写入！U盘状态: exists=" + 
+                        (sdCard != null ? sdCard.exists() : "null") + 
+                        ", canWrite=" + (sdCard != null ? sdCard.canWrite() : "N/A"));
+                // 提示用户并建议启用中转写入
+                AppLog.w(TAG, "建议：在设置中启用「中转写入」功能，可以避免U盘问题导致的录制失败");
+                // 不直接返回，因为可能只是检测问题，尝试继续录制
+            } else {
+                AppLog.i(TAG, "直接写入模式，U盘可用: " + sdCard.getAbsolutePath());
+            }
+        }
+        
         if (!saveDir.exists()) {
             saveDir.mkdirs();
         }
@@ -865,7 +881,7 @@ public class MultiCameraManager {
         }
         
         // 获取帧率配置（根据帧率等级设置计算）
-        int targetFrameRate = appConfig.getActualFrameRate(30);  // 假设硬件支持30fps
+        int targetFrameRate = appConfig.getActualFrameRate(25);  // 使用25fps降低CPU占用
         AppLog.d(TAG, "Target frame rate: " + targetFrameRate + " fps (level: " + appConfig.getFramerateLevel() + ")");
 
         // 第一步：准备所有 MediaRecorder（但不启动）
@@ -1015,10 +1031,11 @@ public class MultiCameraManager {
                 continue;
             }
 
+            // 帧稳定性检查：如果是从超时触发的，检查帧稳定性
+            // 但如果会话已经就绪，即使帧暂时不稳定也尝试启动录制（针对后台启动场景）
             if (fromTimeout && !isFrameStable(key, System.currentTimeMillis())) {
-                failedCameras.add(key);
-                AppLog.w(TAG, "Camera " + key + " frame not stable, skipping");
-                continue;
+                AppLog.w(TAG, "Camera " + key + " frame not stable, but session is ready, will try to start anyway");
+                // 不再跳过，而是继续尝试启动录制
             }
             
             VideoRecorder recorder = recorders.get(key);
@@ -1059,6 +1076,10 @@ public class MultiCameraManager {
             // 通知上层完全失败
             if (statusCallback != null) {
                 statusCallback.onCameraStatusUpdate("all", "recording_failed");
+            }
+            // 同时通知 recordingStatusCallback（如果有设置）
+            if (recordingStatusCallback != null) {
+                recordingStatusCallback.onPartialRecordingStart(activeCameras, failedCameras);
             }
         }
         
@@ -1164,7 +1185,7 @@ public class MultiCameraManager {
         }
         
         // 获取帧率配置（根据帧率等级设置计算）
-        int targetFrameRate = appConfig.getActualFrameRate(30);
+        int targetFrameRate = appConfig.getActualFrameRate(25);  // 使用25fps降低CPU占用
         AppLog.d(TAG, "Codec target frame rate: " + targetFrameRate + " fps (level: " + appConfig.getFramerateLevel() + ")");
 
         // 清理之前的软编码录制器
@@ -1224,6 +1245,7 @@ public class MultiCameraManager {
             codecRecorder.setSegmentDuration(segmentDurationMs);
             codecRecorder.setBitRate(bitrate);
             codecRecorder.setFrameRate(targetFrameRate);
+            codecRecorder.setQualityLevel(3);  // 设置最高画质
             
             AppLog.d(TAG, "Codec recording params for " + key + ": " + 
                     encodeWidth + "x" + encodeHeight + 
@@ -1400,25 +1422,70 @@ public class MultiCameraManager {
             if (!forcedReopen) {
                 AppLog.w(TAG, "Codec frames still unstable after wait, forcing reopen all cameras once: " + unstable);
                 forceReopenAllCameras();
-                mainHandler.postDelayed(() -> executeCodecRecordingStart(keys, 0, true), 500);
+                // 延迟等待摄像头重新打开和会话配置完成
+                mainHandler.postDelayed(() -> {
+                    // 检查哪些摄像头实际可用且会话已配置
+                    List<String> availableKeys = new ArrayList<>();
+                    for (String key : keys) {
+                        SingleCamera camera = cameras.get(key);
+                        Boolean ready = cameraSessionReady.get(key);
+                        if (camera != null && camera.isCameraOpened() && ready != null && ready) {
+                            availableKeys.add(key);
+                        }
+                    }
+                    AppLog.d(TAG, "After force reopen, available cameras with ready session: " + availableKeys);
+                    if (!availableKeys.isEmpty()) {
+                        executeCodecRecordingStart(availableKeys, 0, true);
+                    } else {
+                        // 没有摄像头会话就绪，尝试只为实际打开的摄像头重新准备录制
+                        AppLog.w(TAG, "No camera sessions ready after force reopen, re-preparing for available cameras only");
+                        // 找出实际打开的摄像头
+                        List<String> openedCameras = new ArrayList<>();
+                        for (String key : keys) {
+                            SingleCamera camera = cameras.get(key);
+                            if (camera != null && camera.isCameraOpened()) {
+                                openedCameras.add(key);
+                            }
+                        }
+                        AppLog.d(TAG, "Opened cameras: " + openedCameras);
+                        if (!openedCameras.isEmpty()) {
+                            // 重新准备只为这些摄像头
+                            reprepareCodecRecordingForCameras(openedCameras);
+                        } else {
+                            AppLog.e(TAG, "No cameras opened after force reopen");
+                            isRecording = false;
+                        }
+                    }
+                }, 2000);  // 增加等待时间到2秒，确保会话配置完成
                 return;
             }
-            AppLog.w(TAG, "Codec frames still unstable after force reopen, starting with stable subset: " + unstable);
+            AppLog.w(TAG, "Codec frames still unstable after force reopen, will try to start anyway: " + unstable);
+            // 强制重新打开后仍然不稳定，直接尝试启动录制（不再跳过）
+            unstable.clear();
         }
 
         boolean anyActive = false;
         int activeCount = 0;
 
+        AppLog.d(TAG, "executeCodecRecordingStart: keys=" + keys + ", codecRecorders=" + codecRecorders.keySet() + ", cameraSessionReady=" + cameraSessionReady);
+
         for (String key : keys) {
             Boolean ready = cameraSessionReady.get(key);
-            if (ready == null || !ready) {
+            AppLog.d(TAG, "Checking camera " + key + ": ready=" + ready + ", codecRecorder=" + codecRecorders.get(key) + ", forcedReopen=" + forcedReopen);
+            // 强制重新打开后，跳过 session ready 检查，直接尝试启动录制
+            if (!forcedReopen && (ready == null || !ready)) {
+                AppLog.w(TAG, "Camera " + key + " session not ready, skipping");
                 continue;
             }
-            if (!unstable.isEmpty() && !isFrameStable(key, System.currentTimeMillis())) {
+            // 帧稳定性检查：如果已经尝试了最大次数并强制重新打开过，就不再检查帧稳定性
+            // 这样可以确保在后台启动录制时，即使帧暂时不稳定也能开始录制
+            if (!unstable.isEmpty() && !forcedReopen && !isFrameStable(key, System.currentTimeMillis())) {
+                AppLog.w(TAG, "Camera " + key + " frame not stable, skipping (forcedReopen=" + forcedReopen + ")");
                 continue;
             }
             CodecVideoRecorder codecRecorder = codecRecorders.get(key);
             if (codecRecorder == null) {
+                AppLog.e(TAG, "Camera " + key + " codecRecorder is null");
                 continue;
             }
             if (codecRecorder.isRecording()) {
@@ -1426,9 +1493,13 @@ public class MultiCameraManager {
                 activeCount++;
                 continue;
             }
-            if (codecRecorder.startRecording() || codecRecorder.isRecording()) {
+            AppLog.d(TAG, "Starting codec recording for camera " + key);
+            boolean started = codecRecorder.startRecording();
+            AppLog.d(TAG, "Camera " + key + " startRecording returned: " + started + ", isRecording=" + codecRecorder.isRecording());
+            if (started || codecRecorder.isRecording()) {
                 anyActive = true;
                 activeCount++;
+                AppLog.d(TAG, "Camera " + key + " codec recording started successfully");
             } else {
                 AppLog.e(TAG, "Failed to start codec recording for " + key);
             }
@@ -1461,6 +1532,118 @@ public class MultiCameraManager {
     }
 
     /**
+     * 重新准备 Codec 录制（只为指定的摄像头）
+     * 用于强制重新打开后，只为实际可用的摄像头准备录制
+     */
+    private void reprepareCodecRecordingForCameras(List<String> cameraKeys) {
+        AppLog.d(TAG, "Re-preparing codec recording for cameras: " + cameraKeys);
+
+        // 清理之前的录制器（只保留指定摄像头的）
+        for (Map.Entry<String, CodecVideoRecorder> entry : new ArrayList<>(codecRecorders.entrySet())) {
+            if (!cameraKeys.contains(entry.getKey())) {
+                entry.getValue().release();
+                codecRecorders.remove(entry.getKey());
+            }
+        }
+
+        // 获取录制目录
+        File saveDir = StorageHelper.getRecordingDir(context);
+        if (!saveDir.exists()) {
+            saveDir.mkdirs();
+        }
+
+        // 生成新的时间戳
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+
+        // 为每个指定的摄像头准备录制
+        boolean prepareSuccess = true;
+        for (String key : cameraKeys) {
+            SingleCamera camera = cameras.get(key);
+            if (camera == null) {
+                continue;
+            }
+
+            // 获取摄像头的实际预览分辨率
+            Size previewSize = camera.getPreviewSize();
+            if (previewSize == null) {
+                previewSize = new Size(1280, 800);
+            }
+
+            // 创建软编码录制器
+            CodecVideoRecorder codecRecorder = new CodecVideoRecorder(
+                    camera.getCameraId(),
+                    previewSize.getWidth(),
+                    previewSize.getHeight()
+            );
+
+            // 设置录制参数
+            AppConfig appConfig = new AppConfig(context);
+            codecRecorder.setSegmentDuration(appConfig.getSegmentDurationMs());
+            codecRecorder.setBitRate(appConfig.getActualBitrate(previewSize.getWidth(), previewSize.getHeight(), 25));  // 使用25fps降低CPU占用
+            codecRecorder.setFrameRate(appConfig.getActualFrameRate(25));  // 使用25fps降低CPU占用
+            codecRecorder.setQualityLevel(3);  // 设置最高画质
+            codecRecorder.setWatermarkEnabled(appConfig.isTimestampWatermarkEnabled());
+
+            // 准备录制
+            String path = new File(saveDir, timestamp + "_" + key + ".mp4").getAbsolutePath();
+            android.graphics.SurfaceTexture surfaceTexture = codecRecorder.prepareRecording(path);
+            if (surfaceTexture == null) {
+                AppLog.e(TAG, "Failed to prepare codec recording for " + key);
+                prepareSuccess = false;
+                break;
+            }
+
+            // 将 SurfaceTexture 设置给 Camera
+            android.view.Surface recordSurface = new android.view.Surface(surfaceTexture);
+            camera.setRecordSurface(recordSurface, true);
+
+            codecRecorders.put(key, codecRecorder);
+        }
+
+        if (!prepareSuccess) {
+            AppLog.e(TAG, "Failed to re-prepare codec recording");
+            for (CodecVideoRecorder recorder : codecRecorders.values()) {
+                recorder.release();
+            }
+            codecRecorders.clear();
+            isRecording = false;
+            return;
+        }
+
+        // 重新创建摄像头会话
+        synchronized (sessionLock) {
+            sessionConfiguredCount = 0;
+            expectedSessionCount = cameraKeys.size();
+            cameraSessionReady.clear();
+            cameraRecordingActive.clear();
+        }
+
+        for (String key : cameraKeys) {
+            SingleCamera camera = cameras.get(key);
+            if (camera != null) {
+                camera.recreateSession();
+            }
+        }
+
+        // 设置待处理的录制启动任务
+        final List<String> recordingKeys = new ArrayList<>(cameraKeys);
+        pendingRecordingStart = () -> executeCodecRecordingStart(recordingKeys, 0, true);
+
+        // 设置超时机制
+        sessionTimeoutRunnable = () -> {
+            AppLog.w(TAG, "Re-prepare session configuration timeout");
+            synchronized (sessionLock) {
+                final Runnable recordingTask = pendingRecordingStart;
+                if (recordingTask != null) {
+                    pendingRecordingStart = null;
+                    mainHandler.post(recordingTask);
+                }
+            }
+        };
+        mainHandler.postDelayed(sessionTimeoutRunnable, 3000);
+    }
+
+    /**
      * 停止录制所有摄像头
      */
     public void stopRecording() {
@@ -1468,108 +1651,139 @@ public class MultiCameraManager {
     }
 
     /**
-     * 停止录制所有摄像头
+     * 停止录制所有摄像头（异步执行，避免阻塞主线程）
      * @param skipRelayTransfer 是否跳过自动传输（用于远程录制，上传完成后再传输）
      */
     public void stopRecording(boolean skipRelayTransfer) {
         AppLog.d(TAG, "stopRecording called, isRecording=" + isRecording + ", useCodecRecording=" + useCodecRecording + ", skipRelayTransfer=" + skipRelayTransfer);
 
-        // 清理待处理的录制启动任务和会话计数器（线程安全处理）
-        synchronized (sessionLock) {
-            if (pendingRecordingStart != null) {
-                AppLog.d(TAG, "Cancelling pending recording start");
-                pendingRecordingStart = null;
-            }
-
-            // 重置会话计数器
-            sessionConfiguredCount = 0;
-            expectedSessionCount = 0;
-        }
-
-        // 清理超时任务
-        if (sessionTimeoutRunnable != null) {
-            mainHandler.removeCallbacks(sessionTimeoutRunnable);
-            sessionTimeoutRunnable = null;
-        }
-
-        List<String> keys = getActiveCameraKeys();
-
-        if (!isRecording) {
-            AppLog.w(TAG, "Not recording, but cleaning up anyway");
-            // 即使不在录制状态，也尝试清理录制器
-            for (String key : keys) {
-                VideoRecorder recorder = recorders.get(key);
-                if (recorder != null) {
-                    recorder.release();
-                }
-                CodecVideoRecorder codecRecorder = codecRecorders.get(key);
-                if (codecRecorder != null) {
-                    codecRecorder.release();
-                }
-            }
-            codecRecorders.clear();
-            return;
-        }
-
-        // 停止软编码录制
-        if (!codecRecorders.isEmpty()) {
-            AppLog.d(TAG, "Stopping codec recorders...");
-            for (String key : keys) {
-                CodecVideoRecorder codecRecorder = codecRecorders.get(key);
-                if (codecRecorder != null && codecRecorder.isRecording()) {
-                    codecRecorder.stopRecording();
-                }
-            }
-            // 释放软编码录制器
-            for (CodecVideoRecorder recorder : codecRecorders.values()) {
-                recorder.release();
-            }
-            codecRecorders.clear();
-        }
-
-        // 停止 MediaRecorder 录制
-        for (String key : keys) {
-            VideoRecorder recorder = recorders.get(key);
-            if (recorder != null && recorder.isRecording()) {
-                recorder.stopRecording();
-            }
-        }
-
-        // 清理摄像头会话
-        for (String key : keys) {
-            SingleCamera camera = cameras.get(key);
-            if (camera != null) {
-                camera.clearRecordSurface();
-                camera.recreateSession();
-            }
-        }
-
-        // 如果使用中转写入，将临时目录中的所有文件传输到最终目录
-        // 如果 skipRelayTransfer=true（远程录制），则跳过自动传输，由上传逻辑负责传输
-        if (useRelayWrite && finalSaveDir != null && !skipRelayTransfer) {
-            AppLog.d(TAG, "Scheduling relay transfer for remaining files...");
-            // 保存引用，因为 finalSaveDir 会在延迟执行前被清空
-            final File savedFinalDir = finalSaveDir;
-            
-            // 【重要】立即收集当前需要传输的文件列表，避免延迟执行时误传输新创建的文件
-            File tempDir = new File(context.getCacheDir(), FileTransferManager.TEMP_VIDEO_DIR);
-            final File[] filesToTransfer;
-            if (tempDir.exists()) {
-                filesToTransfer = tempDir.listFiles((dir, name) -> name.endsWith(".mp4"));
-            } else {
-                filesToTransfer = null;
-            }
-            
-            // 延迟一点执行，确保文件已经写入完成
-            mainHandler.postDelayed(() -> {
-                transferSpecificTempFiles(savedFinalDir, filesToTransfer);
-            }, 500);
-        } else if (useRelayWrite && skipRelayTransfer) {
-            AppLog.d(TAG, "Skipping relay transfer (will be handled after upload)");
-        }
-
+        // 立即标记停止状态，防止新的录制请求
+        final boolean wasRecording = isRecording;
         isRecording = false;
-        useRelayWrite = false;
+
+        // 在后台线程执行停止操作，避免阻塞主线程
+        new Thread(() -> {
+            try {
+                // 清理待处理的录制启动任务和会话计数器（线程安全处理）
+                synchronized (sessionLock) {
+                    if (pendingRecordingStart != null) {
+                        AppLog.d(TAG, "Cancelling pending recording start");
+                        pendingRecordingStart = null;
+                    }
+
+                    // 重置会话计数器
+                    sessionConfiguredCount = 0;
+                    expectedSessionCount = 0;
+                }
+
+                // 清理超时任务
+                if (sessionTimeoutRunnable != null) {
+                    mainHandler.removeCallbacks(sessionTimeoutRunnable);
+                    sessionTimeoutRunnable = null;
+                }
+
+                List<String> keys = getActiveCameraKeys();
+
+                if (!wasRecording) {
+                    AppLog.w(TAG, "Not recording, but cleaning up anyway");
+                    // 即使不在录制状态，也尝试清理录制器
+                    for (String key : keys) {
+                        try {
+                            VideoRecorder recorder = recorders.get(key);
+                            if (recorder != null) {
+                                recorder.release();
+                            }
+                        } catch (Exception e) {
+                            AppLog.e(TAG, "Error releasing recorder for " + key, e);
+                        }
+                        try {
+                            CodecVideoRecorder codecRecorder = codecRecorders.get(key);
+                            if (codecRecorder != null) {
+                                codecRecorder.release();
+                            }
+                        } catch (Exception e) {
+                            AppLog.e(TAG, "Error releasing codec recorder for " + key, e);
+                        }
+                    }
+                    codecRecorders.clear();
+                    return;
+                }
+
+                // 停止软编码录制（带超时保护）
+                if (!codecRecorders.isEmpty()) {
+                    AppLog.d(TAG, "Stopping codec recorders...");
+                    for (String key : keys) {
+                        try {
+                            CodecVideoRecorder codecRecorder = codecRecorders.get(key);
+                            if (codecRecorder != null && codecRecorder.isRecording()) {
+                                codecRecorder.stopRecording();
+                            }
+                        } catch (Exception e) {
+                            AppLog.e(TAG, "Error stopping codec recorder for " + key, e);
+                        }
+                    }
+                    // 释放软编码录制器
+                    for (CodecVideoRecorder recorder : new ArrayList<>(codecRecorders.values())) {
+                        try {
+                            recorder.release();
+                        } catch (Exception e) {
+                            AppLog.e(TAG, "Error releasing codec recorder", e);
+                        }
+                    }
+                    codecRecorders.clear();
+                }
+
+                // 停止 MediaRecorder 录制（带超时保护）
+                for (String key : keys) {
+                    try {
+                        VideoRecorder recorder = recorders.get(key);
+                        if (recorder != null && recorder.isRecording()) {
+                            recorder.stopRecording();
+                        }
+                    } catch (Exception e) {
+                        AppLog.e(TAG, "Error stopping recorder for " + key, e);
+                    }
+                }
+
+                // 在主线程清理摄像头会话（使用短延迟确保录制器已完全停止）
+                mainHandler.postDelayed(() -> {
+                    for (String key : keys) {
+                        try {
+                            SingleCamera camera = cameras.get(key);
+                            if (camera != null) {
+                                camera.clearRecordSurface();
+                                camera.recreateSession();
+                            }
+                        } catch (Exception e) {
+                            AppLog.e(TAG, "Error clearing record surface for " + key, e);
+                        }
+                    }
+                }, 100);
+
+                // 如果使用中转写入，将临时目录中的所有文件传输到最终目录
+                if (useRelayWrite && finalSaveDir != null && !skipRelayTransfer) {
+                    AppLog.d(TAG, "Scheduling relay transfer for remaining files...");
+                    final File savedFinalDir = finalSaveDir;
+                    
+                    File tempDir = new File(context.getCacheDir(), FileTransferManager.TEMP_VIDEO_DIR);
+                    final File[] filesToTransfer;
+                    if (tempDir.exists()) {
+                        filesToTransfer = tempDir.listFiles((dir, name) -> name.endsWith(".mp4"));
+                    } else {
+                        filesToTransfer = null;
+                    }
+                    
+                    mainHandler.postDelayed(() -> {
+                        transferSpecificTempFiles(savedFinalDir, filesToTransfer);
+                    }, 500);
+                }
+
+                useRelayWrite = false;
+                AppLog.d(TAG, "stopRecording completed successfully");
+            } catch (Exception e) {
+                AppLog.e(TAG, "Error in stopRecording", e);
+            }
+        }, "StopRecording-" + System.currentTimeMillis()).start();
         finalSaveDir = null;
         
         // 清理 Watchdog 回退状态
@@ -1793,6 +2007,10 @@ public class MultiCameraManager {
         }
         
         File[] files = tempDir.listFiles((dir, name) -> name.endsWith(".mp4"));
+        
+        // 确保 FileTransferManager 已启动
+        FileTransferManager.getInstance(context).start();
+        
         transferSpecificTempFiles(targetDir, files);
     }
     
@@ -1816,6 +2034,9 @@ public class MultiCameraManager {
         AppLog.d(TAG, "Transferring " + files.length + " temp file(s) to " + targetDir.getAbsolutePath());
         
         FileTransferManager transferManager = FileTransferManager.getInstance(context);
+        
+        // 确保 FileTransferManager 已启动（如果从后台服务录制，可能未启动）
+        transferManager.start();
         
         for (File tempFile : files) {
             // 检查文件是否仍然存在（可能已经被删除或移动）

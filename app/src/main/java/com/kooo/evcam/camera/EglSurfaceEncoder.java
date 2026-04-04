@@ -154,6 +154,25 @@ public class EglSurfaceEncoder {
     private static final int WATERMARK_WIDTH = 400;   // 水印纹理宽度（需容纳19字符的时间戳）
     private static final int WATERMARK_HEIGHT = 44;   // 水印纹理高度
     private final SimpleDateFormat watermarkDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+    
+    // 性能优化：水印更新控制
+    private long lastWatermarkUpdateMs = 0;
+    private static final long WATERMARK_UPDATE_INTERVAL_MS = 1000; // 每秒更新一次水印
+    
+    // 性能优化：跳帧控制（仅用于录制编码，不影响预览质量）
+    private int frameSkipCounter = 0;
+    private static final int FRAME_SKIP_THRESHOLD = 2; // 每3帧渲染1次（当CPU高负载时）
+    private boolean enableFrameSkip = false; // 默认不跳帧
+    
+    // 性能优化：异步渲染支持
+    private volatile boolean hasPendingFrame = false; // 是否有待处理的帧
+    private final Object frameLock = new Object(); // 帧处理锁
+    private volatile long lastFrameTimeNs = 0; // 上一帧时间戳
+    private static final long MIN_FRAME_INTERVAL_NS = 33_000_000L; // 最小帧间隔约30fps（防止过度渲染）
+    
+    // 性能优化：复用缓冲区，减少GC
+    private final float[] tempMatrix = new float[16];
+    private long frameCount = 0;
 
     public EglSurfaceEncoder(String cameraId, int width, int height) {
         this.cameraId = cameraId;
@@ -226,6 +245,23 @@ public class EglSurfaceEncoder {
     }
 
     /**
+     * 设置是否启用跳帧（用于降低CPU占用）
+     * @param enabled true 表示启用跳帧
+     */
+    public void setFrameSkipEnabled(boolean enabled) {
+        this.enableFrameSkip = enabled;
+        this.frameSkipCounter = 0;
+        AppLog.d(TAG, "Camera " + cameraId + " Frame skip " + (enabled ? "enabled" : "disabled"));
+    }
+
+    /**
+     * 检查是否启用了跳帧
+     */
+    public boolean isFrameSkipEnabled() {
+        return enableFrameSkip;
+    }
+
+    /**
      * 渲染一帧到输出 Surface
      * 应该在 SurfaceTexture.onFrameAvailable 回调中调用
      * @param presentationTimeNs 帧的呈现时间（纳秒）
@@ -240,6 +276,35 @@ public class EglSurfaceEncoder {
             return;
         }
 
+        // 性能优化：帧率控制，防止过度渲染占用CPU
+        long currentTimeNs = System.nanoTime();
+        if (currentTimeNs - lastFrameTimeNs < MIN_FRAME_INTERVAL_NS) {
+            // 帧间隔太短，跳过渲染但消费帧
+            try {
+                makeCurrent();
+                inputSurfaceTexture.updateTexImage();
+            } catch (Exception e) {
+                // 忽略
+            }
+            return;
+        }
+
+        // 性能优化：跳帧控制（当启用时，每3帧渲染1次）
+        if (enableFrameSkip) {
+            frameSkipCounter++;
+            if (frameSkipCounter < FRAME_SKIP_THRESHOLD) {
+                // 跳过渲染，但更新时间戳
+                try {
+                    makeCurrent();
+                    inputSurfaceTexture.updateTexImage();
+                } catch (Exception e) {
+                    // 忽略
+                }
+                return;
+            }
+            frameSkipCounter = 0;
+        }
+
         try {
             // 首先绑定 EGL context（必须在 updateTexImage 之前）
             makeCurrent();
@@ -247,6 +312,7 @@ public class EglSurfaceEncoder {
             // 更新纹理（需要在正确的 EGL context 中）
             inputSurfaceTexture.updateTexImage();
             inputSurfaceTexture.getTransformMatrix(texMatrix);
+            lastFrameTimeNs = currentTimeNs;
 
             // 设置视口
             GLES20.glViewport(0, 0, width, height);
@@ -304,12 +370,20 @@ public class EglSurfaceEncoder {
         GLES20.glDisableVertexAttribArray(texCoordHandle);
     }
 
+    // 性能优化：缓存水印位置（只需计算一次）
+    private float watermarkX, watermarkY, watermarkW, watermarkH;
+    private boolean watermarkPositionCached = false;
+    
     /**
-     * 带水印渲染
+     * 带水印渲染（优化版）
      */
     private void drawFrameWithWatermark() {
-        // 更新水印位图（如果时间变化了）
-        updateWatermarkBitmap();
+        // 性能优化：控制水印更新频率（每秒最多更新一次）
+        long currentTimeMs = System.currentTimeMillis();
+        if (currentTimeMs - lastWatermarkUpdateMs >= WATERMARK_UPDATE_INTERVAL_MS) {
+            updateWatermarkBitmap();
+            lastWatermarkUpdateMs = currentTimeMs;
+        }
 
         // 使用水印着色器程序
         GLES20.glUseProgram(watermarkProgram);
@@ -329,11 +403,14 @@ public class EglSurfaceEncoder {
         GLES20.glUniformMatrix4fv(watermarkMvpMatrixHandle, 1, false, mvpMatrix, 0);
         GLES20.glUniformMatrix4fv(watermarkTexMatrixHandle, 1, false, texMatrix, 0);
 
-        // 设置水印位置和大小（归一化坐标，右上角）
-        float watermarkW = (float) WATERMARK_WIDTH / width;   // 水印宽度占比
-        float watermarkH = (float) WATERMARK_HEIGHT / height; // 水印高度占比
-        float watermarkX = 1.0f - watermarkW - 0.01f;  // 右边距 1%
-        float watermarkY = 0.01f;  // 上边距 1%
+        // 性能优化：缓存水印位置计算结果
+        if (!watermarkPositionCached) {
+            watermarkW = (float) WATERMARK_WIDTH / width;   // 水印宽度占比
+            watermarkH = (float) WATERMARK_HEIGHT / height; // 水印高度占比
+            watermarkX = 1.0f - watermarkW - 0.01f;  // 右边距 1%
+            watermarkY = 0.01f;  // 上边距 1%
+            watermarkPositionCached = true;
+        }
         GLES20.glUniform4f(watermarkRectHandle, watermarkX, watermarkY, watermarkW, watermarkH);
 
         // 设置顶点属性
@@ -431,51 +508,87 @@ public class EglSurfaceEncoder {
         isReleased = true;
         isInitialized = false;
 
-        // 释放 OpenGL 资源
-        if (program != 0) {
-            GLES20.glDeleteProgram(program);
-            program = 0;
-        }
-
-        if (textureId != 0) {
-            int[] textures = {textureId};
-            GLES20.glDeleteTextures(1, textures, 0);
-            textureId = 0;
-        }
-
-        // 释放水印相关资源
-        if (watermarkProgram != 0) {
-            GLES20.glDeleteProgram(watermarkProgram);
-            watermarkProgram = 0;
-        }
-
-        if (watermarkTextureId != 0) {
-            int[] textures = {watermarkTextureId};
-            GLES20.glDeleteTextures(1, textures, 0);
-            watermarkTextureId = 0;
-        }
-
-        if (watermarkBitmap != null) {
-            watermarkBitmap.recycle();
-            watermarkBitmap = null;
-        }
-
-        // 释放 EGL 资源
-        if (eglDisplay != EGL14.EGL_NO_DISPLAY) {
-            EGL14.eglMakeCurrent(eglDisplay, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT);
-
-            if (eglSurface != EGL14.EGL_NO_SURFACE) {
-                EGL14.eglDestroySurface(eglDisplay, eglSurface);
-                eglSurface = EGL14.EGL_NO_SURFACE;
+        try {
+            // 释放 OpenGL 资源
+            if (program != 0) {
+                try {
+                    GLES20.glDeleteProgram(program);
+                } catch (Exception e) {
+                    AppLog.w(TAG, "Camera " + cameraId + " Error deleting program: " + e.getMessage());
+                }
+                program = 0;
             }
 
-            if (eglContext != EGL14.EGL_NO_CONTEXT) {
-                EGL14.eglDestroyContext(eglDisplay, eglContext);
-                eglContext = EGL14.EGL_NO_CONTEXT;
+            if (textureId != 0) {
+                try {
+                    int[] textures = {textureId};
+                    GLES20.glDeleteTextures(1, textures, 0);
+                } catch (Exception e) {
+                    AppLog.w(TAG, "Camera " + cameraId + " Error deleting texture: " + e.getMessage());
+                }
+                textureId = 0;
             }
 
-            EGL14.eglTerminate(eglDisplay);
-            eglDisplay = EGL14.EGL_NO_DISPLAY;
+            // 释放水印相关资源
+            if (watermarkProgram != 0) {
+                try {
+                    GLES20.glDeleteProgram(watermarkProgram);
+                } catch (Exception e) {
+                    AppLog.w(TAG, "Camera " + cameraId + " Error deleting watermark program: " + e.getMessage());
+                }
+                watermarkProgram = 0;
+            }
+
+            if (watermarkTextureId != 0) {
+                try {
+                    int[] textures = {watermarkTextureId};
+                    GLES20.glDeleteTextures(1, textures, 0);
+                } catch (Exception e) {
+                    AppLog.w(TAG, "Camera " + cameraId + " Error deleting watermark texture: " + e.getMessage());
+                }
+                watermarkTextureId = 0;
+            }
+
+            if (watermarkBitmap != null) {
+                watermarkBitmap.recycle();
+                watermarkBitmap = null;
+            }
+
+            // 释放 EGL 资源
+            if (eglDisplay != EGL14.EGL_NO_DISPLAY) {
+                try {
+                    EGL14.eglMakeCurrent(eglDisplay, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT);
+                } catch (Exception e) {
+                    AppLog.w(TAG, "Camera " + cameraId + " Error making EGL no current: " + e.getMessage());
+                }
+
+                if (eglSurface != EGL14.EGL_NO_SURFACE) {
+                    try {
+                        EGL14.eglDestroySurface(eglDisplay, eglSurface);
+                    } catch (Exception e) {
+                        AppLog.w(TAG, "Camera " + cameraId + " Error destroying EGL surface: " + e.getMessage());
+                    }
+                    eglSurface = EGL14.EGL_NO_SURFACE;
+                }
+
+                if (eglContext != EGL14.EGL_NO_CONTEXT) {
+                    try {
+                        EGL14.eglDestroyContext(eglDisplay, eglContext);
+                    } catch (Exception e) {
+                        AppLog.w(TAG, "Camera " + cameraId + " Error destroying EGL context: " + e.getMessage());
+                    }
+                    eglContext = EGL14.EGL_NO_CONTEXT;
+                }
+
+                try {
+                    EGL14.eglTerminate(eglDisplay);
+                } catch (Exception e) {
+                    AppLog.w(TAG, "Camera " + cameraId + " Error terminating EGL: " + e.getMessage());
+                }
+                eglDisplay = EGL14.EGL_NO_DISPLAY;
+            }
+        } catch (Exception e) {
+            AppLog.e(TAG, "Camera " + cameraId + " Error during release", e);
         }
 
         inputSurfaceTexture = null;

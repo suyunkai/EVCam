@@ -4,9 +4,11 @@ import android.app.ActivityManager;
 import android.app.Service;
 import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.PixelFormat;
 import android.hardware.display.DisplayManager;
 import android.os.Build;
@@ -56,12 +58,29 @@ public class BlindSpotService extends Service {
     private boolean isMainTempShown = false; // 是否为主屏临时显示
     private boolean isSecondaryAdjustMode = false;
     private int secondaryAttachedDisplayId = -1;
+    
+    // 超视模式双悬浮窗
+    private BlindSpotFloatingWindowView supervisionLeftWindow;  // 左视悬浮窗
+    private BlindSpotFloatingWindowView supervisionRightWindow; // 右视悬浮窗
+    private boolean isSupervisionModeActive = false; // 超视模式是否激活
+    private boolean wasSupervisionModeActiveBeforeDoor = false; // 车门打开前超视模式是否激活（用于恢复）
+    
+    // 长视模式双悬浮窗（转向灯触发）
+    private BlindSpotFloatingWindowView longViewLeftWindow;  // 长视模式左悬浮窗
+    private BlindSpotFloatingWindowView longViewRightWindow; // 长视模式右悬浮窗
+    private boolean isLongViewModeActive = false; // 长视模式是否激活
+    
+    // 预创建的补盲窗口池（用于快速显示）
+    private BlindSpotFloatingWindowView preCreatedLeftWindow;  // 预创建的左窗口
+    private BlindSpotFloatingWindowView preCreatedRightWindow; // 预创建的右窗口
+    private boolean isPreCreatedWindowsReady = false; // 预创建窗口是否已准备好
 
     private LogcatSignalObserver logcatSignalObserver;
     private VhalSignalObserver vhalSignalObserver;
     private CarSignalManagerObserver carSignalManagerObserver;
     private DoorSignalObserver doorSignalObserver; // 车门联动观察者
     private final Handler hideHandler = new Handler(Looper.getMainLooper());
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private Runnable hideRunnable;
     private Runnable signalKeepAliveRunnable; // 信号保活计时器（debounce）
     private static final long SIGNAL_KEEPALIVE_MS = 1200; // 1.2秒无信号视为转向灯已关闭（约3个闪烁周期）
@@ -92,7 +111,7 @@ public class BlindSpotService extends Service {
     }
 
     /**
-     * 检查是否有活跃的摄像头悬浮窗（补盲悬浮窗、常驻悬浮窗、副屏）正在使用摄像头。
+     * 检查是否有活跃的摄像头悬浮窗（补盲悬浮窗、常驻悬浮窗、副屏、超视模式、长视模式）正在使用摄像头。
      * 用于 MainActivity.onPause() 判断是否应该保持摄像头连接。
      */
     public static boolean hasActiveCameraWindows() {
@@ -100,7 +119,25 @@ public class BlindSpotService extends Service {
         if (inst == null) return false;
         return inst.mainFloatingWindowView != null
                 || inst.secondaryFloatingView != null
-                || inst.dedicatedBlindSpotWindow != null;
+                || inst.dedicatedBlindSpotWindow != null
+                || inst.supervisionLeftWindow != null
+                || inst.supervisionRightWindow != null
+                || inst.longViewLeftWindow != null
+                || inst.longViewRightWindow != null;
+    }
+
+    /**
+     * 重新启动超视模式窗口的摄像头预览（用于应用从后台返回前台时）
+     */
+    public static void restartSupervisionCameraPreview() {
+        BlindSpotService inst = sInstance;
+        if (inst == null) return;
+        if (inst.supervisionLeftWindow != null) {
+            inst.supervisionLeftWindow.restartCameraPreview();
+        }
+        if (inst.supervisionRightWindow != null) {
+            inst.supervisionRightWindow.restartCameraPreview();
+        }
     }
 
     // 定制键唤醒
@@ -109,6 +146,8 @@ public class BlindSpotService extends Service {
     private WindowManager mockControlWindowManager;
     private View mockControlView;
     private WindowManager.LayoutParams mockControlParams;
+
+    private BroadcastReceiver supervisionModeReceiver;
 
     @Override
     public void onCreate() {
@@ -119,6 +158,84 @@ public class BlindSpotService extends Service {
         initSignalObserver();
         initAvmAvoidance();
         initCustomKeyWakeup();
+        initSupervisionModeReceiver();
+        
+        // 预创建补盲窗口（在后台线程中）
+        preCreateBlindSpotWindows();
+    }
+    
+    /**
+     * 预创建补盲窗口，用于快速显示
+     * 在服务启动时后台创建窗口，避免转向灯触发时再创建导致的延迟
+     */
+    private void preCreateBlindSpotWindows() {
+        if (!appConfig.isTurnSignalLinkageEnabled() && !appConfig.isLongViewModeEnabled()) {
+            AppLog.d(TAG, "转向灯联动和长视模式都未启用，跳过预创建窗口");
+            return;
+        }
+        
+        // 在后台线程预创建窗口
+        new Thread(() -> {
+            try {
+                Thread.sleep(2000); // 延迟2秒，等待服务完全启动
+                
+                if (!WakeUpHelper.hasOverlayPermission(this)) {
+                    AppLog.d(TAG, "无悬浮窗权限，跳过预创建窗口");
+                    return;
+                }
+                
+                mainHandler.post(() -> {
+                    try {
+                        // 预创建左窗口
+                        if (preCreatedLeftWindow == null) {
+                            preCreatedLeftWindow = new BlindSpotFloatingWindowView(this, false);
+                            preCreatedLeftWindow.setCameraPos("left");
+                            AppLog.d(TAG, "✅ 预创建左补盲窗口完成");
+                        }
+                        
+                        // 预创建右窗口
+                        if (preCreatedRightWindow == null) {
+                            preCreatedRightWindow = new BlindSpotFloatingWindowView(this, false);
+                            preCreatedRightWindow.setCameraPos("right");
+                            AppLog.d(TAG, "✅ 预创建右补盲窗口完成");
+                        }
+                        
+                        isPreCreatedWindowsReady = true;
+                        AppLog.i(TAG, "✅ 补盲窗口预创建完成，准备就绪");
+                    } catch (Exception e) {
+                        AppLog.e(TAG, "预创建补盲窗口失败: " + e.getMessage());
+                    }
+                });
+            } catch (InterruptedException e) {
+                AppLog.e(TAG, "预创建窗口线程被中断");
+            }
+        }, "PreCreateBlindSpotWindows").start();
+    }
+
+    private void initSupervisionModeReceiver() {
+        supervisionModeReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                AppLog.i(TAG, "🎯 收到广播: " + intent.getAction());
+                if ("com.kooo.evcam.SUPERVISION_MODE_CHANGED".equals(intent.getAction())) {
+                    boolean enabled = intent.getBooleanExtra("enabled", false);
+                    AppLog.i(TAG, "🎯 超视模式广播 received, enabled=" + enabled + ", current=" + isSupervisionModeActive);
+                    if (enabled) {
+                        startSupervisionMode();
+                    } else {
+                        stopSupervisionMode();
+                    }
+                }
+            }
+        };
+        IntentFilter filter = new IntentFilter("com.kooo.evcam.SUPERVISION_MODE_CHANGED");
+        // 使用RECEIVER_EXPORTED标志，允许应用内部发送的广播被接收
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(supervisionModeReceiver, filter, Context.RECEIVER_EXPORTED);
+        } else {
+            registerReceiver(supervisionModeReceiver, filter);
+        }
+        AppLog.i(TAG, "🎯 超视模式广播接收器已注册 (EXPORTED)");
     }
 
     private void initSignalObserver() {
@@ -366,6 +483,16 @@ public class BlindSpotService extends Service {
         }
 
         AppLog.i(TAG, "🚪 ✅ 车门打开: " + side + "，准备显示摄像头");
+
+        // 如果超视模式激活，保存状态并关闭它
+        if (isSupervisionModeActive) {
+            AppLog.i(TAG, "🚪 超视模式激活中，保存状态并关闭，显示车门补盲");
+            wasSupervisionModeActiveBeforeDoor = true;
+            stopSupervisionMode();
+        } else {
+            wasSupervisionModeActiveBeforeDoor = false;
+        }
+
         showDoorCamera(side);
     }
 
@@ -474,6 +601,12 @@ public class BlindSpotService extends Service {
             return;
         }
 
+        // 超视模式激活时，不显示转向灯补盲窗口（避免干扰超视模式）
+        if (isSupervisionModeActive) {
+            AppLog.d(TAG, "超视模式激活中，忽略转向灯信号: " + cameraPos);
+            return;
+        }
+
         AppLog.i(TAG, "🚦 转向灯触发摄像头: " + cameraPos);
         
         // 如果车门联动窗口在显示，先关闭（转向灯优先级更高）
@@ -565,6 +698,14 @@ public class BlindSpotService extends Service {
             dedicatedBlindSpotWindow.setCamera(cameraPos);
         }
 
+        // 显示转向箭头
+        if (dedicatedBlindSpotWindow != null) {
+            dedicatedBlindSpotWindow.showTurnSignalArrow(cameraPos);
+        }
+        if (mainFloatingWindowView != null) {
+            mainFloatingWindowView.showTurnSignalArrow(cameraPos);
+        }
+
         // 副屏摄像头预览
         if (appConfig.isSecondaryDisplayEnabled()) {
             startSecondaryCameraPreviewDirectly(cameraPos);
@@ -572,6 +713,18 @@ public class BlindSpotService extends Service {
     }
 
     private void handleTurnSignal(String cameraPos) {
+        // 超视模式激活时，不响应转向灯触发的补盲画面
+        if (isSupervisionModeActive) {
+            AppLog.d(TAG, "超视模式激活中，忽略转向灯信号: " + cameraPos);
+            return;
+        }
+        
+        // 长视模式启用时，显示左右双画面
+        if (appConfig.isLongViewModeEnabled()) {
+            handleLongViewModeTurnSignal();
+            return;
+        }
+        
         // 取消隐藏计时器
         if (hideRunnable != null) {
             hideHandler.removeCallbacks(hideRunnable);
@@ -623,11 +776,31 @@ public class BlindSpotService extends Service {
                     dedicatedBlindSpotWindow.dismiss();
                     dedicatedBlindSpotWindow = null;
                 }
-                dedicatedBlindSpotWindow = new BlindSpotFloatingWindowView(this, false);
-                dedicatedBlindSpotWindow.setCameraPos(cameraPos); // 先设置摄像头位置，再 show
+                
+                // 优先使用预创建的窗口
+                if (cameraPos.equals("left") && preCreatedLeftWindow != null) {
+                    dedicatedBlindSpotWindow = preCreatedLeftWindow;
+                    preCreatedLeftWindow = null; // 清空引用，下次需要时重新预创建
+                    AppLog.d(TAG, "✅ 使用预创建的左补盲窗口");
+                } else if (cameraPos.equals("right") && preCreatedRightWindow != null) {
+                    dedicatedBlindSpotWindow = preCreatedRightWindow;
+                    preCreatedRightWindow = null; // 清空引用，下次需要时重新预创建
+                    AppLog.d(TAG, "✅ 使用预创建的右补盲窗口");
+                } else {
+                    // 没有预创建窗口，新建一个
+                    dedicatedBlindSpotWindow = new BlindSpotFloatingWindowView(this, false);
+                    dedicatedBlindSpotWindow.setCameraPos(cameraPos);
+                    AppLog.d(TAG, "⚠️ 未使用预创建窗口，新建窗口");
+                }
+                
                 dedicatedBlindSpotWindow.show();
                 dedicatedBlindSpotWindow.updateStatusLabel(cameraPos);
                 // setCamera 需要 CameraManager，延后到初始化之后调用
+                
+                // 异步重新预创建窗口（为下次做准备）
+                if (!isPreCreatedWindowsReady || preCreatedLeftWindow == null || preCreatedRightWindow == null) {
+                    preCreateBlindSpotWindows();
+                }
             }
         } else {
             AppLog.d(TAG, "全景影像避让中，跳过主屏窗口创建，副屏正常处理: " + cameraPos);
@@ -648,27 +821,156 @@ public class BlindSpotService extends Service {
         // 确保摄像头已初始化（通过全局 Holder，不依赖 MainActivity）
         com.kooo.evcam.camera.CameraManagerHolder.getInstance().getOrInit(this);
 
-        // --- 3. 提前打开相机（与 Surface 创建并行，节省 ~20-60ms） ---
+        // --- 3. 立即打开相机（不等待服务就绪，进一步减少延迟） ---
         {
             MultiCameraManager cm = com.kooo.evcam.camera.CameraManagerHolder.getInstance().getCameraManager();
             if (cm != null) {
                 SingleCamera cam = cm.getCamera(cameraPos);
                 if (cam != null && !cam.isCameraOpened()) {
-                    CameraForegroundService.whenReady(this, cam::openCameraDeferred);
+                    // 直接打开相机，不等待服务就绪回调，减少延迟
+                    cam.openCameraDeferred();
+                    AppLog.d(TAG, "📷 立即打开相机: " + cameraPos);
+                } else if (cam != null && cam.isCameraOpened()) {
+                    AppLog.d(TAG, "📷 相机已打开: " + cameraPos);
                 }
             }
         }
 
         // --- 4. 需要 CameraManager 的操作 ---
         // dedicatedBlindSpotWindow.setCamera() 需要 CameraManager 获取 previewSize
+        // 延迟执行，确保 Surface 已创建
         if (!isAvmAvoidanceActive && !reuseMain && dedicatedBlindSpotWindow != null) {
-            dedicatedBlindSpotWindow.setCamera(cameraPos);
+            // 使用更短的延迟，加快显示速度
+            mainHandler.postDelayed(() -> {
+                if (dedicatedBlindSpotWindow != null) {
+                    dedicatedBlindSpotWindow.setCamera(cameraPos);
+                    AppLog.d(TAG, "📷 绑定相机到窗口: " + cameraPos);
+                }
+            }, 50);
+        }
+
+        // 显示转向箭头
+        if (dedicatedBlindSpotWindow != null) {
+            dedicatedBlindSpotWindow.showTurnSignalArrow(cameraPos);
+        }
+        if (mainFloatingWindowView != null) {
+            mainFloatingWindowView.showTurnSignalArrow(cameraPos);
         }
 
         // --- 副屏摄像头预览 ---
         if (appConfig.isSecondaryDisplayEnabled()) {
             startSecondaryCameraPreviewDirectly(cameraPos);
         }
+    }
+    
+    /**
+     * 处理长视模式的转向灯信号
+     * 同时显示左右两个补盲画面
+     */
+    private void handleLongViewModeTurnSignal() {
+        AppLog.i(TAG, "🎯 长视模式：打转向灯，显示左右双画面");
+        
+        // 取消隐藏计时器
+        if (hideRunnable != null) {
+            hideHandler.removeCallbacks(hideRunnable);
+            hideRunnable = null;
+        }
+        
+        // 重置信号保活计时器
+        resetSignalKeepAlive();
+        
+        // 如果已经在长视模式，不重复创建
+        if (isLongViewModeActive) {
+            AppLog.d(TAG, "长视模式已在运行中，不重复创建");
+            return;
+        }
+        
+        isLongViewModeActive = true;
+        currentSignalCamera = "long_view"; // 标记为长视模式
+        
+        // 关闭其他可能冲突的窗口
+        if (dedicatedBlindSpotWindow != null) {
+            dedicatedBlindSpotWindow.dismiss();
+            dedicatedBlindSpotWindow = null;
+        }
+        if (mainFloatingWindowView != null) {
+            mainFloatingWindowView.dismiss();
+            mainFloatingWindowView = null;
+            isMainTempShown = false;
+        }
+        
+        // 创建左视悬浮窗（使用超视模式的配置）
+        if (longViewLeftWindow == null) {
+            longViewLeftWindow = new BlindSpotFloatingWindowView(this, false);
+            longViewLeftWindow.setCameraPos("left");
+            longViewLeftWindow.show();
+            longViewLeftWindow.setCamera("left");
+            longViewLeftWindow.updateStatusLabel("left");
+            // 确保使用超视模式的配置重新加载位置和大小
+            longViewLeftWindow.reloadSupervisionBoundsForCameraPos();
+        }
+        
+        // 创建右视悬浮窗（使用超视模式的配置）
+        if (longViewRightWindow == null) {
+            longViewRightWindow = new BlindSpotFloatingWindowView(this, false);
+            longViewRightWindow.setCameraPos("right");
+            longViewRightWindow.show();
+            longViewRightWindow.setCamera("right");
+            longViewRightWindow.updateStatusLabel("right");
+            // 确保使用超视模式的配置重新加载位置和大小
+            longViewRightWindow.reloadSupervisionBoundsForCameraPos();
+        }
+        
+        // 启动前台服务
+        CameraForegroundService.start(this, "长视模式运行中", "正在显示左右补盲画面");
+        
+        // 确保摄像头已初始化
+        com.kooo.evcam.camera.CameraManagerHolder.getInstance().getOrInit(this);
+        
+        // 提前打开左右相机
+        MultiCameraManager cm = com.kooo.evcam.camera.CameraManagerHolder.getInstance().getCameraManager();
+        if (cm != null) {
+            SingleCamera leftCam = cm.getCamera("left");
+            SingleCamera rightCam = cm.getCamera("right");
+            if (leftCam != null && !leftCam.isCameraOpened()) {
+                CameraForegroundService.whenReady(this, leftCam::openCameraDeferred);
+            }
+            if (rightCam != null && !rightCam.isCameraOpened()) {
+                CameraForegroundService.whenReady(this, rightCam::openCameraDeferred);
+            }
+        }
+        
+        AppLog.i(TAG, "🎯 长视模式已启动 - 左右双画面");
+    }
+    
+    /**
+     * 停止长视模式
+     */
+    private void stopLongViewMode() {
+        if (!isLongViewModeActive) {
+            return;
+        }
+        
+        AppLog.i(TAG, "🎯 停止长视模式");
+        isLongViewModeActive = false;
+        currentSignalCamera = null;
+        
+        if (longViewLeftWindow != null) {
+            longViewLeftWindow.dismiss();
+            longViewLeftWindow = null;
+        }
+        
+        if (longViewRightWindow != null) {
+            longViewRightWindow.dismiss();
+            longViewRightWindow = null;
+        }
+        
+        // 恢复主屏悬浮窗（如果配置启用）
+        if (appConfig.isMainFloatingEnabled()) {
+            updateMainFloatingWindow();
+        }
+        
+        AppLog.i(TAG, "🎯 长视模式已停止");
     }
 
     private void startSecondaryCameraPreviewDirectly(String cameraPos) {
@@ -852,6 +1154,14 @@ public class BlindSpotService extends Service {
 
         hideRunnable = () -> {
             AppLog.i(TAG, "🚦 ⏰ 转向灯超时(" + timeout + "秒)，隐藏补盲画面");
+            
+            // 长视模式激活时，停止长视模式
+            if (isLongViewModeActive) {
+                stopLongViewMode();
+                hideRunnable = null;
+                return;
+            }
+            
             currentSignalCamera = null;
             AppLog.i(TAG, "🚦 清除 currentSignalCamera，车门联动恢复可用");
             
@@ -866,19 +1176,25 @@ public class BlindSpotService extends Service {
 
             // 隐藏独立补盲窗
             if (dedicatedBlindSpotWindow != null) {
+                dedicatedBlindSpotWindow.hideTurnSignalArrow();
                 dedicatedBlindSpotWindow.dismiss();
                 dedicatedBlindSpotWindow = null;
-                
+
                 // 如果原本主屏悬浮窗就是开启的，补盲结束后需要恢复它
                 if (appConfig.isMainFloatingEnabled()) {
                     updateMainFloatingWindow();
                 }
             }
 
+            // 隐藏主屏悬浮窗的箭头
+            if (mainFloatingWindowView != null) {
+                mainFloatingWindowView.hideTurnSignalArrow();
+            }
+
             // --- 副屏显示恢复 ---
             updateSecondaryDisplay();
             hideRunnable = null;
-            
+
             // 补盲结束，如果没有持久 Surface 在用且 Activity 在后台，释放相机
             closeCamerasIfIdle();
         };
@@ -895,6 +1211,12 @@ public class BlindSpotService extends Service {
         // 全景影像避让：目标Activity在前台时不弹出补盲窗口
         if (isAvmAvoidanceActive) {
             AppLog.d(TAG, "全景影像避让中，忽略车门信号: " + side);
+            return;
+        }
+
+        // 超视模式激活时，不显示车门补盲窗口（避免干扰超视模式）
+        if (isSupervisionModeActive) {
+            AppLog.d(TAG, "超视模式激活中，忽略车门信号: " + side);
             return;
         }
 
@@ -1024,30 +1346,43 @@ public class BlindSpotService extends Service {
             
             // 隐藏独立补盲窗
             if (dedicatedBlindSpotWindow != null) {
+                dedicatedBlindSpotWindow.hideTurnSignalArrow();
                 dedicatedBlindSpotWindow.dismiss();
                 dedicatedBlindSpotWindow = null;
                 AppLog.i(TAG, "🚪 ✅ 独立补盲窗已关闭");
-                
+
                 // 如果原本主屏悬浮窗就是开启的，补盲结束后需要恢复它
                 if (appConfig.isMainFloatingEnabled()) {
                     updateMainFloatingWindow();
                 }
             }
-            
+
+            // 隐藏主屏悬浮窗的箭头
+            if (mainFloatingWindowView != null) {
+                mainFloatingWindowView.hideTurnSignalArrow();
+            }
+
             // 副屏显示恢复
             updateSecondaryDisplay();
             hideRunnable = null;
-            
+
+            // 如果车门打开前超视模式是激活的，恢复超视模式
+            if (wasSupervisionModeActiveBeforeDoor) {
+                AppLog.i(TAG, "🚪 恢复超视模式（车门打开前处于激活状态）");
+                wasSupervisionModeActiveBeforeDoor = false;
+                startSupervisionMode();
+            }
+
             // 补盲结束，如果没有持久 Surface 在用且 Activity 在后台，释放相机
             closeCamerasIfIdle();
         };
-        
+
         hideHandler.postDelayed(hideRunnable, timeout * 1000L);
     }
 
     /**
      * 补盲结束后，检查是否可以释放相机资源。
-     * 条件：Activity 在后台 且 没有持久悬浮窗/副屏在使用相机。
+     * 条件：Activity 在后台 且 没有持久悬浮窗/副屏/超视模式窗口在使用相机。
      */
     private void closeCamerasIfIdle() {
         if (isSelfInForeground) {
@@ -1055,6 +1390,11 @@ public class BlindSpotService extends Service {
         }
         if (mainFloatingWindowView != null || secondaryFloatingView != null) {
             return; // 仍有持久 Surface 在使用相机
+        }
+        // 超视模式激活时，保持相机连接
+        if (isSupervisionModeActive) {
+            AppLog.d(TAG, "超视模式激活中，保持相机连接");
+            return;
         }
         MultiCameraManager cameraManager = com.kooo.evcam.camera.CameraManagerHolder.getInstance().getCameraManager();
         if (cameraManager != null) {
@@ -1108,6 +1448,14 @@ public class BlindSpotService extends Service {
                 updateWindows();
                 return START_STICKY;
             }
+            if ("START_SUPERVISION_MODE".equals(intent.getAction())) {
+                startSupervisionMode();
+                return START_STICKY;
+            }
+            if ("STOP_SUPERVISION_MODE".equals(intent.getAction())) {
+                stopSupervisionMode();
+                return START_STICKY;
+            }
         }
         // 重新初始化新功能（设置变更时通过 update() 触发）
         appConfig = new AppConfig(this);
@@ -1145,7 +1493,126 @@ public class BlindSpotService extends Service {
         dedicatedBlindSpotWindow.show();
     }
 
+    /**
+     * 启动超视模式
+     * 同时显示左右两个补盲悬浮窗
+     */
+    private void startSupervisionMode() {
+        if (isSupervisionModeActive) {
+            AppLog.d(TAG, "超视模式已经在运行中");
+            return;
+        }
+
+        AppLog.i(TAG, "🎯 启动超视模式");
+        isSupervisionModeActive = true;
+
+        // 用户手动启动超视模式，重置车门恢复标志（避免自动恢复冲突）
+        if (wasSupervisionModeActiveBeforeDoor) {
+            AppLog.d(TAG, "🎯 用户手动启动超视模式，重置车门恢复标志");
+            wasSupervisionModeActiveBeforeDoor = false;
+        }
+        
+        // 关闭其他可能冲突的窗口
+        if (dedicatedBlindSpotWindow != null) {
+            dedicatedBlindSpotWindow.dismiss();
+            dedicatedBlindSpotWindow = null;
+        }
+        
+        // 获取默认大小（两个窗口一样大）
+        int defaultWidth = appConfig.getSupervisionLeftWidth();
+        int defaultHeight = appConfig.getSupervisionLeftHeight();
+        
+        // 创建左视悬浮窗
+        if (supervisionLeftWindow == null) {
+            supervisionLeftWindow = new BlindSpotFloatingWindowView(this, false);
+            supervisionLeftWindow.setCameraPos("left");
+            supervisionLeftWindow.setSupervisionMode(true); // 启用超视模式触摸处理（必须在show之前）
+            supervisionLeftWindow.show();
+            supervisionLeftWindow.setCamera("left"); // 启动左摄像头预览
+            supervisionLeftWindow.updateStatusLabel("left");
+        }
+        
+        // 创建右视悬浮窗
+        if (supervisionRightWindow == null) {
+            supervisionRightWindow = new BlindSpotFloatingWindowView(this, false);
+            supervisionRightWindow.setCameraPos("right");
+            supervisionRightWindow.setSupervisionMode(true); // 启用超视模式触摸处理（必须在show之前）
+            supervisionRightWindow.show();
+            supervisionRightWindow.setCamera("right"); // 启动右摄像头预览
+            supervisionRightWindow.updateStatusLabel("right");
+        }
+        
+        // 设置同步调整回调
+        supervisionLeftWindow.setSupervisionPartner(supervisionRightWindow);
+        supervisionRightWindow.setSupervisionPartner(supervisionLeftWindow);
+        
+        // 设置窗口位置和大小
+        updateSupervisionWindowBounds();
+        
+        AppLog.i(TAG, "🎯 超视模式已启动 - 左右双视窗");
+    }
+    
+    /**
+     * 停止超视模式
+     */
+    private void stopSupervisionMode() {
+        if (!isSupervisionModeActive) {
+            return;
+        }
+        
+        AppLog.i(TAG, "🎯 停止超视模式");
+        isSupervisionModeActive = false;
+        
+        if (supervisionLeftWindow != null) {
+            supervisionLeftWindow.dismiss();
+            supervisionLeftWindow = null;
+        }
+        
+        if (supervisionRightWindow != null) {
+            supervisionRightWindow.dismiss();
+            supervisionRightWindow = null;
+        }
+        
+        AppLog.i(TAG, "🎯 超视模式已停止");
+    }
+    
+    /**
+     * 更新超视模式悬浮窗的位置和大小
+     * 注意：BlindSpotFloatingWindowView.init()已经根据cameraPos加载了正确的配置
+     * 此方法只在需要同步两个窗口大小时调用
+     */
+    private void updateSupervisionWindowBounds() {
+        if (!isSupervisionModeActive) return;
+        
+        // 获取当前保存的配置
+        int leftWidth = appConfig.getSupervisionLeftWidth();
+        int leftHeight = appConfig.getSupervisionLeftHeight();
+        int rightWidth = appConfig.getSupervisionRightWidth();
+        int rightHeight = appConfig.getSupervisionRightHeight();
+        
+        // 确保两个窗口大小一致（使用左窗口的大小作为标准）
+        if (leftWidth != rightWidth || leftHeight != rightHeight) {
+            AppLog.w(TAG, "🎯 左右窗口大小不一致，同步为左窗口大小: w=" + leftWidth + ", h=" + leftHeight);
+            appConfig.setSupervisionRightBounds(
+                appConfig.getSupervisionRightX(),
+                appConfig.getSupervisionRightY(),
+                leftWidth,
+                leftHeight
+            );
+        }
+        
+        // 注意：不再调用updateBounds()，因为init()已经正确设置了位置和大小
+        // 如果需要同步大小，可以在ACTION_MOVE中处理
+        AppLog.i(TAG, "🎯 updateSupervisionWindowBounds() 跳过， init()已经设置了正确的值");
+    }
+
     private void updateWindows() {
+        // 如果超视模式激活，保持运行
+        if (isSupervisionModeActive) {
+            CameraForegroundService.start(this, "超视模式运行中", "正在显示左右补盲画面");
+            return;
+        }
+        
         // 全局开关关闭时，清理所有补盲窗口（调整模式和预览模式除外）
         if (!appConfig.isBlindSpotGlobalEnabled() && !isSecondaryAdjustMode && previewCameraPos == null) {
             removeSecondaryView();
@@ -1877,6 +2344,14 @@ public class BlindSpotService extends Service {
         }
         if (previewBlindSpotWindow != null) {
             previewBlindSpotWindow.dismiss();
+        }
+        // 停止超视模式
+        stopSupervisionMode();
+        // 停止长视模式
+        stopLongViewMode();
+        // 注销广播接收器
+        if (supervisionModeReceiver != null) {
+            unregisterReceiver(supervisionModeReceiver);
         }
         sInstance = null;
         super.onDestroy();
