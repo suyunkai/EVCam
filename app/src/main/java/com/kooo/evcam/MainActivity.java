@@ -976,6 +976,13 @@ public class MainActivity extends AppCompatActivity {
             requiredTextureCount = 4;
             AppLog.d(TAG, "使用26款星舰7配置：横屏4摄像头布局");
         }
+        // 银河A7：横屏四摄像头布局（沿用银河E5）
+        else if (AppConfig.CAR_MODEL_GALAXY_A7.equals(carModel)) {
+            layoutId = R.layout.activity_main;
+            configuredCameraCount = 4;
+            requiredTextureCount = 4;
+            AppLog.d(TAG, "使用银河A7配置：横屏4摄像头布局（沿用E5）");
+        }
         // 多视角布局：自定义布局 + 圆角UI + 车辆控制
         else if (appConfig.isMultiviewCarModel()) {
             layoutId = R.layout.activity_main_multiview;
@@ -2700,6 +2707,9 @@ public class MainActivity extends AppCompatActivity {
                 } else if (AppConfig.CAR_MODEL_XINGHAN_7.equals(carModel)) {
                     // 26款星舰7：使用固定映射（前3后2左4右1）
                     initCamerasForXinghan7(cameraIds);
+                } else if (AppConfig.CAR_MODEL_GALAXY_A7.equals(carModel)) {
+                    // 银河A7：沿用银河E5固定映射
+                    initCamerasForGalaxyE5(cameraIds);
                 } else if (appConfig.needsCustomLayoutManager()) {
                     // 自定义车型/多视角：使用用户配置的摄像头映射
                     initCamerasForCustomModel(cameraIds);

@@ -126,6 +126,9 @@ public class CameraManagerHolder {
             initCamerasForPhone(cameraIds);
         } else if (AppConfig.CAR_MODEL_XINGHAN_7.equals(carModel)) {
             initCamerasForXinghan7(cameraIds);
+        } else if (AppConfig.CAR_MODEL_GALAXY_A7.equals(carModel)) {
+            // 银河A7：沿用银河E5固定映射
+            initCamerasForGalaxyE5(cameraIds);
         } else if (appConfig.isCustomCarModel()) {
             initCamerasForCustomModel(appConfig, cameraIds);
         } else {
