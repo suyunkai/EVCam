@@ -55,6 +55,9 @@ public class CodecVideoRecorder {
     // 录制时补盲优化模式
     private boolean blindSpotOptimizeMode = false;  // 是否启用补盲优化模式（录制时降低负载）
     private static final int BLIND_SPOT_OPTIMIZED_FPS = 15;  // 补盲优化模式帧率
+
+    // 编码器选择：是否强制使用 H.264（默认 false，优先使用 HEVC）
+    private boolean forceH264 = false;
     
     // 画质等级：0=低, 1=中, 2=高, 3=最高
     private int qualityLevel = 2;
@@ -246,6 +249,15 @@ public class CodecVideoRecorder {
     public void setQualityLevel(int level) {
         this.qualityLevel = Math.max(0, Math.min(3, level));
         AppLog.d(TAG, "Camera " + cameraId + " quality level set to " + this.qualityLevel);
+    }
+
+    /**
+     * 设置是否强制使用 H.264 编码器
+     * @param force true 表示强制 H.264（兼容性优先），false 表示优先使用 HEVC
+     */
+    public void setForceH264(boolean force) {
+        this.forceH264 = force;
+        AppLog.d(TAG, "Camera " + cameraId + " forceH264 = " + force);
     }
 
     /**
@@ -841,20 +853,38 @@ public class CodecVideoRecorder {
      * 优先尝试 HEVC (H.265)，如果不支持则回退到 H.264
      */
     private void createEncoder() throws IOException {
-        // 检测并选择最优编码格式
+        // 检测并选择最优编码格式（forceH264 开启时固定 H.264）
         mimeType = selectBestEncoder();
 
-        // 保持 v1.2.4 兼容路径：使用显式配置值，不附加 Profile/Level，交由系统默认能力协商
+        // 如果启用了补盲优化模式，使用降低的帧率
         int effectiveFrameRate = blindSpotOptimizeMode ? BLIND_SPOT_OPTIMIZED_FPS : frameRate;
+
+        // 码率：HEVC 模式使用优化后码率；H.264 兼容模式使用显式配置值
+        int effectiveBitrate = forceH264 ? bitRate : calculateOptimalBitrate();
 
         MediaFormat format = MediaFormat.createVideoFormat(mimeType, width, height);
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        format.setInteger(MediaFormat.KEY_BIT_RATE, bitRate);
+        format.setInteger(MediaFormat.KEY_BIT_RATE, effectiveBitrate);
         format.setInteger(MediaFormat.KEY_FRAME_RATE, effectiveFrameRate);
         format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, I_FRAME_INTERVAL);
 
-        // 兼容性优先：让系统选择可用编码器，避免特定硬件编码器 + Profile 组合导致 configure 失败
-        encoder = MediaCodec.createEncoderByType(mimeType);
+        if (!forceH264) {
+            // HEVC/H.264 优化路径：附加 Profile/Level 以获得更好效率
+            if (mimeType.equals(MIME_TYPE_HEVC)) {
+                format.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.HEVCProfileMain);
+                format.setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.HEVCHighTierLevel4);
+            } else {
+                format.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileHigh);
+            }
+        }
+        // forceH264 开启：不设置 Profile/Level，走 v1.2.4 兼容路径，避免车机硬件 configure 失败
+
+        // 编码器创建：兼容模式用 createEncoderByType；优化模式优先选择硬件编码器
+        if (forceH264) {
+            encoder = MediaCodec.createEncoderByType(mimeType);
+        } else {
+            encoder = createHardwareEncoder(mimeType);
+        }
         encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
 
         encoderInputSurface = encoder.createInputSurface();
@@ -864,8 +894,9 @@ public class CodecVideoRecorder {
 
         AppLog.d(TAG, "Camera " + cameraId + " Encoder created: " + width + "x" + height +
                 " @ " + effectiveFrameRate + "fps" + (blindSpotOptimizeMode ? "(补盲优化)" : "") +
-                ", " + (bitRate / 1000) + " Kbps, " +
-                (mimeType.equals(MIME_TYPE_HEVC) ? "HEVC" : "H.264"));
+                ", " + (effectiveBitrate / 1000) + " Kbps, " +
+                (mimeType.equals(MIME_TYPE_HEVC) ? "HEVC" : "H.264") +
+                (forceH264 ? " [兼容模式]" : ""));
     }
 
     /**
@@ -874,9 +905,21 @@ public class CodecVideoRecorder {
      * 优化：优先选择硬件编码器，性能更好
      */
     private String selectBestEncoder() {
-        // 回退项 #1：为兼容部分车型，固定使用 H.264，避免 HEVC 在车机硬件上的闪烁问题
-        AppLog.i(TAG, "Camera " + cameraId + " force H.264 encoder for stability");
-        return MIME_TYPE_H264;
+        // 用户强制 H.264：兼容部分车型（避免 HEVC 在车机硬件上的闪烁/configure 失败）
+        if (forceH264) {
+            AppLog.i(TAG, "Camera " + cameraId + " force H.264 encoder (user setting)");
+            return MIME_TYPE_H264;
+        }
+        try {
+            // 检查 HEVC 编码器是否可用
+            MediaCodec hevcEncoder = MediaCodec.createEncoderByType(MIME_TYPE_HEVC);
+            hevcEncoder.release();
+            AppLog.d(TAG, "HEVC encoder available, using H.265 for better efficiency");
+            return MIME_TYPE_HEVC;
+        } catch (Exception e) {
+            AppLog.w(TAG, "HEVC encoder not available, falling back to H.264");
+            return MIME_TYPE_H264;
+        }
     }
     
     /**

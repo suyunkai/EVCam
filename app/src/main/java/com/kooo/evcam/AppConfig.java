@@ -172,6 +172,9 @@ public class AppConfig {
 
     // 时间角标配置
     private static final String KEY_TIMESTAMP_WATERMARK_ENABLED = "timestamp_watermark_enabled";  // 时间角标开关
+
+    // 视频编码器配置
+    private static final String KEY_FORCE_H264_ENCODING = "force_h264_encoding";  // 强制使用 H.264 编码器（关闭默认使用 H.265/HEVC）
     
     // 录制摄像头选择配置
     private static final String KEY_RECORDING_CAMERA_FRONT_ENABLED = "recording_camera_front_enabled";  // 前摄像头参与录制
@@ -2444,7 +2447,26 @@ public class AppConfig {
         // 默认关闭时间角标
         return prefs.getBoolean(KEY_TIMESTAMP_WATERMARK_ENABLED, false);
     }
-    
+
+    // ==================== 视频编码器配置相关方法 ====================
+
+    /**
+     * 设置是否强制使用 H.264 编码器
+     * @param enabled true 表示强制 H.264（兼容性优先），false 表示优先使用 H.265/HEVC
+     */
+    public void setForceH264Encoding(boolean enabled) {
+        prefs.edit().putBoolean(KEY_FORCE_H264_ENCODING, enabled).apply();
+        AppLog.d(TAG, "强制 H.264 编码: " + (enabled ? "启用" : "禁用"));
+    }
+
+    /**
+     * 获取是否强制使用 H.264 编码器
+     * @return true 表示强制 H.264，false 表示优先使用 H.265/HEVC（默认）
+     */
+    public boolean isForceH264Encoding() {
+        return prefs.getBoolean(KEY_FORCE_H264_ENCODING, false);
+    }
+
     // ==================== 录制摄像头选择配置相关方法 ====================
     
     /**

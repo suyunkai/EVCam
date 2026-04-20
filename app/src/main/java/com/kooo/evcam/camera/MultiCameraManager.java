@@ -1246,9 +1246,10 @@ public class MultiCameraManager {
             codecRecorder.setBitRate(bitrate);
             codecRecorder.setFrameRate(targetFrameRate);
             codecRecorder.setQualityLevel(3);  // 设置最高画质
-            
-            AppLog.d(TAG, "Codec recording params for " + key + ": " + 
-                    encodeWidth + "x" + encodeHeight + 
+            codecRecorder.setForceH264(appConfig.isForceH264Encoding());
+
+            AppLog.d(TAG, "Codec recording params for " + key + ": " +
+                    encodeWidth + "x" + encodeHeight +
                     " @ " + targetFrameRate + "fps, " + AppConfig.formatBitrate(bitrate));
 
             // 设置时间水印（从配置读取，使用方法开头已创建的 appConfig）
@@ -1582,6 +1583,7 @@ public class MultiCameraManager {
             codecRecorder.setBitRate(appConfig.getActualBitrate(previewSize.getWidth(), previewSize.getHeight(), 25));  // 使用25fps降低CPU占用
             codecRecorder.setFrameRate(appConfig.getActualFrameRate(25));  // 使用25fps降低CPU占用
             codecRecorder.setQualityLevel(3);  // 设置最高画质
+            codecRecorder.setForceH264(appConfig.isForceH264Encoding());
             codecRecorder.setWatermarkEnabled(appConfig.isTimestampWatermarkEnabled());
 
             // 准备录制

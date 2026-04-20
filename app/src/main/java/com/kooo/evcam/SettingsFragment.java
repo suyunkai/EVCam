@@ -55,6 +55,7 @@ public class SettingsFragment extends Fragment {
     // private SwitchMaterial preventSleepSwitch;
     private SwitchMaterial recordingStatsSwitch;
     private SwitchMaterial timestampWatermarkSwitch;
+    private SwitchMaterial forceH264Switch;
     
     // 预览画面矫正相关
     private SwitchMaterial previewCorrectionSwitch;
@@ -285,6 +286,20 @@ public class SettingsFragment extends Fragment {
             if (getContext() != null && appConfig != null) {
                 appConfig.setTimestampWatermarkEnabled(isChecked);
                 String message = isChecked ? "时间角标已开启" : "时间角标已关闭";
+                Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+                AppLog.d("SettingsFragment", message);
+            }
+        });
+
+        // 初始化强制 H.264 编码开关
+        forceH264Switch = view.findViewById(R.id.switch_force_h264);
+        if (getContext() != null && appConfig != null) {
+            forceH264Switch.setChecked(appConfig.isForceH264Encoding());
+        }
+        forceH264Switch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (getContext() != null && appConfig != null) {
+                appConfig.setForceH264Encoding(isChecked);
+                String message = isChecked ? "已切换为 H.264 兼容编码，下一段录制生效" : "已切换为 H.265/HEVC 编码，下一段录制生效";
                 Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
                 AppLog.d("SettingsFragment", message);
             }
