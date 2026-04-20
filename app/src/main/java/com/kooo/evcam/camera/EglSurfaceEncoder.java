@@ -174,6 +174,9 @@ public class EglSurfaceEncoder {
     private final float[] tempMatrix = new float[16];
     private long frameCount = 0;
 
+    // 优化：控制何时需要清除缓冲（避免闪屏）
+    private boolean needsClear = true;  // 初始需要清除
+
     public EglSurfaceEncoder(String cameraId, int width, int height) {
         this.cameraId = cameraId;
         this.width = width;
@@ -317,9 +320,12 @@ public class EglSurfaceEncoder {
             // 设置视口
             GLES20.glViewport(0, 0, width, height);
 
-            // 清除颜色缓冲
-            GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-            GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+            // 优化：只在必要时清除缓冲，避免闪屏
+            if (needsClear) {
+                GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+                GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+                needsClear = false;
+            }
 
             // 根据是否启用水印选择不同的渲染路径
             if (watermarkEnabled && watermarkProgram != 0) {
@@ -462,6 +468,9 @@ public class EglSurfaceEncoder {
 
             // 设置为当前上下文
             makeCurrent();
+
+            // 标记需要清除缓冲，因为新 Surface 没有之前的内容
+            needsClear = true;
 
             AppLog.d(TAG, "Camera " + cameraId + " Output surface updated successfully");
 

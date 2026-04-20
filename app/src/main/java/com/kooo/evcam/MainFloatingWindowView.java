@@ -94,8 +94,8 @@ public class MainFloatingWindowView extends FrameLayout {
         turnSignalArrowView = findViewById(R.id.turn_signal_arrow_view);
         applyStatusBarStyle();
 
-        // 圆角裁切 - 从配置读取
-        final float cornerRadius = appConfig.getFloatingWindowCornerRadiusDp() * getContext().getResources().getDisplayMetrics().density;
+        // 圆角裁切 - 30dp
+        final float cornerRadius = 30 * getContext().getResources().getDisplayMetrics().density;
         setOutlineProvider(new android.view.ViewOutlineProvider() {
             @Override
             public void getOutline(View view, android.graphics.Outline outline) {
@@ -675,8 +675,7 @@ public class MainFloatingWindowView extends FrameLayout {
     private void applyStatusBarStyle() {
         if (statusBar == null) return;
         int style = appConfig.getBlindSpotStatusBarStyle();
-        if (style == BlindSpotStatusBarView.STYLE_OFF || style == BlindSpotStatusBarView.STYLE_TURN_ARROW) {
-            // 关闭或转向箭头模式时，隐藏状态栏光效（转向箭头由 TurnSignalArrowView 单独处理）
+        if (style == BlindSpotStatusBarView.STYLE_OFF) {
             statusBar.setVisibility(View.GONE);
         } else {
             statusBar.setVisibility(View.VISIBLE);

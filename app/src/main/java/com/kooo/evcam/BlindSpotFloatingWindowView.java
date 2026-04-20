@@ -66,7 +66,6 @@ public class BlindSpotFloatingWindowView extends FrameLayout {
     private Runnable retryBindRunnable;
     private android.animation.ValueAnimator windowAnimator;
     private boolean pendingShowAnimation = false;
-    private long showCreatedAt = 0;
     private Runnable showAnimFallback;
 
     private float lastX, lastY;
@@ -230,7 +229,6 @@ public class BlindSpotFloatingWindowView extends FrameLayout {
             @Override
             public void onSurfaceTextureUpdated(android.graphics.SurfaceTexture surface) {
                 if (pendingShowAnimation) {
-                    AppLog.d(TAG, "📷 首帧到达，触发显示动画 (showCreatedAt+" + (System.currentTimeMillis() - showCreatedAt) + "ms)");
                     pendingShowAnimation = false;
                     if (showAnimFallback != null) {
                         mainHandler.removeCallbacks(showAnimFallback);
@@ -299,7 +297,7 @@ public class BlindSpotFloatingWindowView extends FrameLayout {
      * 注意：使用setRoundRect而不是setConvexPath，因为某些车机系统不支持setConvexPath
      */
     private void applySupervisionCornerRadius() {
-        final float bigRadius = appConfig.getFloatingWindowCornerRadiusDp() * getContext().getResources().getDisplayMetrics().density;
+        final float bigRadius = 20 * getContext().getResources().getDisplayMetrics().density; // 20dp
         final float smallRadius = 5 * getContext().getResources().getDisplayMetrics().density; // 5dp
         
         // 设置黑色背景，确保圆角区域显示黑色而不是透明
@@ -967,16 +965,15 @@ public class BlindSpotFloatingWindowView extends FrameLayout {
                 // 视图添加到窗口后，更新关闭按钮可见性
                 updateCloseButtonVisibility();
 
-                showCreatedAt = System.currentTimeMillis();
-                // 安全超时：如果摄像头迟迟没有推帧，最多等 300ms 后也直接显示
+                // 安全超时：如果摄像头迟迟没有推帧，最多等 150ms 后也直接显示
+                // 减少等待时间以加快补盲画面显示速度（从300ms优化到150ms）
                 showAnimFallback = () -> {
                     if (pendingShowAnimation) {
-                        AppLog.d(TAG, "⏰ 安全超时300ms兜底显示 (首帧未到)");
                         pendingShowAnimation = false;
                         playShowAnimation();
                     }
                 };
-                mainHandler.postDelayed(showAnimFallback, 300);
+                mainHandler.postDelayed(showAnimFallback, 150);
             }
         } catch (Exception e) {
             AppLog.e(TAG, "Error showing blind spot floating window: " + e.getMessage());
@@ -1229,8 +1226,7 @@ public class BlindSpotFloatingWindowView extends FrameLayout {
     private void applyStatusBarStyle() {
         if (statusBar == null) return;
         int style = appConfig.getBlindSpotStatusBarStyle();
-        if (style == BlindSpotStatusBarView.STYLE_OFF || style == BlindSpotStatusBarView.STYLE_TURN_ARROW) {
-            // 关闭或转向箭头模式时，隐藏状态栏光效（转向箭头由 TurnSignalArrowView 单独处理）
+        if (style == BlindSpotStatusBarView.STYLE_OFF) {
             statusBar.setVisibility(View.GONE);
         } else {
             statusBar.setVisibility(View.VISIBLE);
@@ -1239,13 +1235,6 @@ public class BlindSpotFloatingWindowView extends FrameLayout {
             int alpha = (int) (appConfig.getBlindSpotStatusBarBgOpacity() / 100f * 255);
             statusBar.setBackgroundColor(android.graphics.Color.argb(alpha, 0x1A, 0x1A, 0x1A));
         }
-    }
-
-    /**
-     * 判断当前光效样式是否为转向箭头模式
-     */
-    public boolean isTurnArrowStyleEnabled() {
-        return appConfig.getBlindSpotStatusBarStyle() == BlindSpotStatusBarView.STYLE_TURN_ARROW;
     }
 
     public void updateStatusLabel(String cameraPos) {

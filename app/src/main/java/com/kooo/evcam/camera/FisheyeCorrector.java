@@ -57,6 +57,7 @@ public class FisheyeCorrector {
     /**
      * 鱼眼矫正片段着色器
      * 在屏幕空间计算畸变偏移，再变换到 OES 纹理空间采样
+     * 支持旋转
      */
     private static final String FRAGMENT_SHADER_FISHEYE =
             "#extension GL_OES_EGL_image_external : require\n" +
@@ -68,14 +69,22 @@ public class FisheyeCorrector {
             "uniform float uK2;\n" +           // 二次畸变系数
             "uniform float uZoom;\n" +         // 矫正后缩放（用于裁切黑边）
             "uniform vec2 uCenter;\n" +        // 畸变中心偏移 (0.5, 0.5) 为画面正中
+            "uniform float uRotation;\n" +      // 旋转角度（度数）
+            "const float PI = 3.14159265;\n" +
             "void main() {\n" +
-            "    vec2 center = uCenter;\n" +
-            "    vec2 coord = (vTextureCoord - center) / uZoom;\n" +
+            "    // 应用旋转\n" +
+            "    float angle = uRotation * PI / 180.0;\n" +
+            "    vec2 center = vec2(0.5, 0.5);\n" +
+            "    vec2 rotatedCoord = vec2(\n" +
+            "        cos(angle) * (vTextureCoord.x - center.x) - sin(angle) * (vTextureCoord.y - center.y) + center.x,\n" +
+            "        sin(angle) * (vTextureCoord.x - center.x) + cos(angle) * (vTextureCoord.y - center.y) + center.y\n" +
+            "    );\n" +
+            "    vec2 coord = (rotatedCoord - uCenter) / uZoom;\n" +
             "    float r = length(coord);\n" +
             "    float r2 = r * r;\n" +
             "    float r4 = r2 * r2;\n" +
             "    float distortion = 1.0 + uK1 * r2 + uK2 * r4;\n" +
-            "    vec2 corrected = coord * distortion + center;\n" +
+            "    vec2 corrected = coord * distortion + uCenter;\n" +
             "    if (corrected.x < 0.0 || corrected.x > 1.0 ||\n" +
             "        corrected.y < 0.0 || corrected.y > 1.0) {\n" +
             "        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);\n" +
@@ -129,6 +138,7 @@ public class FisheyeCorrector {
     private int k2Handle;
     private int zoomHandle;
     private int centerHandle;
+    private int rotationHandle;
 
     // 变换矩阵
     private final float[] mvpMatrix = new float[16];
@@ -149,6 +159,7 @@ public class FisheyeCorrector {
     private volatile float zoom = 1.0f;
     private volatile float centerX = 0.5f;
     private volatile float centerY = 0.5f;
+    private volatile int rotation = 0;
 
     // 状态
     private boolean isInitialized = false;
@@ -220,11 +231,19 @@ public class FisheyeCorrector {
      * 实时更新矫正参数（从悬浮窗调节时调用）
      */
     public void updateParams(float k1, float k2, float zoom, float centerX, float centerY) {
+        updateParams(k1, k2, zoom, centerX, centerY, 0);
+    }
+
+    /**
+     * 实时更新矫正参数（支持旋转）
+     */
+    public void updateParams(float k1, float k2, float zoom, float centerX, float centerY, int rotation) {
         this.k1 = k1;
         this.k2 = k2;
         this.zoom = zoom;
         this.centerX = centerX;
         this.centerY = centerY;
+        this.rotation = rotation;
     }
 
     /**
@@ -329,6 +348,7 @@ public class FisheyeCorrector {
             GLES20.glUniform1f(k2Handle, k2);
             GLES20.glUniform1f(zoomHandle, zoom);
             GLES20.glUniform2f(centerHandle, centerX, centerY);
+            GLES20.glUniform1f(rotationHandle, rotation);
             GLES20.glEnableVertexAttribArray(positionHandle);
             GLES20.glVertexAttribPointer(positionHandle, 2, GLES20.GL_FLOAT, false, 0, vertexBuffer);
             GLES20.glEnableVertexAttribArray(texCoordHandle);
@@ -447,6 +467,7 @@ public class FisheyeCorrector {
         k2Handle = GLES20.glGetUniformLocation(program, "uK2");
         zoomHandle = GLES20.glGetUniformLocation(program, "uZoom");
         centerHandle = GLES20.glGetUniformLocation(program, "uCenter");
+        rotationHandle = GLES20.glGetUniformLocation(program, "uRotation");
 
         // OES 纹理
         int[] textures = new int[1];

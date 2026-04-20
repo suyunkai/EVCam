@@ -139,12 +139,6 @@ public class AppConfig {
     private static final String KEY_MOCK_TURN_SIGNAL_FLOATING_X = "mock_turn_signal_floating_x";             // 悬浮模拟按钮X
     private static final String KEY_MOCK_TURN_SIGNAL_FLOATING_Y = "mock_turn_signal_floating_y";             // 悬浮模拟按钮Y
 
-    // 悬浮窗圆角半径 (dp)
-    private static final String KEY_FLOATING_WINDOW_CORNER_RADIUS = "floating_window_corner_radius";
-    private static final int DEFAULT_FLOATING_CORNER_RADIUS_DP = 8; // 旧版默认值
-    private static final int MIN_FLOATING_CORNER_RADIUS_DP = 0;
-    private static final int MAX_FLOATING_CORNER_RADIUS_DP = 50;
-
     // 补盲悬浮窗动效
     private static final String KEY_FLOATING_WINDOW_ANIMATION_ENABLED = "floating_window_animation_enabled"; // 悬浮窗开启/关闭动效
     private static final String KEY_BLIND_SPOT_STATUS_BAR_STYLE = "blind_spot_status_bar_style";             // 状态栏动效样式 (0=关, 1-5=五种动效)
@@ -2039,6 +2033,15 @@ public class AppConfig {
         return prefs.getFloat(getFisheyeCorrectionKey(cameraPos, "center_y"), 0.5f);
     }
 
+    // --- Rotation (旋转角度) ---
+    public void setFisheyeCorrectionRotation(String cameraPos, int rotation) {
+        prefs.edit().putInt(getFisheyeCorrectionKey(cameraPos, "rotation"), rotation).apply();
+    }
+
+    public int getFisheyeCorrectionRotation(String cameraPos) {
+        return prefs.getInt(getFisheyeCorrectionKey(cameraPos, "rotation"), 0);
+    }
+
     /**
      * 重置单路摄像头的鱼眼矫正参数
      */
@@ -2049,6 +2052,7 @@ public class AppConfig {
                 .putFloat(getFisheyeCorrectionKey(cameraPos, "zoom"), 1.0f)
                 .putFloat(getFisheyeCorrectionKey(cameraPos, "center_x"), 0.5f)
                 .putFloat(getFisheyeCorrectionKey(cameraPos, "center_y"), 0.5f)
+                .putInt(getFisheyeCorrectionKey(cameraPos, "rotation"), 0)
                 .apply();
     }
 
@@ -2061,6 +2065,61 @@ public class AppConfig {
         resetFisheyeCorrection("left");
         resetFisheyeCorrection("right");
         AppLog.d(TAG, "所有鱼眼矫正参数已重置");
+    }
+
+    // ==================== 全屏预览窗口位置和大小配置 ====================
+
+    private static final String KEY_FULLSCREEN_WINDOW_X = "fullscreen_window_x";
+    private static final String KEY_FULLSCREEN_WINDOW_Y = "fullscreen_window_y";
+    private static final String KEY_FULLSCREEN_WINDOW_WIDTH = "fullscreen_window_width";
+    private static final String KEY_FULLSCREEN_WINDOW_HEIGHT = "fullscreen_window_height";
+
+    public void setFullscreenWindowX(String cameraPos, int x) {
+        prefs.edit().putInt(KEY_FULLSCREEN_WINDOW_X + "_" + cameraPos, x).apply();
+    }
+
+    public int getFullscreenWindowX(String cameraPos) {
+        return prefs.getInt(KEY_FULLSCREEN_WINDOW_X + "_" + cameraPos, -1);
+    }
+
+    public void setFullscreenWindowY(String cameraPos, int y) {
+        prefs.edit().putInt(KEY_FULLSCREEN_WINDOW_Y + "_" + cameraPos, y).apply();
+    }
+
+    public int getFullscreenWindowY(String cameraPos) {
+        return prefs.getInt(KEY_FULLSCREEN_WINDOW_Y + "_" + cameraPos, -1);
+    }
+
+    public void setFullscreenWindowWidth(String cameraPos, int width) {
+        prefs.edit().putInt(KEY_FULLSCREEN_WINDOW_WIDTH + "_" + cameraPos, width).apply();
+    }
+
+    public int getFullscreenWindowWidth(String cameraPos) {
+        return prefs.getInt(KEY_FULLSCREEN_WINDOW_WIDTH + "_" + cameraPos, -1);
+    }
+
+    public void setFullscreenWindowHeight(String cameraPos, int height) {
+        prefs.edit().putInt(KEY_FULLSCREEN_WINDOW_HEIGHT + "_" + cameraPos, height).apply();
+    }
+
+    public int getFullscreenWindowHeight(String cameraPos) {
+        return prefs.getInt(KEY_FULLSCREEN_WINDOW_HEIGHT + "_" + cameraPos, -1);
+    }
+
+    public boolean hasFullscreenWindowParams(String cameraPos) {
+        return getFullscreenWindowX(cameraPos) != -1 &&
+               getFullscreenWindowY(cameraPos) != -1 &&
+               getFullscreenWindowWidth(cameraPos) != -1 &&
+               getFullscreenWindowHeight(cameraPos) != -1;
+    }
+
+    public void clearFullscreenWindowParams(String cameraPos) {
+        prefs.edit()
+                .remove(KEY_FULLSCREEN_WINDOW_X + "_" + cameraPos)
+                .remove(KEY_FULLSCREEN_WINDOW_Y + "_" + cameraPos)
+                .remove(KEY_FULLSCREEN_WINDOW_WIDTH + "_" + cameraPos)
+                .remove(KEY_FULLSCREEN_WINDOW_HEIGHT + "_" + cameraPos)
+                .apply();
     }
 
     // ==================== 主屏悬浮窗配置相关方法 ====================
@@ -2392,10 +2451,10 @@ public class AppConfig {
     }
 
     /**
-     * @return 0=关闭, 1=序贯灯段, 2=流光彗尾, 3=波纹扩散, 4=呼吸渐变填充, 5=箭头涟漪, 6=转向箭头
+     * @return 0=关闭, 1=序贯灯段, 2=流光彗尾, 3=波纹扩散, 4=呼吸渐变填充, 5=箭头涟漪
      */
     public int getBlindSpotStatusBarStyle() {
-        return prefs.getInt(KEY_BLIND_SPOT_STATUS_BAR_STYLE, BlindSpotStatusBarView.STYLE_TURN_ARROW);
+        return prefs.getInt(KEY_BLIND_SPOT_STATUS_BAR_STYLE, 1);
     }
 
     public void setBlindSpotStatusBarColor(int color) {
@@ -3533,24 +3592,4 @@ public class AppConfig {
         prefs.edit().putInt(KEY_RECORDING_FLOATING_TIME_TEXT_SIZE, sizeSp).apply();
         AppLog.d(TAG, "录制悬浮按钮时间文字大小设置: " + sizeSp + "sp");
     }
-
-    // ======================== 悬浮窗圆角配置 ========================
-
-    /**
-     * 获取悬浮窗圆角半径 (dp)，范围 0~50，默认 8dp
-     */
-    public int getFloatingWindowCornerRadiusDp() {
-        return prefs.getInt(KEY_FLOATING_WINDOW_CORNER_RADIUS, DEFAULT_FLOATING_CORNER_RADIUS_DP);
-    }
-
-    /**
-     * 设置悬浮窗圆角半径 (dp)，自动 clamp 到 0~50
-     */
-    public void setFloatingWindowCornerRadiusDp(int radiusDp) {
-        radiusDp = Math.max(MIN_FLOATING_CORNER_RADIUS_DP, Math.min(MAX_FLOATING_CORNER_RADIUS_DP, radiusDp));
-        prefs.edit().putInt(KEY_FLOATING_WINDOW_CORNER_RADIUS, radiusDp).apply();
-    }
-
-    public int getMinFloatingCornerRadiusDp() { return MIN_FLOATING_CORNER_RADIUS_DP; }
-    public int getMaxFloatingCornerRadiusDp() { return MAX_FLOATING_CORNER_RADIUS_DP; }
 }

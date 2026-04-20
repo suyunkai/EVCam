@@ -62,11 +62,12 @@ public class FileTransferManager {
     private final AtomicBoolean isProcessing;
     
     // 配置
-    private static final int MAX_RETRY_COUNT = 3;           // 最大重试次数
-    private static final long RETRY_DELAY_MS = 5000;        // 重试延迟（毫秒）
-    private static final long TRANSFER_CHECK_INTERVAL_MS = 1000;  // 检查队列间隔
+    private static final int MAX_RETRY_COUNT = 5;           // 最大重试次数（增加到5次）
+    private static final long RETRY_DELAY_MS = 3000;        // 重试延迟（毫秒）- 减少到3秒加快重试
+    private static final long TRANSFER_CHECK_INTERVAL_MS = 500;  // 检查队列间隔（缩短到500ms）
     private static final long STARTUP_CLEANUP_DELAY_MS = 60 * 1000;  // 启动后清理延迟：1分钟
     private static final long TEMP_FILE_EXPIRE_MS = 60 * 60 * 1000;  // 临时文件过期时间：1小时
+    private static final long MIN_VALID_FILE_SIZE = 500 * 1024;  // 最小有效文件大小：500KB（增加到500KB）
     
     // 统计
     private long totalTransferred = 0;      // 已传输文件数
@@ -339,59 +340,82 @@ public class FileTransferManager {
             totalFailed++;
             return;
         }
-        
+
+        // 验证源文件大小
+        long sourceSize = task.sourceFile.length();
+        if (sourceSize < MIN_VALID_FILE_SIZE) {
+            AppLog.w(TAG, "Source file too small: " + task.sourceFile.getName() + " (" + sourceSize + " bytes)");
+            task.sourceFile.delete();
+            if (task.callback != null) {
+                task.callback.onTransferFailed(task.sourceFile, task.targetFile, "Source file too small");
+            }
+            totalFailed++;
+            return;
+        }
+
         // 确保目标目录存在
         File targetDir = task.targetFile.getParentFile();
         if (targetDir != null && !targetDir.exists()) {
+            AppLog.d(TAG, "Creating target directory: " + targetDir.getAbsolutePath());
             if (!targetDir.mkdirs()) {
                 AppLog.e(TAG, "Failed to create target directory: " + targetDir.getAbsolutePath());
                 handleTransferFailure(task, "Cannot create target directory");
                 return;
             }
         }
-        
-        // 尝试移动文件（如果在同一文件系统，这是最快的）
-        boolean moved = task.sourceFile.renameTo(task.targetFile);
-        
-        if (moved) {
-            // 移动成功
-            long fileSize = task.targetFile.length();
-            AppLog.d(TAG, "File moved successfully: " + task.sourceFile.getName() + 
-                    " -> " + task.targetFile.getAbsolutePath() + " (" + formatSize(fileSize) + ")");
-            
+
+        // 检查目标目录是否可写
+        if (targetDir != null && !targetDir.canWrite()) {
+            AppLog.e(TAG, "Target directory is not writable: " + targetDir.getAbsolutePath());
+            handleTransferFailure(task, "Target directory not writable");
+            return;
+        }
+
+        // 删除已存在的目标文件（如果存在）
+        if (task.targetFile.exists()) {
+            AppLog.d(TAG, "Deleting existing target file: " + task.targetFile.getName());
+            if (!task.targetFile.delete()) {
+                AppLog.w(TAG, "Failed to delete existing target file: " + task.targetFile.getName());
+            }
+        }
+
+        // 尝试复制文件（直接复制，不尝试移动，因为U盘可能是不同的文件系统）
+        AppLog.d(TAG, "Copying file: " + task.sourceFile.getName() + " (" + formatSize(sourceSize) + ") to " + task.targetFile.getAbsolutePath());
+
+        boolean copied = copyFile(task.sourceFile, task.targetFile);
+
+        if (copied) {
+            // 复制成功，删除源文件
+            long targetSize = task.targetFile.length();
+
+            // 验证目标文件大小
+            if (targetSize != sourceSize) {
+                AppLog.w(TAG, "File size mismatch: source=" + sourceSize + ", target=" + targetSize);
+                task.targetFile.delete();
+                handleTransferFailure(task, "File size mismatch after copy");
+                return;
+            }
+
+            if (task.sourceFile.delete()) {
+                AppLog.d(TAG, "File transferred successfully: " + task.sourceFile.getName() +
+                        " -> " + task.targetFile.getAbsolutePath() + " (" + formatSize(targetSize) + ")");
+            } else {
+                AppLog.w(TAG, "File copied but failed to delete source: " + task.sourceFile.getName());
+            }
+
             totalTransferred++;
-            totalBytesTransferred += fileSize;
-            
+            totalBytesTransferred += targetSize;
+
             if (task.callback != null) {
                 task.callback.onTransferComplete(task.sourceFile, task.targetFile);
             }
         } else {
-            // 移动失败（可能跨文件系统），尝试复制
-            AppLog.d(TAG, "Move failed, trying copy: " + task.sourceFile.getName());
-            
-            boolean copied = copyFile(task.sourceFile, task.targetFile);
-            
-            if (copied) {
-                // 复制成功，删除源文件
-                long fileSize = task.targetFile.length();
-                
-                if (task.sourceFile.delete()) {
-                    AppLog.d(TAG, "File copied and source deleted: " + task.sourceFile.getName() + 
-                            " -> " + task.targetFile.getAbsolutePath() + " (" + formatSize(fileSize) + ")");
-                } else {
-                    AppLog.w(TAG, "File copied but failed to delete source: " + task.sourceFile.getName());
-                }
-                
-                totalTransferred++;
-                totalBytesTransferred += fileSize;
-                
-                if (task.callback != null) {
-                    task.callback.onTransferComplete(task.sourceFile, task.targetFile);
-                }
-            } else {
-                // 复制也失败
-                handleTransferFailure(task, "Copy failed");
+            // 复制失败
+            // 清理可能不完整的目标文件
+            if (task.targetFile.exists()) {
+                task.targetFile.delete();
             }
+            handleTransferFailure(task, "Copy failed");
         }
     }
     
@@ -426,51 +450,69 @@ public class FileTransferManager {
     }
     
     /**
-     * 复制文件（使用 NIO Channel，效率较高）
+     * 复制文件（使用缓冲流，更稳定可靠）
+     * 针对U盘等慢速存储优化
      */
     private boolean copyFile(File source, File target) {
-        FileChannel sourceChannel = null;
-        FileChannel targetChannel = null;
-        
+        FileInputStream fis = null;
+        FileOutputStream fos = null;
+
         try {
-            sourceChannel = new FileInputStream(source).getChannel();
-            targetChannel = new FileOutputStream(target).getChannel();
-            
-            long size = sourceChannel.size();
-            long transferred = 0;
-            
-            // 分块传输，避免内存问题
-            final long CHUNK_SIZE = 8 * 1024 * 1024;  // 8MB chunks
-            
-            while (transferred < size) {
-                long remaining = size - transferred;
-                long toTransfer = Math.min(remaining, CHUNK_SIZE);
-                long actualTransferred = sourceChannel.transferTo(transferred, toTransfer, targetChannel);
-                
-                if (actualTransferred == 0) {
-                    // 传输停滞，可能有问题
-                    AppLog.w(TAG, "Transfer stalled at " + transferred + "/" + size);
-                    break;
-                }
-                
-                transferred += actualTransferred;
+            fis = new FileInputStream(source);
+            fos = new FileOutputStream(target);
+
+            // 验证源文件大小
+            long size = source.length();
+            if (size < MIN_VALID_FILE_SIZE) {
+                AppLog.w(TAG, "Source file too small: " + source.getName() + " (" + size + " bytes)");
+                return false;
             }
-            
-            return transferred == size;
-            
+
+            // 使用 64KB 缓冲区（对U盘更友好）
+            byte[] buffer = new byte[64 * 1024];
+            long transferred = 0;
+            int read;
+
+            while ((read = fis.read(buffer)) != -1) {
+                fos.write(buffer, 0, read);
+                transferred += read;
+
+                // 定期刷新缓冲区，避免内存中积累太多
+                if (transferred % (1024 * 1024) == 0) {  // 每1MB刷新一次
+                    fos.flush();
+                }
+            }
+
+            // 最终刷新
+            fos.flush();
+
+            // 同步到磁盘（确保数据真正写入）
+            fos.getFD().sync();
+
+            // 验证目标文件大小
+            long targetSize = target.length();
+            if (targetSize != size) {
+                AppLog.w(TAG, "File size mismatch after copy: source=" + size + ", target=" + targetSize);
+                target.delete();
+                return false;
+            }
+
+            AppLog.d(TAG, "File copied successfully: " + source.getName() + " (" + formatSize(size) + ")");
+            return true;
+
         } catch (IOException e) {
             AppLog.e(TAG, "Error copying file: " + source.getName(), e);
-            
+
             // 删除可能不完整的目标文件
             if (target.exists()) {
                 target.delete();
             }
-            
+
             return false;
         } finally {
             try {
-                if (sourceChannel != null) sourceChannel.close();
-                if (targetChannel != null) targetChannel.close();
+                if (fis != null) fis.close();
+                if (fos != null) fos.close();
             } catch (IOException e) {
                 // Ignore
             }

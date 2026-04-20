@@ -29,7 +29,6 @@ public class BlindSpotStatusBarView extends View {
     public static final int STYLE_RIPPLE = 3;
     public static final int STYLE_GRADIENT_FILL = 4;
     public static final int STYLE_ARROW_RIPPLE = 5;
-    public static final int STYLE_TURN_ARROW = 6;  // 转向箭头（使用 TurnSignalArrowView）
 
     private int colorR = 255, colorG = 191, colorB = 64;
 
