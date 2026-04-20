@@ -62,11 +62,11 @@ public class CodecVideoRecorder {
     // 画质等级：0=低, 1=中, 2=高, 3=最高
     private int qualityLevel = 2;
     
-    // 自适应 drain 间隔控制（优化版 - 不降低画质）
-    private volatile long currentDrainIntervalMs = 16;  // 当前 drain 间隔（毫秒）- 约60fps周期，平衡实时性和CPU
-    private static final long DRAIN_INTERVAL_MIN_MS = 8;   // 最小 8ms（保证流畅性）
-    private static final long DRAIN_INTERVAL_MAX_MS = 33;  // 最大 33ms（约30fps，避免过度延迟）
-    private static final int DRAIN_BATCH_SIZE = 5;  // 每次 drain 批量处理更多帧，减少系统调用开销
+    // 自适应 drain 间隔控制（优化版 - 减少CPU占用）
+    private volatile long currentDrainIntervalMs = 20;  // 当前 drain 间隔（毫秒）- 提高到20ms减少CPU占用
+    private static final long DRAIN_INTERVAL_MIN_MS = 10;   // 最小 10ms（保证流畅性）
+    private static final long DRAIN_INTERVAL_MAX_MS = 50;  // 最大 50ms（减少CPU占用）
+    private static final int DRAIN_BATCH_SIZE = 8;  // 每次 drain 批量处理更多帧，减少系统调用开销
     private long lastDrainTimeMs = 0;  // 上次 drain 时间
     private int framesSinceLastDrain = 0;  // 上次 drain 以来的帧数
 
@@ -991,26 +991,26 @@ public class CodecVideoRecorder {
      * 3. 严格限制最大码率，防止编码器过载
      */
     private int calculateOptimalBitrate() {
-        // 基础码率计算（每像素每帧的比特数）- 优化后的值
+        // 基础码率计算（每像素每帧的比特数）- 优化后的值，降低码率减少CPU占用
         double bitsPerPixelPerFrame;
-        
+
         switch (qualityLevel) {
             case 0: // 低画质 - 适合长时间录制
-                bitsPerPixelPerFrame = 0.04;
+                bitsPerPixelPerFrame = 0.03;
                 break;
             case 1: // 中画质 - 平衡画质和性能
-                bitsPerPixelPerFrame = 0.06;
+                bitsPerPixelPerFrame = 0.05;
                 break;
             case 2: // 高画质（推荐）- 优化后的值
-                bitsPerPixelPerFrame = 0.09;
+                bitsPerPixelPerFrame = 0.07;
                 break;
-            case 3: // 最高画质 - 降低 bpp 防止卡顿
-                bitsPerPixelPerFrame = 0.12;
+            case 3: // 最高画质 - 适当降低 bpp 减少CPU
+                bitsPerPixelPerFrame = 0.10;
                 break;
             default:
-                bitsPerPixelPerFrame = 0.09;
+                bitsPerPixelPerFrame = 0.07;
         }
-        
+
         // 根据分辨率调整 bpp：分辨率越高，bpp 适当降低（编码效率提升）
         long totalPixels = (long) width * height;
         if (totalPixels > 2073600) { // 超过 1080p (1920x1080)
@@ -1018,27 +1018,27 @@ public class CodecVideoRecorder {
         } else if (totalPixels > 921600) { // 超过 720p (1280x720)
             bitsPerPixelPerFrame *= 0.90; // 降低 10%
         }
-        
-        // HEVC 效率更高，相同画质下使用 55% 的码率（之前是 60%，进一步优化）
+
+        // HEVC 效率更高，相同画质下使用 55% 的码率
         boolean isHevc = mimeType.equals(MIME_TYPE_HEVC);
         if (isHevc) {
             bitsPerPixelPerFrame *= 0.55;
         }
-        
+
         // 计算总码率
         long bitrate = (long) (width * height * frameRate * bitsPerPixelPerFrame);
-        
+
         // 严格设置码率上限（防止过高导致编码器卡顿）
         int maxAllowedBitrate = isHevc ? MAX_HEVC_BITRATE : MAX_BITRATE;
         bitrate = Math.min(bitrate, maxAllowedBitrate);
-        
+
         // 设置码率下限（保证基本画质）
         int minAllowedBitrate = isHevc ? 1000000 : 1500000; // HEVC 1Mbps, H.264 1.5Mbps
         bitrate = Math.max(bitrate, minAllowedBitrate);
-        
+
         // 四舍五入到 100Kbps，便于日志阅读
         bitrate = ((bitrate + 50000) / 100000) * 100000;
-        
+
         return (int) bitrate;
     }
 
@@ -1219,14 +1219,15 @@ public class CodecVideoRecorder {
 
                     if (encodedData != null && bufferInfo.size != 0) {
                         if (muxerStarted) {
-                            long currentTimeNs = System.nanoTime();
-                            long calculatedPtsUs = (currentTimeNs - segmentStartTimeNs) / 1000;
+                            // 性能优化：使用基于帧数的 PTS 计算，减少 System.nanoTime() 调用开销
+                            // 与 drainEncoder 中的计算方式保持一致
+                            long calculatedPtsUs = encodedOutputFrameCount * 40000L;
                             bufferInfo.presentationTimeUs = calculatedPtsUs;
-                            
+
                             encodedData.position(bufferInfo.offset);
                             encodedData.limit(bufferInfo.offset + bufferInfo.size);
                             muxer.writeSampleData(videoTrackIndex, encodedData, bufferInfo);
-                            
+
                             encodedOutputFrameCount++;
                             lastEncoderOutputTime = System.currentTimeMillis();
                             gotOutput = true;

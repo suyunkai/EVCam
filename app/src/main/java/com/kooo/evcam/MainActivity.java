@@ -1363,7 +1363,45 @@ public class MainActivity extends AppCompatActivity {
         // 根据开关状态调整 requiredTextureCount
         updateRequiredTextureCount();
 
+        setupCameraFrameTouchListeners(frameFront, frameBack, frameLeft, frameRight);
+
         AppLog.d(TAG, "摄像头开关初始化完成，requiredTextureCount=" + requiredTextureCount);
+    }
+
+    private FullscreenPreviewDialog currentFullscreenDialog;
+
+    private void setupCameraFrameTouchListeners(android.widget.FrameLayout frameFront,
+                                                  android.widget.FrameLayout frameBack,
+                                                  android.widget.FrameLayout frameLeft,
+                                                  android.widget.FrameLayout frameRight) {
+        setupSingleCameraFrameTouchListener(frameFront, "front");
+        setupSingleCameraFrameTouchListener(frameBack, "back");
+        setupSingleCameraFrameTouchListener(frameLeft, "left");
+        setupSingleCameraFrameTouchListener(frameRight, "right");
+    }
+
+    private void setupSingleCameraFrameTouchListener(android.widget.FrameLayout frame, String cameraPosition) {
+        if (frame == null) return;
+
+        frame.setOnClickListener(v -> {
+            if (currentFullscreenDialog != null && currentFullscreenDialog.isShowing()) {
+                return;
+            }
+            showFullscreenPreview(cameraPosition);
+        });
+    }
+
+    private void showFullscreenPreview(String cameraPosition) {
+        AppLog.d(TAG, "显示全屏预览: " + cameraPosition);
+
+        currentFullscreenDialog = new FullscreenPreviewDialog(this, cameraPosition);
+        currentFullscreenDialog.setOnParamsSavedListener((pos, k1, k2, zoom, cx, cy, rotation) -> {
+            AppLog.d(TAG, "鱼眼参数已保存: " + pos + " k1=" + k1 + " k2=" + k2 + " zoom=" + zoom + " rotation=" + rotation);
+        });
+        currentFullscreenDialog.setOnDismissListener(dialog -> {
+            currentFullscreenDialog = null;
+        });
+        currentFullscreenDialog.show();
     }
 
     /**
@@ -4183,6 +4221,7 @@ public class MainActivity extends AppCompatActivity {
             public void onConnected() {
                 runOnUiThread(() -> {
                     AppLog.d(TAG, "远程查看服务已连接");
+                    Toast.makeText(MainActivity.this, "钉钉远程已启动", Toast.LENGTH_SHORT).show();
                     // 通知 RemoteViewFragment 更新 UI
                     updateRemoteViewFragmentUI();
                 });

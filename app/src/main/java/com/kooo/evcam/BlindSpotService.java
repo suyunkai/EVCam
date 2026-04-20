@@ -698,11 +698,11 @@ public class BlindSpotService extends Service {
             dedicatedBlindSpotWindow.setCamera(cameraPos);
         }
 
-        // 显示转向箭头（仅在转向箭头光效模式下）
-        if (dedicatedBlindSpotWindow != null && dedicatedBlindSpotWindow.isTurnArrowStyleEnabled()) {
+        // 显示转向箭头
+        if (dedicatedBlindSpotWindow != null) {
             dedicatedBlindSpotWindow.showTurnSignalArrow(cameraPos);
         }
-        if (mainFloatingWindowView != null && appConfig.getBlindSpotStatusBarStyle() == BlindSpotStatusBarView.STYLE_TURN_ARROW) {
+        if (mainFloatingWindowView != null) {
             mainFloatingWindowView.showTurnSignalArrow(cameraPos);
         }
 
@@ -741,8 +741,7 @@ public class BlindSpotService extends Service {
         }
 
         currentSignalCamera = cameraPos;
-        long t0 = System.currentTimeMillis();
-        AppLog.d(TAG, "转向灯触发摄像头: " + cameraPos + " [T+0ms]");
+        AppLog.d(TAG, "转向灯触发摄像头: " + cameraPos);
 
         // --- 1. 尽早创建窗口 UI（addView 触发布局，与后续 IPC 并行，Surface 就绪更快） ---
         boolean reuseMain = false;
@@ -796,9 +795,8 @@ public class BlindSpotService extends Service {
                 
                 dedicatedBlindSpotWindow.show();
                 dedicatedBlindSpotWindow.updateStatusLabel(cameraPos);
-                AppLog.d(TAG, "窗口show完成 [T+" + (System.currentTimeMillis() - t0) + "ms]");
                 // setCamera 需要 CameraManager，延后到初始化之后调用
-
+                
                 // 异步重新预创建窗口（为下次做准备）
                 if (!isPreCreatedWindowsReady || preCreatedLeftWindow == null || preCreatedRightWindow == null) {
                     preCreateBlindSpotWindows();
@@ -816,38 +814,45 @@ public class BlindSpotService extends Service {
         }
 
         // --- 2. 异步启动前台服务和初始化相机（与 UI 布局并行） ---
+        // 前台服务是后台访问摄像头的前提条件，但 addView 不需要它
+        // 冷启动时 CameraForegroundService 可能还未启动，导致摄像头被系统 CAMERA_DISABLED 拦截
         CameraForegroundService.start(this, "补盲运行中", "正在显示补盲画面");
-        AppLog.d(TAG, "前台服务启动请求 [T+" + (System.currentTimeMillis() - t0) + "ms]");
 
         // 确保摄像头已初始化（通过全局 Holder，不依赖 MainActivity）
         com.kooo.evcam.camera.CameraManagerHolder.getInstance().getOrInit(this);
-        AppLog.d(TAG, "CameraManager初始化完成 [T+" + (System.currentTimeMillis() - t0) + "ms]");
 
-        // --- 3. 打开相机（等待前台服务就绪） ---
+        // --- 3. 立即打开相机（不等待服务就绪，进一步减少延迟） ---
         {
             MultiCameraManager cm = com.kooo.evcam.camera.CameraManagerHolder.getInstance().getCameraManager();
             if (cm != null) {
                 SingleCamera cam = cm.getCamera(cameraPos);
                 if (cam != null && !cam.isCameraOpened()) {
-                    CameraForegroundService.whenReady(this, cam::openCameraDeferred);
-                    AppLog.d(TAG, "📷 请求打开相机(whenReady) [T+" + (System.currentTimeMillis() - t0) + "ms]");
-                } else if (cam != null) {
-                    AppLog.d(TAG, "📷 相机已打开 [T+" + (System.currentTimeMillis() - t0) + "ms]");
+                    // 直接打开相机，不等待服务就绪回调，减少延迟
+                    cam.openCameraDeferred();
+                    AppLog.d(TAG, "📷 立即打开相机: " + cameraPos);
+                } else if (cam != null && cam.isCameraOpened()) {
+                    AppLog.d(TAG, "📷 相机已打开: " + cameraPos);
                 }
             }
         }
 
         // --- 4. 需要 CameraManager 的操作 ---
+        // dedicatedBlindSpotWindow.setCamera() 需要 CameraManager 获取 previewSize
+        // show() 之后 Surface 已就绪，可以立即绑定相机
         if (!isAvmAvoidanceActive && !reuseMain && dedicatedBlindSpotWindow != null) {
-            dedicatedBlindSpotWindow.setCamera(cameraPos);
-            AppLog.d(TAG, "setCamera完成 [T+" + (System.currentTimeMillis() - t0) + "ms]");
+            mainHandler.post(() -> {
+                if (dedicatedBlindSpotWindow != null) {
+                    dedicatedBlindSpotWindow.setCamera(cameraPos);
+                    AppLog.d(TAG, "📷 绑定相机到窗口: " + cameraPos);
+                }
+            });
         }
 
-        // 显示转向箭头（仅在转向箭头光效模式下）
-        if (dedicatedBlindSpotWindow != null && dedicatedBlindSpotWindow.isTurnArrowStyleEnabled()) {
+        // 显示转向箭头
+        if (dedicatedBlindSpotWindow != null) {
             dedicatedBlindSpotWindow.showTurnSignalArrow(cameraPos);
         }
-        if (mainFloatingWindowView != null && appConfig.getBlindSpotStatusBarStyle() == BlindSpotStatusBarView.STYLE_TURN_ARROW) {
+        if (mainFloatingWindowView != null) {
             mainFloatingWindowView.showTurnSignalArrow(cameraPos);
         }
 

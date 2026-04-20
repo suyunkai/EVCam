@@ -60,18 +60,19 @@
     <!-- 关闭按钮 - 放在最后确保在最上层 -->
     <TextView
         android:id="@+id/btn_close_supervision"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
         android:layout_gravity="top|end"
-        android:layout_margin="4dp"
-        android:background="@drawable/bg_close_button"
-        android:text="✕"
-        android:textColor="#99FFFFFF"
-        android:textSize="13sp"
+        android:layout_margin="2dp"
+        android:background="#FF0000"
+        android:text="X"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:textStyle="bold"
         android:gravity="center"
         android:visibility="gone"
         android:clickable="true"
         android:focusable="true"
-        android:elevation="4dp" />
+        android:elevation="100dp" />
 
 </FrameLayout>

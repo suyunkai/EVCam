@@ -65,6 +65,8 @@ public class SingleCamera {
     private android.graphics.SurfaceTexture mainFloatingSurfaceTexture; // 主屏悬浮窗SurfaceTexture（用于设置buffer尺寸）
     private Surface secondaryDisplaySurface; // 副屏预览Surface
     private android.graphics.SurfaceTexture secondaryDisplaySurfaceTexture; // 副屏SurfaceTexture（用于设置buffer尺寸）
+    private Surface fullscreenPreviewSurface; // 全屏预览Surface
+    private android.graphics.SurfaceTexture fullscreenPreviewSurfaceTexture; // 全屏预览SurfaceTexture（用于设置buffer尺寸）
     private OutputConfiguration activePreviewConfig; // 共享预览配置，用于动态 Surface 增减
     private Surface previewSurface;  // 预览Surface（缓存以避免重复创建）
     private ImageReader imageReader;  // 用于拍照的ImageReader
@@ -1322,6 +1324,8 @@ public class SingleCamera {
                     surface = mainFloatingSurface;
                 } else if (secondaryDisplaySurface != null && secondaryDisplaySurface.isValid()) {
                     surface = secondaryDisplaySurface;
+                } else if (fullscreenPreviewSurface != null && fullscreenPreviewSurface.isValid()) {
+                    surface = fullscreenPreviewSurface;
                 }
             }
             
@@ -1329,6 +1333,7 @@ public class SingleCamera {
             boolean hasAnySurface = (surface != null && surface.isValid())
                     || (mainFloatingSurface != null && mainFloatingSurface.isValid())
                     || (secondaryDisplaySurface != null && secondaryDisplaySurface.isValid())
+                    || (fullscreenPreviewSurface != null && fullscreenPreviewSurface.isValid())
                     || (recordSurface != null && recordSurface.isValid());
             if (!hasAnySurface) {
                 AppLog.d(TAG, "Camera " + cameraId + " no available surfaces, skipping session creation (waiting for surface)");
@@ -1406,6 +1411,12 @@ public class SingleCamera {
                     } else {
                         fisheyeCorrector.removeOutputSurface("secondaryDisplay");
                     }
+                    if (fullscreenPreviewSurface != null && fullscreenPreviewSurface.isValid()) {
+                        fisheyeCorrector.addOutputSurface("fullscreenPreview", fullscreenPreviewSurface);
+                        AppLog.d(TAG, "Registered fullscreen preview surface to fisheye GL pipeline");
+                    } else {
+                        fisheyeCorrector.removeOutputSurface("fullscreenPreview");
+                    }
                 } else {
                     // 非鱼眼模式：使用 Surface Sharing
                     AppLog.d(TAG, "Camera " + cameraId + " Using Surface Sharing for preview streams");
@@ -1418,6 +1429,9 @@ public class SingleCamera {
                         }
                         if (secondaryDisplaySurfaceTexture != null) {
                             secondaryDisplaySurfaceTexture.setDefaultBufferSize(previewSize.getWidth(), previewSize.getHeight());
+                        }
+                        if (fullscreenPreviewSurfaceTexture != null) {
+                            fullscreenPreviewSurfaceTexture.setDefaultBufferSize(previewSize.getWidth(), previewSize.getHeight());
                         }
                     }
 
@@ -1449,6 +1463,25 @@ public class SingleCamera {
                             surfaces.add(secondaryDisplaySurface);
                             previewRequestBuilder.addTarget(secondaryDisplaySurface);
                             AppLog.d(TAG, "Added secondary display surface to SHARED preview stream");
+                        }
+
+                        AppLog.d(TAG, "Camera " + cameraId + " Checking fullscreenPreviewSurface: " + 
+                                fullscreenPreviewSurface + ", isValid=" + (fullscreenPreviewSurface != null && fullscreenPreviewSurface.isValid()) +
+                                ", surface=" + surface + ", mainFloating=" + mainFloatingSurface + ", secondary=" + secondaryDisplaySurface);
+
+                        if (fullscreenPreviewSurface != null && fullscreenPreviewSurface.isValid() &&
+                            fullscreenPreviewSurface != surface && fullscreenPreviewSurface != mainFloatingSurface &&
+                            fullscreenPreviewSurface != secondaryDisplaySurface) {
+                            previewSharedConfig.addSurface(fullscreenPreviewSurface);
+                            surfaces.add(fullscreenPreviewSurface);
+                            previewRequestBuilder.addTarget(fullscreenPreviewSurface);
+                            AppLog.d(TAG, "Added fullscreen preview surface to SHARED preview stream");
+                        } else if (fullscreenPreviewSurface != null) {
+                            AppLog.w(TAG, "Camera " + cameraId + " fullscreenPreviewSurface NOT added: " +
+                                    "valid=" + fullscreenPreviewSurface.isValid() +
+                                    ", sameAsSurface=" + (fullscreenPreviewSurface == surface) +
+                                    ", sameAsMainFloating=" + (fullscreenPreviewSurface == mainFloatingSurface) +
+                                    ", sameAsSecondary=" + (fullscreenPreviewSurface == secondaryDisplaySurface));
                         }
 
                         outputConfigs.add(previewSharedConfig);
@@ -2369,6 +2402,188 @@ public class SingleCamera {
         if (fisheyeCorrector != null && fisheyeCorrector.isInitialized()) {
             fisheyeCorrector.loadParams(appConfig);
         }
+    }
+
+    /**
+     * 实时更新鱼眼矫正参数（直接传入参数值，用于全屏预览对话框）
+     */
+    public void updateFisheyeParamsRealtime(float k1, float k2, float zoom, float centerX, float centerY) {
+        updateFisheyeParamsRealtime(k1, k2, zoom, centerX, centerY, 0);
+    }
+
+    public void updateFisheyeParamsRealtime(float k1, float k2, float zoom, float centerX, float centerY, int rotation) {
+        if (fisheyeCorrector != null && fisheyeCorrector.isInitialized()) {
+            fisheyeCorrector.updateParams(k1, k2, zoom, centerX, centerY, rotation);
+        }
+    }
+
+    /**
+     * 获取预览的 SurfaceTexture（用于全屏预览对话框）
+     */
+    public android.graphics.SurfaceTexture getPreviewSurfaceTexture() {
+        if (fisheyeCorrector != null && fisheyeCorrector.isInitialized()) {
+            return fisheyeCorrector.getIntermediateSurfaceTexture();
+        }
+        if (textureView != null && textureView.isAvailable()) {
+            return textureView.getSurfaceTexture();
+        }
+        return null;
+    }
+
+    /**
+     * 检查是否启用了鱼眼矫正
+     */
+    public boolean isFisheyeCorrectionEnabled() {
+        return fisheyeCorrector != null && fisheyeCorrector.isInitialized();
+    }
+
+    /**
+     * 恢复主界面预览的 SurfaceTexture（全屏预览关闭时调用）
+     */
+    public void restoreMainPreviewSurfaceTexture() {
+        if (fisheyeCorrector != null && fisheyeCorrector.isInitialized()) {
+            return;
+        }
+        if (textureView != null && textureView.isAvailable()) {
+            android.graphics.SurfaceTexture st = textureView.getSurfaceTexture();
+            if (st != null) {
+                android.util.Size previewSize = this.previewSize;
+                if (previewSize != null) {
+                    st.setDefaultBufferSize(previewSize.getWidth(), previewSize.getHeight());
+                }
+                textureView.setSurfaceTexture(st);
+                AppLog.d(TAG, "Camera " + cameraId + " restored main preview SurfaceTexture");
+            }
+        }
+    }
+
+    /**
+     * 设置全屏预览的 Surface（用于全屏预览对话框）
+     * 在鱼眼模式下，将 Surface 添加到 FisheyeCorrector 的附加输出
+     * 在非鱼眼模式下，需要重建 session 来添加新的 Surface
+     */
+    public void setFullscreenPreviewSurface(Surface surface) {
+        setFullscreenPreviewSurface(surface, null);
+    }
+
+    /**
+     * 设置全屏预览的 Surface 和 SurfaceTexture（用于全屏预览对话框）
+     * 在鱼眼模式下，将 Surface 添加到 FisheyeCorrector 的附加输出
+     * 在非鱼眼模式下，需要重建 session 来添加新的 Surface
+     */
+    public void setFullscreenPreviewSurface(Surface surface, android.graphics.SurfaceTexture surfaceTexture) {
+        AppLog.d(TAG, "Camera " + cameraId + " setFullscreenPreviewSurface called, surface=" + surface +
+                ", isValid=" + (surface != null && surface.isValid()) +
+                ", fisheyeMode=" + (fisheyeCorrector != null && fisheyeCorrector.isInitialized()));
+
+        this.fullscreenPreviewSurface = surface;
+        this.fullscreenPreviewSurfaceTexture = surfaceTexture;
+
+        if (surface == null) {
+            AppLog.d(TAG, "Fullscreen preview surface is null for camera " + cameraId);
+            return;
+        }
+
+        if (!surface.isValid()) {
+            AppLog.e(TAG, "Camera " + cameraId + " fullscreen preview surface is NOT valid!");
+            return;
+        }
+
+        if (fisheyeCorrector != null && fisheyeCorrector.isInitialized()) {
+            if (backgroundHandler != null) {
+                backgroundHandler.post(() -> {
+                    if (fisheyeCorrector != null && surface.isValid()) {
+                        fisheyeCorrector.addOutputSurface("fullscreenPreview", surface);
+                        AppLog.d(TAG, "Camera " + cameraId + " added fullscreen preview surface to FisheyeCorrector");
+                    }
+                });
+            }
+        } else {
+            AppLog.d(TAG, "Camera " + cameraId + " recreating session for fullscreen preview surface");
+            recreateSession(true);
+        }
+    }
+
+    private boolean tryDynamicSurfaceAddFullscreen(Surface surface) {
+        synchronized (sessionLock) {
+            if (isConfiguring || isSessionClosing) return false;
+        }
+        if (captureSession == null || activePreviewConfig == null || currentRequestBuilder == null) {
+            return false;
+        }
+        if (surface == null || !surface.isValid()) return false;
+
+        try {
+            activePreviewConfig.addSurface(surface);
+            captureSession.finalizeOutputConfigurations(
+                    java.util.Collections.singletonList(activePreviewConfig));
+            currentRequestBuilder.addTarget(surface);
+            captureSession.setRepeatingRequest(
+                    currentRequestBuilder.build(), activeCaptureCallback, backgroundHandler);
+            AppLog.d(TAG, "Camera " + cameraId + " dynamic fullscreen surface ADD succeeded");
+            return true;
+        } catch (Exception e) {
+            AppLog.w(TAG, "Camera " + cameraId + " dynamic fullscreen surface add failed: " + e.getMessage());
+            try { activePreviewConfig.removeSurface(surface); } catch (Exception ignored) {}
+            try { currentRequestBuilder.removeTarget(surface); } catch (Exception ignored) {}
+            return false;
+        }
+    }
+
+    private boolean tryDynamicSurfaceRemoveFullscreen(Surface surface) {
+        synchronized (sessionLock) {
+            if (isConfiguring || isSessionClosing) return false;
+        }
+        if (captureSession == null || activePreviewConfig == null || currentRequestBuilder == null) {
+            return false;
+        }
+        if (surface == null) return false;
+
+        try {
+            currentRequestBuilder.removeTarget(surface);
+            activePreviewConfig.removeSurface(surface);
+            captureSession.finalizeOutputConfigurations(
+                    java.util.Collections.singletonList(activePreviewConfig));
+            captureSession.setRepeatingRequest(
+                    currentRequestBuilder.build(), activeCaptureCallback, backgroundHandler);
+            AppLog.d(TAG, "Camera " + cameraId + " dynamic fullscreen surface REMOVE succeeded");
+            return true;
+        } catch (Exception e) {
+            AppLog.w(TAG, "Camera " + cameraId + " dynamic fullscreen surface remove failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 清除全屏预览的 Surface
+     */
+    public void clearFullscreenPreviewSurface() {
+        final Surface surfaceToRemove = this.fullscreenPreviewSurface;
+        if (surfaceToRemove == null) {
+            AppLog.d(TAG, "Fullscreen preview surface already null for camera " + cameraId);
+            return;
+        }
+        this.fullscreenPreviewSurface = null;
+        this.fullscreenPreviewSurfaceTexture = null;
+
+        if (fisheyeCorrector != null && fisheyeCorrector.isInitialized()) {
+            if (backgroundHandler != null) {
+                backgroundHandler.post(() -> {
+                    if (fisheyeCorrector != null) {
+                        fisheyeCorrector.removeOutputSurface("fullscreenPreview");
+                        AppLog.d(TAG, "Camera " + cameraId + " removed fullscreen preview surface from FisheyeCorrector");
+                    }
+                });
+            }
+        } else {
+            AppLog.d(TAG, "Camera " + cameraId + " recreating session to remove fullscreen preview surface");
+            if (backgroundHandler != null) {
+                backgroundHandler.postDelayed(() -> recreateSession(true), 100);
+            } else {
+                recreateSession(true);
+            }
+        }
+        AppLog.d(TAG, "Camera " + cameraId + " fullscreen preview surface cleared");
     }
 
     /**

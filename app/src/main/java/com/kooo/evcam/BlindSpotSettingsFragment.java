@@ -79,8 +79,6 @@ public class BlindSpotSettingsFragment extends Fragment {
     private SwitchMaterial mainFloatingAspectRatioLockSwitch;
     private SwitchMaterial mainFloatingLongPressDragSwitch;
     private Button resetMainFloatingButton;
-    private SeekBar cornerRadiusSeekBar;
-    private TextView tvCornerRadiusValue;
     private Button logcatDebugButton;
     private android.widget.EditText logFilterEditText;
     private Button menuButton;
@@ -166,10 +164,6 @@ public class BlindSpotSettingsFragment extends Fragment {
         mainFloatingAspectRatioLockSwitch = view.findViewById(R.id.switch_main_floating_aspect_ratio_lock);
         mainFloatingLongPressDragSwitch = view.findViewById(R.id.switch_main_floating_long_press_drag);
         resetMainFloatingButton = view.findViewById(R.id.btn_reset_main_floating);
-
-        // 圆角调节
-        cornerRadiusSeekBar = view.findViewById(R.id.seekbar_corner_radius);
-        tvCornerRadiusValue = view.findViewById(R.id.text_corner_radius_value);
 
         carApiStatusText = view.findViewById(R.id.tv_car_api_status);
 
@@ -265,8 +259,7 @@ public class BlindSpotSettingsFragment extends Fragment {
             case BlindSpotStatusBarView.STYLE_RIPPLE:        statusBarStyleGroup.check(R.id.rb_style_ripple); break;
             case BlindSpotStatusBarView.STYLE_GRADIENT_FILL: statusBarStyleGroup.check(R.id.rb_style_gradient_fill); break;
             case BlindSpotStatusBarView.STYLE_ARROW_RIPPLE:  statusBarStyleGroup.check(R.id.rb_style_arrow_ripple); break;
-            case BlindSpotStatusBarView.STYLE_TURN_ARROW:    statusBarStyleGroup.check(R.id.rb_style_turn_arrow); break;
-            default:                                         statusBarStyleGroup.check(R.id.rb_style_turn_arrow); break;
+            default:                                         statusBarStyleGroup.check(R.id.rb_style_sequential); break;
         }
 
         updateColorPreview(appConfig.getBlindSpotStatusBarColor());
@@ -279,11 +272,6 @@ public class BlindSpotSettingsFragment extends Fragment {
 
         mainFloatingAspectRatioLockSwitch.setChecked(appConfig.isMainFloatingAspectRatioLocked());
         mainFloatingLongPressDragSwitch.setChecked(appConfig.isMainFloatingLongPressDragEnabled());
-
-        int cornerRadius = appConfig.getFloatingWindowCornerRadiusDp();
-        cornerRadiusSeekBar.setMax(appConfig.getMaxFloatingCornerRadiusDp());
-        cornerRadiusSeekBar.setProgress(cornerRadius);
-        tvCornerRadiusValue.setText(cornerRadius + "dp");
         
         // 车门联动配置加载
         doorLinkageSwitch.setChecked(appConfig.isDoorLinkageEnabled());
@@ -499,7 +487,6 @@ public class BlindSpotSettingsFragment extends Fragment {
             else if (checkedId == R.id.rb_style_ripple)        style = BlindSpotStatusBarView.STYLE_RIPPLE;
             else if (checkedId == R.id.rb_style_gradient_fill) style = BlindSpotStatusBarView.STYLE_GRADIENT_FILL;
             else if (checkedId == R.id.rb_style_arrow_ripple)  style = BlindSpotStatusBarView.STYLE_ARROW_RIPPLE;
-            else if (checkedId == R.id.rb_style_turn_arrow)    style = BlindSpotStatusBarView.STYLE_TURN_ARROW;
             else                                               style = BlindSpotStatusBarView.STYLE_SEQUENTIAL;
             appConfig.setBlindSpotStatusBarStyle(style);
             BlindSpotService.update(requireContext());
@@ -556,20 +543,6 @@ public class BlindSpotSettingsFragment extends Fragment {
 
         mainFloatingLongPressDragSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             appConfig.setMainFloatingLongPressDragEnabled(isChecked);
-        });
-
-        cornerRadiusSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                tvCornerRadiusValue.setText(progress + "dp");
-            }
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-                appConfig.setFloatingWindowCornerRadiusDp(seekBar.getProgress());
-                BlindSpotService.update(requireContext());
-            }
         });
 
         resetMainFloatingButton.setOnClickListener(v -> {

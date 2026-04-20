@@ -82,15 +82,14 @@
                             </FrameLayout>
                         </androidx.cardview.widget.CardView>
 
-                        <!-- 前摄像头开关 -->
+                        <!-- 前摄像头开关（放在画面容器外，始终可见） -->
                         <com.kooo.evcam.view.MacOSToggleButton
                             android:id="@+id/toggle_front"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_gravity="top|end"
                             android:layout_marginEnd="6dp"
-                            android:layout_marginTop="6dp"
-                            android:alpha="0.75" />
+                            android:layout_marginTop="6dp" />
 
                         <!-- 摄像头控制按钮（居中显示，两行布局） -->
                         <LinearLayout
@@ -378,8 +377,8 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:layout_gravity="top|end"
-                                    android:layout_marginEnd="6dp"
+                                    android:layout_gravity="top|start"
+                                    android:layout_marginStart="6dp"
                                     android:layout_marginTop="6dp"
                                     android:paddingStart="8dp"
                                     android:paddingEnd="8dp"
@@ -392,15 +391,14 @@
                             </FrameLayout>
                         </androidx.cardview.widget.CardView>
 
-                        <!-- 后摄像头开关（左上角，方便操作） -->
+                        <!-- 后摄像头开关（放在画面容器外，始终可见） -->
                         <com.kooo.evcam.view.MacOSToggleButton
                             android:id="@+id/toggle_back"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_gravity="top|start"
-                            android:layout_marginStart="6dp"
-                            android:layout_marginTop="6dp"
-                            android:alpha="0.75" />
+                            android:layout_gravity="top|end"
+                            android:layout_marginEnd="6dp"
+                            android:layout_marginTop="6dp" />
 
                         <!-- 摄像头控制按钮（居中显示，两行布局） -->
                         <LinearLayout
@@ -700,15 +698,14 @@
                             </FrameLayout>
                         </androidx.cardview.widget.CardView>
 
-                        <!-- 左摄像头开关 -->
+                        <!-- 左摄像头开关（放在画面容器外，始终可见） -->
                         <com.kooo.evcam.view.MacOSToggleButton
                             android:id="@+id/toggle_left"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_gravity="top|end"
                             android:layout_marginEnd="6dp"
-                            android:layout_marginTop="6dp"
-                            android:alpha="0.75" />
+                            android:layout_marginTop="6dp" />
 
                         <!-- 摄像头控制按钮（居中显示，两行布局） -->
                         <LinearLayout
@@ -1048,8 +1045,8 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:layout_gravity="top|end"
-                                    android:layout_marginEnd="6dp"
+                                    android:layout_gravity="top|start"
+                                    android:layout_marginStart="6dp"
                                     android:layout_marginTop="6dp"
                                     android:paddingStart="8dp"
                                     android:paddingEnd="8dp"
@@ -1062,15 +1059,14 @@
                             </FrameLayout>
                         </androidx.cardview.widget.CardView>
 
-                        <!-- 右摄像头开关（左上角，方便操作） -->
+                        <!-- 右摄像头开关（放在画面容器外，始终可见） -->
                         <com.kooo.evcam.view.MacOSToggleButton
                             android:id="@+id/toggle_right"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_gravity="top|start"
-                            android:layout_marginStart="6dp"
-                            android:layout_marginTop="6dp"
-                            android:alpha="0.75" />
+                            android:layout_gravity="top|end"
+                            android:layout_marginEnd="6dp"
+                            android:layout_marginTop="6dp" />
 
                         <!-- 摄像头控制按钮（居中显示，两行布局） -->
                         <LinearLayout

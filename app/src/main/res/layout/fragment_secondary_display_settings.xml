@@ -282,41 +282,6 @@
                         android:layout_marginStart="16dp" />
                 </LinearLayout>
 
-                <!-- 悬浮窗圆角调节 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginTop="12dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="圆角"
-                        android:textColor="@color/text_primary"
-                        android:textSize="14sp" />
-
-                    <SeekBar
-                        android:id="@+id/seekbar_corner_radius"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginStart="8dp"
-                        android:layout_marginEnd="8dp"
-                        android:max="50"
-                        android:progress="8" />
-
-                    <TextView
-                        android:id="@+id/text_corner_radius_value"
-                        android:layout_width="40dp"
-                        android:layout_height="wrap_content"
-                        android:text="8dp"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="13sp"
-                        android:gravity="end" />
-                </LinearLayout>
-
                 <Button
                     android:id="@+id/btn_reset_main_floating"
                     android:layout_width="match_parent"
@@ -538,16 +503,6 @@
                             android:layout_height="wrap_content"
                             android:minHeight="36dp"
                             android:text="E. 箭头涟漪（箭头从中心飞出）"
-                            android:textColor="@color/text_primary"
-                            android:textSize="14sp"
-                            android:buttonTint="@color/colorPrimary" />
-
-                        <RadioButton
-                            android:id="@+id/rb_style_turn_arrow"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:minHeight="36dp"
-                            android:text="F. 转向箭头（方向指示闪烁箭头）"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:buttonTint="@color/colorPrimary" />
