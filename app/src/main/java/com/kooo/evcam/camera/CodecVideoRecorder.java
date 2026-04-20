@@ -843,31 +843,18 @@ public class CodecVideoRecorder {
     private void createEncoder() throws IOException {
         // 检测并选择最优编码格式
         mimeType = selectBestEncoder();
-        
-        // 计算最优码率
-        int optimalBitrate = calculateOptimalBitrate();
-        
-        // 如果启用了补盲优化模式，使用降低的帧率
+
+        // 保持 v1.2.4 兼容路径：使用显式配置值，不附加 Profile/Level，交由系统默认能力协商
         int effectiveFrameRate = blindSpotOptimizeMode ? BLIND_SPOT_OPTIMIZED_FPS : frameRate;
-        
+
         MediaFormat format = MediaFormat.createVideoFormat(mimeType, width, height);
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        format.setInteger(MediaFormat.KEY_BIT_RATE, optimalBitrate);
+        format.setInteger(MediaFormat.KEY_BIT_RATE, bitRate);
         format.setInteger(MediaFormat.KEY_FRAME_RATE, effectiveFrameRate);
         format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, I_FRAME_INTERVAL);
-        
-        // HEVC 特定优化参数
-        if (mimeType.equals(MIME_TYPE_HEVC)) {
-            // 设置 HEVC 的 Profile 和 Level 以获得更好效率
-            format.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.HEVCProfileMain);
-            format.setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.HEVCHighTierLevel4);
-        } else {
-            // H.264 优化参数
-            format.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileHigh);
-        }
 
-        // 优化：使用硬件编码器创建方法
-        encoder = createHardwareEncoder(mimeType);
+        // 兼容性优先：让系统选择可用编码器，避免特定硬件编码器 + Profile 组合导致 configure 失败
+        encoder = MediaCodec.createEncoderByType(mimeType);
         encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
 
         encoderInputSurface = encoder.createInputSurface();
@@ -875,9 +862,9 @@ public class CodecVideoRecorder {
 
         bufferInfo = new MediaCodec.BufferInfo();
 
-        AppLog.d(TAG, "Camera " + cameraId + " Encoder created: " + width + "x" + height + 
-                " @ " + effectiveFrameRate + "fps" + (blindSpotOptimizeMode ? "(补盲优化)" : "") + 
-                ", " + (optimalBitrate / 1000) + " Kbps, " + 
+        AppLog.d(TAG, "Camera " + cameraId + " Encoder created: " + width + "x" + height +
+                " @ " + effectiveFrameRate + "fps" + (blindSpotOptimizeMode ? "(补盲优化)" : "") +
+                ", " + (bitRate / 1000) + " Kbps, " +
                 (mimeType.equals(MIME_TYPE_HEVC) ? "HEVC" : "H.264"));
     }
 
@@ -887,16 +874,9 @@ public class CodecVideoRecorder {
      * 优化：优先选择硬件编码器，性能更好
      */
     private String selectBestEncoder() {
-        try {
-            // 检查 HEVC 编码器是否可用
-            MediaCodec hevcEncoder = MediaCodec.createEncoderByType(MIME_TYPE_HEVC);
-            hevcEncoder.release();
-            AppLog.d(TAG, "HEVC encoder available, using H.265 for better efficiency");
-            return MIME_TYPE_HEVC;
-        } catch (Exception e) {
-            AppLog.w(TAG, "HEVC encoder not available, falling back to H.264");
-            return MIME_TYPE_H264;
-        }
+        // 回退项 #1：为兼容部分车型，固定使用 H.264，避免 HEVC 在车机硬件上的闪烁问题
+        AppLog.i(TAG, "Camera " + cameraId + " force H.264 encoder for stability");
+        return MIME_TYPE_H264;
     }
     
     /**
