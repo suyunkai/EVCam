@@ -4039,6 +4039,55 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public void applyAvmAvoidanceBehavior(int behavior) {
+        runOnUiThread(() -> handleAvmAvoidanceBehavior(behavior));
+    }
+
+    private void handleAvmAvoidanceBehavior(int behavior) {
+        int safeBehavior = appConfig != null
+                ? appConfig.getAvmAvoidanceBehavior()
+                : behavior;
+        if (behavior == AppConfig.AVM_AVOIDANCE_BEHAVIOR_STOP_RECORDING
+                || behavior == AppConfig.AVM_AVOIDANCE_BEHAVIOR_STOP_PREVIEW_AND_RECORDING
+                || behavior == AppConfig.AVM_AVOIDANCE_BEHAVIOR_BACKGROUND) {
+            safeBehavior = behavior;
+        }
+
+        AppLog.i(TAG, "执行避让行为: " + (appConfig != null ? appConfig.getAvmAvoidanceBehaviorLabel(safeBehavior) : safeBehavior));
+
+        if (safeBehavior == AppConfig.AVM_AVOIDANCE_BEHAVIOR_BACKGROUND) {
+            moveTaskToBack(true);
+            return;
+        }
+
+        MultiCameraManager manager = getCameraManager();
+        boolean managerRecording = manager != null && manager.isRecording();
+        if (isRecording || isRemoteRecording || managerRecording) {
+            if (manager != null) {
+                stopRecording();
+            }
+            isRecording = false;
+            isRemoteRecording = false;
+            isPreparingRecording = false;
+            isAutoRecordingPending = false;
+            pendingRemoteDurationSeconds = 0;
+            if (autoStopHandler != null && autoStopRunnable != null) {
+                autoStopHandler.removeCallbacks(autoStopRunnable);
+            }
+        }
+
+        if (safeBehavior == AppConfig.AVM_AVOIDANCE_BEHAVIOR_STOP_PREVIEW_AND_RECORDING) {
+            android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+            handler.postDelayed(() -> {
+                MultiCameraManager currentManager = getCameraManager();
+                if (currentManager != null) {
+                    currentManager.closeAllCameras();
+                    AppLog.i(TAG, "避让行为：已停止预览并关闭摄像头");
+                }
+            }, managerRecording ? 300 : 0);
+        }
+    }
+
     /**
      * 完全退出应用（包括后台进程）
      * 这是用户主动退出，需要停止所有服务

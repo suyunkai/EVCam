@@ -6,6 +6,11 @@ import android.content.SharedPreferences;
 import com.kooo.evcam.config.BlindSpotConfig;
 import com.kooo.evcam.config.RecordingConfig;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+
 /**
  * 应用配置管理类
  * 管理应用级别的配置项
@@ -121,15 +126,33 @@ public class AppConfig {
     // 兼容性别名（保持向后兼容）
     public static final String TRIGGER_MODE_CAR_API = TRIGGER_MODE_VHAL_GRPC;
 
-    // 全景影像避让配置
+    // 定制键唤醒触发方式
+    public static final int CUSTOM_KEY_TRIGGER_MODE_SPEED_THRESHOLD = 0; // 车速达到阈值
+    public static final int CUSTOM_KEY_TRIGGER_MODE_LONG_PRESS = 1;      // 按键值为4
+
+    // 全景影像/泊车避让配置
     private static final String KEY_AVM_AVOIDANCE_ENABLED = "avm_avoidance_enabled";  // 全景影像避让开关
-    private static final String KEY_AVM_AVOIDANCE_ACTIVITY = "avm_avoidance_activity"; // 全景影像避让的Activity名
+    private static final String KEY_AVM_AVOIDANCE_ACTIVITY = "avm_avoidance_activity"; // 避让Activity列表（兼容旧单值）
+    private static final String KEY_AVM_AVOIDANCE_BEHAVIOR = "avm_avoidance_behavior"; // 避让触发行为
+    private static final String LEGACY_AVM_AVOIDANCE_ACTIVITY = "com.geely.avm_app.AvmRenderActivity";
+
+    public static final int AVM_AVOIDANCE_BEHAVIOR_BACKGROUND = 0; // 退出前台
+    public static final int AVM_AVOIDANCE_BEHAVIOR_STOP_RECORDING = 1; // 停止录制
+    public static final int AVM_AVOIDANCE_BEHAVIOR_STOP_PREVIEW_AND_RECORDING = 2; // 停止预览和录制
+
+    private static final String DEFAULT_AVM_AVOIDANCE_ACTIVITIES =
+            "com.geely.parking.parking.ParkingActivity\n"
+                    + "com.geely.parking.BlankActivity\n"
+                    + "com.geely.parking.BlankHpaActivity\n"
+                    + "com.geely.avm_app.MainActivity\n"
+                    + "com.geely.avm_app.AvmWindowActivity";
     
     // 中转写入配置
     private static final String KEY_RELAY_WRITE_ENABLED = "relay_write_enabled";  // 中转写入开关（U盘存储时）
 
     // 定制键唤醒配置
     private static final String KEY_CUSTOM_KEY_WAKEUP_ENABLED = "custom_key_wakeup_enabled"; // 定制键唤醒开关
+    private static final String KEY_CUSTOM_KEY_TRIGGER_MODE = "custom_key_trigger_mode"; // 触发方式
     private static final String KEY_CUSTOM_KEY_SPEED_THRESHOLD = "custom_key_speed_threshold"; // 速度阈值（秒速 m/s）
     private static final String KEY_CUSTOM_KEY_SPEED_PROP_ID = "custom_key_speed_prop_id"; // 速度属性ID
     private static final String KEY_CUSTOM_KEY_BUTTON_PROP_ID = "custom_key_button_prop_id"; // 按钮属性ID
@@ -3090,14 +3113,14 @@ public class AppConfig {
         return getUpdateServerUrl() != null;
     }
 
-    // ==================== 全景影像避让配置相关方法 ====================
+    // ==================== 全景影像/泊车避让配置相关方法 ====================
 
     /**
      * 设置全景影像避让开关
      */
     public void setAvmAvoidanceEnabled(boolean enabled) {
         prefs.edit().putBoolean(KEY_AVM_AVOIDANCE_ENABLED, enabled).apply();
-        AppLog.d(TAG, "全景影像避让设置: " + (enabled ? "启用" : "禁用"));
+        AppLog.d(TAG, "全景影像/泊车避让设置: " + (enabled ? "启用" : "禁用"));
     }
 
     /**
@@ -3108,18 +3131,89 @@ public class AppConfig {
     }
 
     /**
-     * 设置全景影像避让的Activity名称
+     * 设置避让Activity列表。支持每行一个，也兼容逗号/分号分隔。
      */
     public void setAvmAvoidanceActivity(String activityName) {
-        prefs.edit().putString(KEY_AVM_AVOIDANCE_ACTIVITY, activityName).apply();
-        AppLog.d(TAG, "全景影像避让Activity: " + activityName);
+        String normalized = normalizeAvmAvoidanceActivitiesText(activityName);
+        prefs.edit().putString(KEY_AVM_AVOIDANCE_ACTIVITY, normalized).apply();
+        AppLog.d(TAG, "全景影像/泊车避让Activity列表: " + normalized.replace('\n', ','));
     }
 
     /**
-     * 获取全景影像避让的Activity名称
+     * 获取避让Activity列表文本（用于设置页展示）。
      */
     public String getAvmAvoidanceActivity() {
-        return prefs.getString(KEY_AVM_AVOIDANCE_ACTIVITY, "com.geely.avm_app.AvmRenderActivity");
+        if (!prefs.contains(KEY_AVM_AVOIDANCE_ACTIVITY)) {
+            return DEFAULT_AVM_AVOIDANCE_ACTIVITIES;
+        }
+        String value = prefs.getString(KEY_AVM_AVOIDANCE_ACTIVITY, DEFAULT_AVM_AVOIDANCE_ACTIVITIES);
+        if (value == null) {
+            return DEFAULT_AVM_AVOIDANCE_ACTIVITIES;
+        }
+        value = value.trim();
+        if (LEGACY_AVM_AVOIDANCE_ACTIVITY.equals(value)) {
+            return DEFAULT_AVM_AVOIDANCE_ACTIVITIES;
+        }
+        return value;
+    }
+
+    public List<String> getAvmAvoidanceActivities() {
+        return parseAvmAvoidanceActivities(getAvmAvoidanceActivity());
+    }
+
+    public String getDefaultAvmAvoidanceActivities() {
+        return DEFAULT_AVM_AVOIDANCE_ACTIVITIES;
+    }
+
+    public void setAvmAvoidanceBehavior(int behavior) {
+        int safeBehavior = sanitizeAvmAvoidanceBehavior(behavior);
+        prefs.edit().putInt(KEY_AVM_AVOIDANCE_BEHAVIOR, safeBehavior).apply();
+        AppLog.d(TAG, "避让行为: " + getAvmAvoidanceBehaviorLabel(safeBehavior));
+    }
+
+    public int getAvmAvoidanceBehavior() {
+        return sanitizeAvmAvoidanceBehavior(
+                prefs.getInt(KEY_AVM_AVOIDANCE_BEHAVIOR, AVM_AVOIDANCE_BEHAVIOR_BACKGROUND));
+    }
+
+    public String getAvmAvoidanceBehaviorLabel(int behavior) {
+        switch (sanitizeAvmAvoidanceBehavior(behavior)) {
+            case AVM_AVOIDANCE_BEHAVIOR_STOP_RECORDING:
+                return "停止录制";
+            case AVM_AVOIDANCE_BEHAVIOR_STOP_PREVIEW_AND_RECORDING:
+                return "停止预览和录制";
+            case AVM_AVOIDANCE_BEHAVIOR_BACKGROUND:
+            default:
+                return "退出前台";
+        }
+    }
+
+    private int sanitizeAvmAvoidanceBehavior(int behavior) {
+        if (behavior == AVM_AVOIDANCE_BEHAVIOR_STOP_RECORDING
+                || behavior == AVM_AVOIDANCE_BEHAVIOR_STOP_PREVIEW_AND_RECORDING) {
+            return behavior;
+        }
+        return AVM_AVOIDANCE_BEHAVIOR_BACKGROUND;
+    }
+
+    private String normalizeAvmAvoidanceActivitiesText(String rawText) {
+        List<String> activities = parseAvmAvoidanceActivities(rawText);
+        return String.join("\n", activities);
+    }
+
+    private List<String> parseAvmAvoidanceActivities(String rawText) {
+        if (rawText == null || rawText.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        LinkedHashSet<String> activities = new LinkedHashSet<>();
+        String[] parts = rawText.split("[\\r\\n,;，；]+");
+        for (String part : parts) {
+            String value = part.trim();
+            if (!value.isEmpty()) {
+                activities.add(value);
+            }
+        }
+        return new ArrayList<>(activities);
     }
 
     // ==================== 定制键唤醒配置相关方法 ====================
@@ -3137,6 +3231,27 @@ public class AppConfig {
      */
     public boolean isCustomKeyWakeupEnabled() {
         return prefs.getBoolean(KEY_CUSTOM_KEY_WAKEUP_ENABLED, false);
+    }
+
+    /**
+     * 设置定制键唤醒触发方式
+     */
+    public void setCustomKeyTriggerMode(int mode) {
+        int safeMode = (mode == CUSTOM_KEY_TRIGGER_MODE_LONG_PRESS)
+                ? CUSTOM_KEY_TRIGGER_MODE_LONG_PRESS
+                : CUSTOM_KEY_TRIGGER_MODE_SPEED_THRESHOLD;
+        prefs.edit().putInt(KEY_CUSTOM_KEY_TRIGGER_MODE, safeMode).apply();
+        AppLog.d(TAG, "定制键触发方式: " + (safeMode == CUSTOM_KEY_TRIGGER_MODE_LONG_PRESS ? "长按" : "速度阈值"));
+    }
+
+    /**
+     * 获取定制键唤醒触发方式，默认速度阈值模式
+     */
+    public int getCustomKeyTriggerMode() {
+        int mode = prefs.getInt(KEY_CUSTOM_KEY_TRIGGER_MODE, CUSTOM_KEY_TRIGGER_MODE_SPEED_THRESHOLD);
+        return mode == CUSTOM_KEY_TRIGGER_MODE_LONG_PRESS
+                ? CUSTOM_KEY_TRIGGER_MODE_LONG_PRESS
+                : CUSTOM_KEY_TRIGGER_MODE_SPEED_THRESHOLD;
     }
 
     /**
