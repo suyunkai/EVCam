@@ -29,7 +29,11 @@ import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -92,10 +96,12 @@ public class BlindSpotService extends Service {
     private AppConfig appConfig;
     private DisplayManager displayManager;
 
-    // 全景影像避让
+    // 全景影像/泊车避让
     private Runnable avmCheckRunnable;
-    private boolean isAvmAvoidanceActive = false; // 当前是否处于避让状态（AVM或自身前台）
-    private int avmDeactivateCount = 0; // 连续未检测到AVM前台的次数（去抖）
+    private boolean isAvmAvoidanceActive = false; // 当前是否处于避让状态（目标Activity或自身前台）
+    private boolean avmAvoidanceBehaviorApplied = false; // 当前目标前台周期内是否已执行过避让行为
+    private String activeAvmAvoidanceTarget = null;
+    private int avmDeactivateCount = 0; // 连续未检测到目标前台的次数（去抖）
     private static final int AVM_DEACTIVATE_THRESHOLD = 2; // 连续2次（2秒）未检测到才解除避让
     private static final long AVM_CHECK_INTERVAL_MS = 1000; // 前台检测轮询间隔
     private static volatile boolean isSelfInForeground = false; // EVCam自身Activity是否在前台（生命周期驱动）
@@ -718,6 +724,13 @@ public class BlindSpotService extends Service {
             AppLog.d(TAG, "超视模式激活中，忽略转向灯信号: " + cameraPos);
             return;
         }
+
+        if (isAvmAvoidanceStopPreviewBehavior()) {
+            AppLog.d(TAG, "避让行为为停止预览，忽略转向灯信号: " + cameraPos);
+            currentSignalCamera = null;
+            removeSecondaryView();
+            return;
+        }
         
         // 长视模式启用时，显示左右双画面
         if (appConfig.isLongViewModeEnabled()) {
@@ -804,6 +817,10 @@ public class BlindSpotService extends Service {
             }
         } else {
             AppLog.d(TAG, "全景影像避让中，跳过主屏窗口创建，副屏正常处理: " + cameraPos);
+            if (isAvmAvoidanceStopPreviewBehavior()) {
+                AppLog.d(TAG, "避让行为为停止预览，忽略转向灯副屏预览: " + cameraPos);
+                return;
+            }
         }
 
         // --- 副屏窗口预创建（addView 触发布局） ---
@@ -1694,6 +1711,11 @@ public class BlindSpotService extends Service {
     }
 
     private void updateSecondaryDisplay() {
+        if (isAvmAvoidanceStopPreviewBehavior()) {
+            removeSecondaryView();
+            return;
+        }
+
         boolean shouldShow = isSecondaryAdjustMode || (appConfig.isSecondaryDisplayEnabled() && (currentSignalCamera != null || previewCameraPos != null));
 
         if (!shouldShow) {
@@ -2091,7 +2113,7 @@ public class BlindSpotService extends Service {
         mockControlParams = null;
     }
 
-    // ==================== 全景影像避让 ====================
+    // ==================== 全景影像/泊车避让 ====================
 
     /**
      * 初始化全景影像避让（前台Activity检测轮询）
@@ -2100,21 +2122,19 @@ public class BlindSpotService extends Service {
         stopAvmAvoidance();
         if (!appConfig.isAvmAvoidanceEnabled()) return;
 
-        String target = appConfig.getAvmAvoidanceActivity();
-        AppLog.d(TAG, "启动全景影像避让检测，目标Activity: " + target);
+        List<String> targets = appConfig.getAvmAvoidanceActivities();
+        if (targets.isEmpty()) {
+            AppLog.w(TAG, "全景影像/泊车避让已启用，但目标Activity列表为空");
+            return;
+        }
+
+        AppLog.d(TAG, "启动全景影像/泊车避让检测，目标Activity列表: " + targets);
 
         // "all" 模式：始终避让，不需要轮询检测前台应用
-        if ("all".equalsIgnoreCase(target)) {
+        if (containsAllAvoidanceTarget(targets)) {
             isAvmAvoidanceActive = true;
-            AppLog.i(TAG, "全景影像避让：all 模式，主屏补盲窗口始终隐藏");
-            if (mainFloatingWindowView != null) {
-                mainFloatingWindowView.dismiss();
-                mainFloatingWindowView = null;
-            }
-            if (dedicatedBlindSpotWindow != null) {
-                dedicatedBlindSpotWindow.dismiss();
-                dedicatedBlindSpotWindow = null;
-            }
+            AppLog.i(TAG, "全景影像/泊车避让：all 模式，主屏补盲窗口始终隐藏");
+            hideAvmAvoidanceMainWindows();
             return;
         }
 
@@ -2142,6 +2162,9 @@ public class BlindSpotService extends Service {
         }
         if (isAvmAvoidanceActive) {
             isAvmAvoidanceActive = false;
+            avmAvoidanceBehaviorApplied = false;
+            activeAvmAvoidanceTarget = null;
+            avmDeactivateCount = 0;
             // 恢复窗口显示
             updateMainFloatingWindow();
         }
@@ -2151,43 +2174,174 @@ public class BlindSpotService extends Service {
      * 检测目标Activity是否在前台，并相应隐藏/恢复主屏补盲窗口
      */
     private void checkAvmForeground() {
-        String targetActivity = appConfig.getAvmAvoidanceActivity();
-        if (targetActivity == null || targetActivity.isEmpty()) return;
+        List<String> targetActivities = appConfig.getAvmAvoidanceActivities();
+        if (targetActivities.isEmpty()) return;
 
-        // "all" 模式始终视为前台，主屏补盲永不显示
-        boolean isAvmForeground = "all".equalsIgnoreCase(targetActivity)
-                || isActivityInForeground(targetActivity);
+        String foregroundTarget = findForegroundAvoidanceTarget(targetActivities);
+        boolean isTargetForeground = foregroundTarget != null;
 
         // EVCam 自身前台检测（基于 Activity 生命周期，即时准确，不依赖 UsageEvents）
         boolean selfFg = isSelfInForeground;
 
-        if (isAvmForeground || selfFg) {
-            if (isAvmForeground) {
-                avmDeactivateCount = 0; // AVM 确实在前台，重置去抖
+        if (isTargetForeground || selfFg) {
+            if (isTargetForeground) {
+                avmDeactivateCount = 0; // 目标确实在前台，重置去抖
             }
             if (!isAvmAvoidanceActive) {
                 isAvmAvoidanceActive = true;
-                AppLog.i(TAG, "全景影像避让：隐藏主屏补盲窗口（AVM=" + isAvmForeground + ", 自身前台=" + selfFg + "）");
-                if (mainFloatingWindowView != null) {
-                    mainFloatingWindowView.dismiss();
-                    mainFloatingWindowView = null;
-                }
-                if (dedicatedBlindSpotWindow != null) {
-                    dedicatedBlindSpotWindow.dismiss();
-                    dedicatedBlindSpotWindow = null;
-                }
+                AppLog.i(TAG, "全景影像/泊车避让：隐藏主屏补盲窗口（目标=" + foregroundTarget + ", 自身前台=" + selfFg + "）");
+                hideAvmAvoidanceMainWindows();
+            }
+            if (isTargetForeground && shouldApplyAvmAvoidanceBehavior(foregroundTarget)) {
+                applyAvmAvoidanceBehavior(foregroundTarget);
             }
         } else if (isAvmAvoidanceActive) {
-            // 两个条件都不满足：AVM 不在前台，EVCam 也不在前台
+            // 两个条件都不满足：目标不在前台，EVCam 也不在前台
             avmDeactivateCount++;
-            AppLog.d(TAG, "全景影像避让：未检测到前台 (" + avmDeactivateCount + "/" + AVM_DEACTIVATE_THRESHOLD + ")");
+            AppLog.d(TAG, "全景影像/泊车避让：未检测到前台 (" + avmDeactivateCount + "/" + AVM_DEACTIVATE_THRESHOLD + ")");
             if (avmDeactivateCount >= AVM_DEACTIVATE_THRESHOLD) {
                 isAvmAvoidanceActive = false;
+                avmAvoidanceBehaviorApplied = false;
+                activeAvmAvoidanceTarget = null;
                 avmDeactivateCount = 0;
-                AppLog.i(TAG, "全景影像避让：" + targetActivity + " 已离开前台，恢复主屏补盲窗口");
+                AppLog.i(TAG, "全景影像/泊车避让：目标Activity已离开前台，恢复主屏补盲窗口");
                 updateMainFloatingWindow();
             }
         }
+    }
+
+    private boolean containsAllAvoidanceTarget(List<String> targets) {
+        for (String target : targets) {
+            if ("all".equalsIgnoreCase(target)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean shouldApplyAvmAvoidanceBehavior(String foregroundTarget) {
+        return foregroundTarget != null
+                && (!avmAvoidanceBehaviorApplied || !foregroundTarget.equals(activeAvmAvoidanceTarget));
+    }
+
+    private void applyAvmAvoidanceBehavior(String foregroundTarget) {
+        avmAvoidanceBehaviorApplied = true;
+        activeAvmAvoidanceTarget = foregroundTarget;
+        int behavior = appConfig.getAvmAvoidanceBehavior();
+        AppLog.i(TAG, "执行避让行为: " + appConfig.getAvmAvoidanceBehaviorLabel(behavior) + ", target=" + foregroundTarget);
+
+        MainActivity mainActivity = MainActivity.getInstance();
+        if (mainActivity != null) {
+            mainActivity.applyAvmAvoidanceBehavior(behavior);
+        } else {
+            applyAvmAvoidanceBehaviorFallback(behavior);
+        }
+
+        if (behavior == AppConfig.AVM_AVOIDANCE_BEHAVIOR_STOP_PREVIEW_AND_RECORDING) {
+            stopAllAvoidancePreviews();
+        }
+    }
+
+    private void applyAvmAvoidanceBehaviorFallback(int behavior) {
+        if (behavior == AppConfig.AVM_AVOIDANCE_BEHAVIOR_BACKGROUND) {
+            WakeUpHelper.sendBackgroundBroadcast(this);
+            return;
+        }
+
+        MultiCameraManager cameraManager = com.kooo.evcam.camera.CameraManagerHolder.getInstance().getCameraManager();
+        if (cameraManager == null) return;
+
+        if (cameraManager.isRecording()) {
+            cameraManager.stopRecording();
+            CameraForegroundService.stop(this);
+        }
+        if (behavior == AppConfig.AVM_AVOIDANCE_BEHAVIOR_STOP_PREVIEW_AND_RECORDING) {
+            cameraManager.closeAllCameras();
+            CameraForegroundService.stop(this);
+        }
+    }
+
+    private boolean isAvmAvoidanceStopPreviewBehavior() {
+        return isAvmAvoidanceActive
+                && appConfig != null
+                && activeAvmAvoidanceTarget != null
+                && appConfig.getAvmAvoidanceBehavior() == AppConfig.AVM_AVOIDANCE_BEHAVIOR_STOP_PREVIEW_AND_RECORDING;
+    }
+
+    private void hideAvmAvoidanceMainWindows() {
+        if (mainFloatingWindowView != null) {
+            mainFloatingWindowView.dismiss();
+            mainFloatingWindowView = null;
+        }
+        if (dedicatedBlindSpotWindow != null) {
+            dedicatedBlindSpotWindow.dismiss();
+            dedicatedBlindSpotWindow = null;
+        }
+        isMainTempShown = false;
+    }
+
+    private void stopAllAvoidancePreviews() {
+        if (hideRunnable != null) {
+            hideHandler.removeCallbacks(hideRunnable);
+            hideRunnable = null;
+        }
+        if (signalKeepAliveRunnable != null) {
+            hideHandler.removeCallbacks(signalKeepAliveRunnable);
+            signalKeepAliveRunnable = null;
+        }
+
+        currentSignalCamera = null;
+        previewCameraPos = null;
+        hideAvmAvoidanceMainWindows();
+        removeSecondaryView();
+
+        if (previewBlindSpotWindow != null) {
+            previewBlindSpotWindow.dismiss();
+            previewBlindSpotWindow = null;
+        }
+        stopSupervisionMode();
+        stopLongViewMode();
+
+        MultiCameraManager cameraManager = com.kooo.evcam.camera.CameraManagerHolder.getInstance().getCameraManager();
+        if (cameraManager != null && !cameraManager.isRecording()) {
+            cameraManager.closeAllCameras();
+        }
+    }
+
+    private String findForegroundAvoidanceTarget(List<String> targetActivities) {
+        try {
+            UsageStatsManager usm = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
+            if (usm == null) return null;
+
+            long now = System.currentTimeMillis();
+            android.app.usage.UsageEvents events = usm.queryEvents(now - 300000, now);
+            if (events == null) return null;
+
+            Set<String> targets = new HashSet<>(targetActivities);
+            Map<String, Boolean> targetLastStates = new HashMap<>();
+            android.app.usage.UsageEvents.Event event = new android.app.usage.UsageEvents.Event();
+
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event);
+                String className = event.getClassName();
+                if (className != null && targets.contains(className)) {
+                    if (event.getEventType() == android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND) {
+                        targetLastStates.put(className, true);
+                    } else if (event.getEventType() == android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND) {
+                        targetLastStates.put(className, false);
+                    }
+                }
+            }
+
+            for (String target : targetActivities) {
+                if (Boolean.TRUE.equals(targetLastStates.get(target))) {
+                    return target;
+                }
+            }
+        } catch (Exception e) {
+            AppLog.e(TAG, "检测避让目标前台失败: " + e.getMessage());
+        }
+        return null;
     }
 
     /**
@@ -2266,13 +2420,24 @@ public class BlindSpotService extends Service {
      * 初始化定制键唤醒（配置信号观察者的 CustomKeyListener）
      */
     private void initCustomKeyWakeup() {
-        if (!appConfig.isCustomKeyWakeupEnabled()) return;
+        if (!appConfig.isCustomKeyWakeupEnabled()) {
+            if (vhalSignalObserver != null) {
+                vhalSignalObserver.setCustomKeyListener(null);
+            }
+            return;
+        }
 
+        int triggerMode = appConfig.getCustomKeyTriggerMode();
         AppLog.d(TAG, "启动定制键唤醒，速度属性=" + appConfig.getCustomKeySpeedPropId()
                 + "，按钮属性=" + appConfig.getCustomKeyButtonPropId()
-                + "，速度阈值=" + appConfig.getCustomKeySpeedThreshold());
+                + "，速度阈值=" + appConfig.getCustomKeySpeedThreshold()
+                + "，触发方式=" + (triggerMode == AppConfig.CUSTOM_KEY_TRIGGER_MODE_LONG_PRESS ? "长按键值4" : "速度阈值"));
 
-        // 如果信号观察者还未创建，先创建一个
+        // 如果信号观察者还未创建或已退出，先创建一个。
+        if (vhalSignalObserver != null && !vhalSignalObserver.isAlive()) {
+            vhalSignalObserver.stop();
+            vhalSignalObserver = null;
+        }
         if (vhalSignalObserver == null) {
             vhalSignalObserver = new VhalSignalObserver(new VhalSignalObserver.TurnSignalListener() {
                 @Override
@@ -2290,12 +2455,18 @@ public class BlindSpotService extends Service {
         vhalSignalObserver.configureCustomKey(
                 appConfig.getCustomKeySpeedPropId(),
                 appConfig.getCustomKeyButtonPropId(),
-                appConfig.getCustomKeySpeedThreshold()
+                appConfig.getCustomKeySpeedThreshold(),
+                triggerMode
         );
 
-        vhalSignalObserver.setCustomKeyListener(() -> {
-            AppLog.d(TAG, "定制键唤醒：按钮触发");
-            toggleCustomKeyPreview();
+        vhalSignalObserver.setCustomKeyListener(mode -> {
+            if (mode == AppConfig.CUSTOM_KEY_TRIGGER_MODE_LONG_PRESS) {
+                AppLog.d(TAG, "定制键唤醒：长按键值4触发");
+                toggleCustomKeyPreview();
+            } else {
+                AppLog.d(TAG, "定制键唤醒：速度阈值触发");
+                showCustomKeyPreview();
+            }
         });
     }
 
@@ -2304,22 +2475,24 @@ public class BlindSpotService extends Service {
      */
     private void toggleCustomKeyPreview() {
         if (isCustomKeyPreviewShown) {
-            // 当前已显示，退出到后台
-            AppLog.d(TAG, "定制键唤醒：退出预览到后台");
-            isCustomKeyPreviewShown = false;
-            WakeUpHelper.sendBackgroundBroadcast(this);
+            hideCustomKeyPreview();
         } else {
-            // 检查速度条件
-            float speedThreshold = appConfig.getCustomKeySpeedThreshold();
-            if (vhalSignalObserver != null && vhalSignalObserver.getCurrentSpeed() < speedThreshold) {
-                AppLog.d(TAG, "定制键唤醒：速度未达到阈值，忽略");
-                return;
-            }
-            // 唤醒预览界面
-            AppLog.d(TAG, "定制键唤醒：唤醒预览界面");
-            isCustomKeyPreviewShown = true;
-            WakeUpHelper.launchForForeground(this);
+            showCustomKeyPreview();
         }
+    }
+
+    private void showCustomKeyPreview() {
+        if (isCustomKeyPreviewShown) return;
+        AppLog.d(TAG, "定制键唤醒：唤醒预览界面");
+        isCustomKeyPreviewShown = true;
+        WakeUpHelper.launchForForeground(this);
+    }
+
+    private void hideCustomKeyPreview() {
+        if (!isCustomKeyPreviewShown) return;
+        AppLog.d(TAG, "定制键唤醒：退出预览到后台");
+        isCustomKeyPreviewShown = false;
+        WakeUpHelper.sendBackgroundBroadcast(this);
     }
 
     @Override

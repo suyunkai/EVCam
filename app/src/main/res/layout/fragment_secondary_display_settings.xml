@@ -889,7 +889,7 @@
 
             </LinearLayout>
 
-            <!-- 全景影像避让 -->
+	            <!-- 全景/泊车避让 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -913,7 +913,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="全景影像避让"
+	                            android:text="全景/泊车避让"
                             android:textColor="@color/text_primary"
                             android:textSize="20sp"
                             android:textStyle="bold" />
@@ -921,7 +921,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="EVCam本体和指定Activity在前台时自动隐藏主屏补盲窗口"
+	                            android:text="泊车或全景界面在前台时自动执行避让"
                             android:textColor="@color/text_secondary"
                             android:textSize="14sp"
                             android:layout_marginTop="4dp" />
@@ -945,7 +945,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="避让Activity完整类名"
+	                        android:text="避让Activity列表"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:layout_marginBottom="6dp" />
@@ -954,26 +954,75 @@
                         android:id="@+id/et_avm_avoidance_activity"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:minHeight="48dp"
-                        android:maxLines="2"
-                        android:gravity="center_vertical"
-                        android:background="@drawable/spinner_background"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
-                        android:inputType="text"
-                        android:textColor="@color/text_primary"
-                        android:textSize="14sp"
-                        android:hint="com.geely.avm_app.AvmRenderActivity" />
+	                        android:minHeight="144dp"
+	                        android:minLines="5"
+	                        android:maxLines="8"
+	                        android:gravity="top|start"
+	                        android:background="@drawable/spinner_background"
+	                        android:paddingStart="12dp"
+	                        android:paddingEnd="12dp"
+	                        android:paddingTop="10dp"
+	                        android:paddingBottom="10dp"
+	                        android:inputType="textMultiLine|textNoSuggestions"
+	                        android:textColor="@color/text_primary"
+	                        android:textSize="14sp"
+	                        android:hint="com.geely.parking.parking.ParkingActivity&#10;com.geely.avm_app.MainActivity" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="填写 all 则在所有界面上主屏补盲都不显示，仅副屏正常工作"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="12sp"
-                        android:layout_marginTop="6dp" />
-                </LinearLayout>
-            </LinearLayout>
+	                    <TextView
+	                        android:layout_width="wrap_content"
+	                        android:layout_height="wrap_content"
+	                        android:text="每行一个 Activity；填写 all 则在所有界面上主屏补盲都不显示"
+	                        android:textColor="@color/text_secondary"
+	                        android:textSize="12sp"
+	                        android:layout_marginTop="6dp" />
+
+	                    <TextView
+	                        android:layout_width="wrap_content"
+	                        android:layout_height="wrap_content"
+	                        android:text="避让行为"
+	                        android:textColor="@color/text_secondary"
+	                        android:textSize="14sp"
+	                        android:layout_marginTop="12dp"
+	                        android:layout_marginBottom="6dp" />
+
+	                    <RadioGroup
+	                        android:id="@+id/rg_avm_avoidance_behavior"
+	                        android:layout_width="match_parent"
+	                        android:layout_height="wrap_content"
+	                        android:orientation="vertical">
+
+	                        <RadioButton
+	                            android:id="@+id/rb_avm_behavior_background"
+	                            android:layout_width="match_parent"
+	                            android:layout_height="wrap_content"
+	                            android:minHeight="40dp"
+	                            android:text="退出前台"
+	                            android:textColor="@color/text_primary"
+	                            android:textSize="14sp"
+	                            android:buttonTint="@color/colorPrimary" />
+
+	                        <RadioButton
+	                            android:id="@+id/rb_avm_behavior_stop_recording"
+	                            android:layout_width="match_parent"
+	                            android:layout_height="wrap_content"
+	                            android:minHeight="40dp"
+	                            android:text="停止录制"
+	                            android:textColor="@color/text_primary"
+	                            android:textSize="14sp"
+	                            android:buttonTint="@color/colorPrimary" />
+
+	                        <RadioButton
+	                            android:id="@+id/rb_avm_behavior_stop_preview_recording"
+	                            android:layout_width="match_parent"
+	                            android:layout_height="wrap_content"
+	                            android:minHeight="40dp"
+	                            android:text="停止预览和录制"
+	                            android:textColor="@color/text_primary"
+	                            android:textSize="14sp"
+	                            android:buttonTint="@color/colorPrimary" />
+	                    </RadioGroup>
+	                </LinearLayout>
+	            </LinearLayout>
 
             </LinearLayout> <!-- end blind_spot_sub_features_container -->
 

@@ -54,6 +54,7 @@ public class BlindSpotSettingsFragment extends Fragment {
     private SwitchMaterial avmAvoidanceSwitch;
     private LinearLayout avmAvoidanceDetailLayout;
     private EditText avmAvoidanceActivityEditText;
+    private RadioGroup avmAvoidanceBehaviorGroup;
 
     // 转向灯触发log预设方案
     private static final String[][] TURN_SIGNAL_PRESETS = {
@@ -149,6 +150,7 @@ public class BlindSpotSettingsFragment extends Fragment {
         avmAvoidanceSwitch = view.findViewById(R.id.switch_avm_avoidance);
         avmAvoidanceDetailLayout = view.findViewById(R.id.layout_avm_avoidance_detail);
         avmAvoidanceActivityEditText = view.findViewById(R.id.et_avm_avoidance_activity);
+        avmAvoidanceBehaviorGroup = view.findViewById(R.id.rg_avm_avoidance_behavior);
 
         mockFloatingSwitch = view.findViewById(R.id.switch_mock_floating);
         floatingWindowAnimationSwitch = view.findViewById(R.id.switch_floating_window_animation);
@@ -284,6 +286,18 @@ public class BlindSpotSettingsFragment extends Fragment {
         avmAvoidanceSwitch.setChecked(avmEnabled);
         avmAvoidanceDetailLayout.setVisibility(avmEnabled ? View.VISIBLE : View.GONE);
         avmAvoidanceActivityEditText.setText(appConfig.getAvmAvoidanceActivity());
+        switch (appConfig.getAvmAvoidanceBehavior()) {
+            case AppConfig.AVM_AVOIDANCE_BEHAVIOR_STOP_RECORDING:
+                avmAvoidanceBehaviorGroup.check(R.id.rb_avm_behavior_stop_recording);
+                break;
+            case AppConfig.AVM_AVOIDANCE_BEHAVIOR_STOP_PREVIEW_AND_RECORDING:
+                avmAvoidanceBehaviorGroup.check(R.id.rb_avm_behavior_stop_preview_recording);
+                break;
+            case AppConfig.AVM_AVOIDANCE_BEHAVIOR_BACKGROUND:
+            default:
+                avmAvoidanceBehaviorGroup.check(R.id.rb_avm_behavior_background);
+                break;
+        }
 
     }
 
@@ -627,11 +641,22 @@ public class BlindSpotSettingsFragment extends Fragment {
             @Override
             public void afterTextChanged(android.text.Editable s) {
                 String activity = s.toString().trim();
-                if (!activity.isEmpty()) {
-                    appConfig.setAvmAvoidanceActivity(activity);
-                    BlindSpotService.update(requireContext());
-                }
+                appConfig.setAvmAvoidanceActivity(activity);
+                BlindSpotService.update(requireContext());
             }
+        });
+
+        avmAvoidanceBehaviorGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            int behavior;
+            if (checkedId == R.id.rb_avm_behavior_stop_recording) {
+                behavior = AppConfig.AVM_AVOIDANCE_BEHAVIOR_STOP_RECORDING;
+            } else if (checkedId == R.id.rb_avm_behavior_stop_preview_recording) {
+                behavior = AppConfig.AVM_AVOIDANCE_BEHAVIOR_STOP_PREVIEW_AND_RECORDING;
+            } else {
+                behavior = AppConfig.AVM_AVOIDANCE_BEHAVIOR_BACKGROUND;
+            }
+            appConfig.setAvmAvoidanceBehavior(behavior);
+            BlindSpotService.update(requireContext());
         });
 
     }

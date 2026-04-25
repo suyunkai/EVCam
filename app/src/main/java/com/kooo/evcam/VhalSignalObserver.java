@@ -47,8 +47,8 @@ public class VhalSignalObserver {
      * 定制键唤醒回调接口
      */
     public interface CustomKeyListener {
-        /** 按钮触发（值变为1）且速度条件满足 */
-        void onCustomKeyTriggered();
+        /** 速度阈值或长按按键触发 */
+        void onCustomKeyTriggered(int triggerMode);
     }
 
     private final TurnSignalListener listener;
@@ -57,7 +57,11 @@ public class VhalSignalObserver {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     // 定制键唤醒状态跟踪
+    private static final int CUSTOM_KEY_LONG_PRESS_VALUE = 4;
     private volatile float currentSpeed = 0f;
+    private volatile float customKeySpeedThreshold = 8.34f;
+    private volatile int customKeyTriggerMode = AppConfig.CUSTOM_KEY_TRIGGER_MODE_SPEED_THRESHOLD;
+    private volatile boolean wasSpeedAtOrAboveThreshold = false;
     private volatile int lastButtonState = -1;
 
     private ManagedChannel grpcChannel;
@@ -105,12 +109,23 @@ public class VhalSignalObserver {
     /**
      * 配置定制键唤醒参数
      */
-    public void configureCustomKey(int speedPropId, int buttonPropId, float speedThreshold) {
+    public void configureCustomKey(int speedPropId, int buttonPropId, float speedThreshold, int triggerMode) {
+        customKeySpeedThreshold = speedThreshold;
+        customKeyTriggerMode = triggerMode == AppConfig.CUSTOM_KEY_TRIGGER_MODE_LONG_PRESS
+                ? AppConfig.CUSTOM_KEY_TRIGGER_MODE_LONG_PRESS
+                : AppConfig.CUSTOM_KEY_TRIGGER_MODE_SPEED_THRESHOLD;
+        wasSpeedAtOrAboveThreshold = currentSpeed >= customKeySpeedThreshold;
+        lastButtonState = -1;
+
         if (!VhalNative.isLibraryLoaded()) {
             AppLog.w(TAG, "Native library not loaded, skipping custom key configuration");
             return;
         }
-        VhalNative.configureCustomKey(speedPropId, buttonPropId, speedThreshold);
+
+        float nativeSpeedThreshold = customKeyTriggerMode == AppConfig.CUSTOM_KEY_TRIGGER_MODE_LONG_PRESS
+                ? 0f
+                : speedThreshold;
+        VhalNative.configureCustomKey(speedPropId, buttonPropId, nativeSpeedThreshold);
     }
 
     /**
@@ -389,13 +404,29 @@ public class VhalSignalObserver {
                     handleDoorPositionEvent(p1, false);
                     break;
                 case VhalNative.EVT_SPEED:
-                    currentSpeed = Float.intBitsToFloat(p1);
+                    handleSpeedEvent(Float.intBitsToFloat(p1));
                     break;
                 case VhalNative.EVT_CUSTOM_KEY:
                     handleCustomKeyEvent(p1);
                     break;
             }
         }
+    }
+
+    /**
+     * 处理车速事件。速度阈值模式下，仅在从低于阈值跨到达到阈值时触发一次。
+     */
+    private void handleSpeedEvent(float speed) {
+        currentSpeed = speed;
+        if (customKeyTriggerMode != AppConfig.CUSTOM_KEY_TRIGGER_MODE_SPEED_THRESHOLD) return;
+
+        boolean atOrAboveThreshold = speed >= customKeySpeedThreshold;
+        if (atOrAboveThreshold && !wasSpeedAtOrAboveThreshold) {
+            AppLog.d(TAG, "Custom key speed threshold reached, speed=" + speed
+                    + ", threshold=" + customKeySpeedThreshold);
+            notifyCustomKeyTriggered(AppConfig.CUSTOM_KEY_TRIGGER_MODE_SPEED_THRESHOLD);
+        }
+        wasSpeedAtOrAboveThreshold = atOrAboveThreshold;
     }
 
     /**
@@ -485,17 +516,22 @@ public class VhalSignalObserver {
      * 处理定制键按钮事件
      */
     private void handleCustomKeyEvent(int buttonState) {
-        if (buttonState == 1 && lastButtonState != 1) {
-            AppLog.d(TAG, "Custom key button pressed, speed=" + currentSpeed);
-            if (customKeyListener != null) {
-                mainHandler.post(() -> {
-                    if (customKeyListener != null) {
-                        customKeyListener.onCustomKeyTriggered();
-                    }
-                });
-            }
+        if (customKeyTriggerMode == AppConfig.CUSTOM_KEY_TRIGGER_MODE_LONG_PRESS
+                && buttonState == CUSTOM_KEY_LONG_PRESS_VALUE
+                && lastButtonState != CUSTOM_KEY_LONG_PRESS_VALUE) {
+            AppLog.d(TAG, "Custom key long press triggered, value=" + buttonState);
+            notifyCustomKeyTriggered(AppConfig.CUSTOM_KEY_TRIGGER_MODE_LONG_PRESS);
         }
         lastButtonState = buttonState;
+    }
+
+    private void notifyCustomKeyTriggered(int triggerMode) {
+        if (customKeyListener == null) return;
+        mainHandler.post(() -> {
+            if (customKeyListener != null) {
+                customKeyListener.onCustomKeyTriggered(triggerMode);
+            }
+        });
     }
 
     private void notifyConnectionState(boolean isConnected) {

@@ -140,9 +140,13 @@ public class SettingsFragment extends Fragment {
     // 定制键唤醒相关
     private SwitchMaterial customKeyWakeupSwitch;
     private LinearLayout customKeyWakeupDetailLayout;
+    private Spinner customKeyTriggerModeSpinner;
+    private LinearLayout customKeySpeedSettingsLayout;
     private EditText customKeySpeedThresholdEditText;
     private EditText customKeySpeedPropIdEditText;
     private EditText customKeyButtonPropIdEditText;
+    private static final String[] CUSTOM_KEY_TRIGGER_MODE_OPTIONS = {"速度阈值", "长按按键(键值4)"};
+    private boolean isInitializingCustomKeyTriggerMode = false;
 
     @Nullable
     @Override
@@ -684,6 +688,8 @@ public class SettingsFragment extends Fragment {
     private void initCustomKeyWakeupSettings(View view) {
         customKeyWakeupSwitch = view.findViewById(R.id.switch_custom_key_wakeup);
         customKeyWakeupDetailLayout = view.findViewById(R.id.layout_custom_key_wakeup_detail);
+        customKeyTriggerModeSpinner = view.findViewById(R.id.spinner_custom_key_trigger_mode);
+        customKeySpeedSettingsLayout = view.findViewById(R.id.layout_custom_key_speed_settings);
         customKeySpeedThresholdEditText = view.findViewById(R.id.et_custom_key_speed_threshold);
         customKeySpeedPropIdEditText = view.findViewById(R.id.et_custom_key_speed_prop_id);
         customKeyButtonPropIdEditText = view.findViewById(R.id.et_custom_key_button_prop_id);
@@ -692,8 +698,11 @@ public class SettingsFragment extends Fragment {
 
         // 加载配置
         boolean enabled = appConfig.isCustomKeyWakeupEnabled();
+        int triggerMode = appConfig.getCustomKeyTriggerMode();
         customKeyWakeupSwitch.setChecked(enabled);
         customKeyWakeupDetailLayout.setVisibility(enabled ? View.VISIBLE : View.GONE);
+        initCustomKeyTriggerModeSpinner(triggerMode);
+        updateCustomKeyTriggerModeVisibility(triggerMode);
         customKeySpeedThresholdEditText.setText(String.valueOf(appConfig.getCustomKeySpeedThreshold()));
         customKeySpeedPropIdEditText.setText(String.valueOf(appConfig.getCustomKeySpeedPropId()));
         customKeyButtonPropIdEditText.setText(String.valueOf(appConfig.getCustomKeyButtonPropId()));
@@ -717,6 +726,7 @@ public class SettingsFragment extends Fragment {
                 try {
                     float threshold = Float.parseFloat(s.toString());
                     appConfig.setCustomKeySpeedThreshold(threshold);
+                    updateCustomKeyWakeupServiceIfEnabled();
                 } catch (NumberFormatException ignored) {}
             }
         });
@@ -732,6 +742,7 @@ public class SettingsFragment extends Fragment {
                 try {
                     int propId = Integer.parseInt(s.toString());
                     appConfig.setCustomKeySpeedPropId(propId);
+                    updateCustomKeyWakeupServiceIfEnabled();
                 } catch (NumberFormatException ignored) {}
             }
         });
@@ -747,9 +758,52 @@ public class SettingsFragment extends Fragment {
                 try {
                     int propId = Integer.parseInt(s.toString());
                     appConfig.setCustomKeyButtonPropId(propId);
+                    updateCustomKeyWakeupServiceIfEnabled();
                 } catch (NumberFormatException ignored) {}
             }
         });
+    }
+
+    private void initCustomKeyTriggerModeSpinner(int triggerMode) {
+        if (customKeyTriggerModeSpinner == null || getContext() == null) return;
+
+        isInitializingCustomKeyTriggerMode = true;
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                requireContext(),
+                R.layout.spinner_item,
+                CUSTOM_KEY_TRIGGER_MODE_OPTIONS
+        );
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
+        customKeyTriggerModeSpinner.setAdapter(adapter);
+        customKeyTriggerModeSpinner.setSelection(triggerMode == AppConfig.CUSTOM_KEY_TRIGGER_MODE_LONG_PRESS ? 1 : 0);
+        customKeyTriggerModeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (isInitializingCustomKeyTriggerMode || appConfig == null) return;
+                int mode = position == 1
+                        ? AppConfig.CUSTOM_KEY_TRIGGER_MODE_LONG_PRESS
+                        : AppConfig.CUSTOM_KEY_TRIGGER_MODE_SPEED_THRESHOLD;
+                appConfig.setCustomKeyTriggerMode(mode);
+                updateCustomKeyTriggerModeVisibility(mode);
+                updateCustomKeyWakeupServiceIfEnabled();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+        customKeyTriggerModeSpinner.post(() -> isInitializingCustomKeyTriggerMode = false);
+    }
+
+    private void updateCustomKeyTriggerModeVisibility(int triggerMode) {
+        boolean longPressMode = triggerMode == AppConfig.CUSTOM_KEY_TRIGGER_MODE_LONG_PRESS;
+        if (customKeySpeedSettingsLayout != null) {
+            customKeySpeedSettingsLayout.setVisibility(longPressMode ? View.GONE : View.VISIBLE);
+        }
+    }
+
+    private void updateCustomKeyWakeupServiceIfEnabled() {
+        if (getContext() == null || customKeyWakeupSwitch == null || !customKeyWakeupSwitch.isChecked()) return;
+        BlindSpotService.update(requireContext());
     }
     
     /**
