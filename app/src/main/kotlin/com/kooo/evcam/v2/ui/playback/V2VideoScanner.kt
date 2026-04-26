@@ -37,32 +37,6 @@ object V2VideoScanner {
         return runCatching { SimpleDateFormat(pattern, Locale.US).parse(timestamp) }.getOrNull()
     }
 
-    fun scanGroups(context: Context, loadThumbnails: Boolean = false): List<V2VideoGroup> {
-        val dir = File(context.getExternalFilesDir(android.os.Environment.DIRECTORY_MOVIES), "EVCamV2")
-        val files = dir.listFiles { f ->
-            f.isFile && f.exists() && f.canRead() && f.length() > 0L &&
-                f.extension.equals("mp4", ignoreCase = true) &&
-                !f.name.endsWith(".recording", ignoreCase = true)
-        }.orEmpty()
-
-        val grouped = linkedMapOf<String, MutableMap<String, File>>()
-        files.forEach { file ->
-            val match = fileNamePattern.matchEntire(file.name) ?: return@forEach
-            val timestamp = match.groupValues[1]
-            val position = match.groupValues[2].lowercase(Locale.US)
-            grouped.getOrPut(timestamp) { mutableMapOf() }[position] = file
-        }
-
-        return grouped.map { (timestamp, map) ->
-            val composite = map.entries.firstOrNull { it.key.startsWith("composite") }?.value
-            V2VideoGroup(
-                timestamp = timestamp,
-                composite = composite,
-                thumbnail = if (loadThumbnails) composite?.let { cachedThumbnail(it) } else null
-            )
-        }.filter { it.count > 0 }.sortedByDescending { it.timestamp }
-    }
-
     fun scanGroupsIncremental(
         context: Context,
         isCancelled: () -> Boolean = { false },

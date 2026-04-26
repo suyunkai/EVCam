@@ -1,4 +1,4 @@
-package com.kooo.evcam.v2.ui
+package com.kooo.evcam.v2.recording
 
 data class RecordingMetrics(
     var requestedFrames: Long = 0,

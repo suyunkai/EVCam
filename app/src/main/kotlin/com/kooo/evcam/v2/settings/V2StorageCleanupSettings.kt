@@ -3,7 +3,7 @@ package com.kooo.evcam.v2.settings
 import android.content.Context
 import android.os.Environment
 import com.kooo.evcam.v2.log.V2AppLog
-import com.kooo.evcam.v2.ui.V2StorageCleaner
+import com.kooo.evcam.v2.storage.V2StorageCleaner
 
 object V2StorageCleanupSettings {
     private const val PREFS = "evcam_v2_storage_cleanup_settings"

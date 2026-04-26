@@ -1,4 +1,4 @@
-package com.kooo.evcam.v2.ui
+package com.kooo.evcam.v2.recording
 
 import android.media.MediaCodec
 import android.media.MediaCodecInfo

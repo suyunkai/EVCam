@@ -1,4 +1,4 @@
-package com.kooo.evcam.v2.ui
+package com.kooo.evcam.v2.storage
 
 import android.content.Context
 import com.kooo.evcam.v2.log.V2AppLog

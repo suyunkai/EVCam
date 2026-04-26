@@ -29,7 +29,6 @@ public final class V2VhalCustomKeyObserver {
     private ManagedChannel channel;
     private Thread thread;
     private volatile boolean running;
-    private volatile boolean connected;
     private volatile int lastButtonState = -1;
 
     public V2VhalCustomKeyObserver(int buttonPropId, Listener listener) {
@@ -44,7 +43,6 @@ public final class V2VhalCustomKeyObserver {
             return;
         }
         running = true;
-        connected = false;
         lastButtonState = -1;
         Log.d(TAG, "configure custom key buttonPropId=" + buttonPropId);
         VhalNative.configureCustomKey(DEFAULT_SPEED_PROP_ID, buttonPropId, 0f);
@@ -68,13 +66,11 @@ public final class V2VhalCustomKeyObserver {
                 Log.d(TAG, "Connecting to vehicle API service...");
                 if (connect()) {
                     Log.d(TAG, "Connected, starting property stream");
-                    connected = true;
                     streamProperties();
                 }
             } catch (Throwable error) {
                 Log.e(TAG, "Connection error: " + error.getMessage(), error);
             }
-            connected = false;
             disconnect();
             if (!running) break;
             try {
@@ -100,7 +96,6 @@ public final class V2VhalCustomKeyObserver {
     private void disconnect() {
         ManagedChannel old = channel;
         channel = null;
-        connected = false;
         streamClient.disconnect(old);
     }
 

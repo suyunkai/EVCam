@@ -38,15 +38,6 @@ object V2PermissionSettingsDialog {
     private var whitelistRunning = false
     private var restoreRunning = false
 
-    fun show(context: Context) {
-        lateinit var dialog: AlertDialog
-        val root = createPageView(context, showCloseButton = true) { dialog.dismiss() }
-        dialog = AlertDialog.Builder(context)
-            .setView(root)
-            .show()
-        dialog.window?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
-    }
-
     fun createPageView(
         context: Context,
         showCloseButton: Boolean = false,

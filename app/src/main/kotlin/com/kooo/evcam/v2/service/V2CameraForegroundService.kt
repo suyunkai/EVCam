@@ -22,7 +22,6 @@ import com.kooo.evcam.v2.settings.V2BlindSpotSettings
 import com.kooo.evcam.v2.settings.V2CustomKeySettings
 import com.kooo.evcam.v2.settings.V2FisheyeSettings
 import com.kooo.evcam.v2.settings.V2StartupSettings
-import com.kooo.evcam.v2.settings.V2VehicleModelSettings
 import com.kooo.evcam.v2.ui.V2BlindSpotOverlay
 import com.kooo.evcam.v2.ui.V2FisheyePreviewOverlay
 import com.kooo.evcam.v2.ui.V2MainActivity
@@ -333,10 +332,8 @@ class V2CameraForegroundService : Service(), V2CameraEngine.Listener {
             restoreUiAfterBlindSpot = true
             uiHideListener?.invoke()
         }
-        val mapping = V2VehicleModelSettings.getModel(this).mapping
-        val targetCameraId = if (side == "left") mapping.left else mapping.right
-        val index = engine.previewIndexForCameraId(targetCameraId) ?: run {
-            V2AppLog.w("V2CameraService", "blind spot show skipped: no preview index for side=$side cameraId=$targetCameraId")
+        val index = engine.previewIndexForPosition(side) ?: run {
+            V2AppLog.w("V2CameraService", "blind spot show skipped: no preview index for side=$side")
             return
         }
         val previousIndex = blindSpotCameraIndex
@@ -348,7 +345,7 @@ class V2CameraForegroundService : Service(), V2CameraEngine.Listener {
                 detachPreview = { cameraIndex -> engine.detachPreviewSurface(cameraIndex) }
             )
         }
-        V2AppLog.i("V2CameraService", "blind spot show side=$side cameraId=$targetCameraId ${engine.previewDescription(index)}")
+        V2AppLog.i("V2CameraService", "blind spot show side=$side ${engine.previewDescription(index)}")
         blindSpotOverlay?.show(side, index)
         if (previousIndex >= 0 && previousIndex != index && isDisplayPowerOn()) {
             previewSurfaces.getOrNull(previousIndex)?.takeIf { it.isValid }?.let { engine.attachPreviewSurface(previousIndex, it) }
@@ -654,8 +651,6 @@ class V2CameraForegroundService : Service(), V2CameraEngine.Listener {
     private fun resumeCameraForDisplayOn() {
         engine.setCameraAccessAllowed(true)
     }
-
-    private fun acquireWakeLock() = wakeLockHolder.acquire()
 
     private fun releaseWakeLock() = wakeLockHolder.release()
 

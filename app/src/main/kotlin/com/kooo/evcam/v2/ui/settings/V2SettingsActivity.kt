@@ -540,38 +540,6 @@ class V2SettingsActivity : AppCompatActivity() {
 
     private fun formatParam(value: Float): String = String.format(java.util.Locale.US, "%.2f", value)
 
-    private fun fisheyeParamEdit(label: String, value: Float): EditText = EditText(this).apply {
-        tag = label
-        hint = label
-        setText(value.toString())
-        setSingleLine(true)
-        setOnFocusChangeListener { view, hasFocus -> if (hasFocus) (view as EditText).selectAll() }
-        textSize = 14f
-        inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED
-        setTextColor(ContextCompat.getColor(this@V2SettingsActivity, R.color.text_primary))
-        setHintTextColor(ContextCompat.getColor(this@V2SettingsActivity, R.color.text_secondary))
-    }
-
-    private fun saveFisheyeParamInputs(index: Int, container: ViewGroup, showToast: Boolean): Boolean {
-        val edits = mutableMapOf<String, EditText>()
-        collectFisheyeEdits(container, edits)
-        val k1 = edits["k1"]?.text?.toString()?.trim()?.toFloatOrNull()
-        val k2 = edits["k2"]?.text?.toString()?.trim()?.toFloatOrNull()
-        val zoom = edits["zoom"]?.text?.toString()?.trim()?.toFloatOrNull()
-        if (k1 == null || k2 == null || zoom == null || zoom <= 0f) {
-            if (showToast) Toast.makeText(this, "鱼眼参数无效", Toast.LENGTH_SHORT).show()
-            return false
-        }
-        V2FisheyeSettings.setParams(this, index, k1, k2, zoom)
-        V2AppLog.i("V2SettingsActivity", "fisheye params changed index=$index k1=$k1 k2=$k2 zoom=$zoom")
-        return true
-    }
-
-    private fun collectFisheyeEdits(view: View, out: MutableMap<String, EditText>) {
-        if (view is EditText) out[view.tag?.toString().orEmpty()] = view
-        if (view is ViewGroup) repeat(view.childCount) { collectFisheyeEdits(view.getChildAt(it), out) }
-    }
-
     private fun startFisheyeService(actionName: String, cameraIndex: Int? = null) {
         ContextCompat.startForegroundService(this, Intent(this, V2CameraForegroundService::class.java).apply {
             action = actionName

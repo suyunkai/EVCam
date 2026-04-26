@@ -67,17 +67,6 @@ object V2FisheyeSettings {
         V2AppLog.i("V2FisheyeSettings", "params index=$index label=$label k1=$k1 k2=$k2 zoom=$zoom center=$centerX,$centerY")
     }
 
-    fun resetParams(context: Context, index: Int) {
-        prefs(context).edit()
-            .remove(KEY_K1 + index)
-            .remove(KEY_K2 + index)
-            .remove(KEY_ZOOM + index)
-            .remove(KEY_CENTER_X + index)
-            .remove(KEY_CENTER_Y + index)
-            .apply()
-        V2AppLog.i("V2FisheyeSettings", "reset params index=$index label=${defaultParamsForIndex(index).label}")
-    }
-
     fun resetAllParams(context: Context) {
         val editor = prefs(context).edit()
         DEFAULT_PARAMS.indices.forEach { index ->

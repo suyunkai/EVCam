@@ -6,7 +6,6 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Base64;
-import android.util.Log;
 
 import java.io.File;
 import java.io.FileInputStream;

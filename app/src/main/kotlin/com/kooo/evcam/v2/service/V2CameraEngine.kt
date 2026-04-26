@@ -24,7 +24,8 @@ import com.kooo.evcam.v2.log.V2AppLog
 import com.kooo.evcam.v2.nativebridge.VulkanNative
 import com.kooo.evcam.v2.settings.V2FisheyeSettings
 import com.kooo.evcam.v2.settings.V2VehicleModelSettings
-import com.kooo.evcam.v2.ui.V2CompositeRecorder
+import com.kooo.evcam.v2.recording.RecordingMetrics
+import com.kooo.evcam.v2.recording.V2CompositeRecorder
 import java.io.File
 import java.util.concurrent.Executor
 
@@ -166,10 +167,6 @@ class V2CameraEngine(private val context: Context, private val listener: Listene
 
     fun previewIndexForPosition(position: String): Int? {
         return slots.firstOrNull { it.spec.name == position }?.index
-    }
-
-    fun previewIndexForCameraId(cameraId: String): Int? {
-        return slots.firstOrNull { it.spec.cameraId == cameraId }?.index
     }
 
     fun previewDescription(index: Int): String {
@@ -506,7 +503,7 @@ class V2CameraEngine(private val context: Context, private val listener: Listene
         val released: Boolean,
         val recording: Boolean,
         val slots: List<SlotHealth>,
-        val recordingMetrics: com.kooo.evcam.v2.ui.RecordingMetrics?
+        val recordingMetrics: RecordingMetrics?
     )
 
     data class SlotHealth(

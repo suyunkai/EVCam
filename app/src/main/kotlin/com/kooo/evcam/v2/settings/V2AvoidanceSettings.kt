@@ -34,8 +34,6 @@ object V2AvoidanceSettings {
 
     fun isBehaviorEnabled(context: Context, behavior: Int): Boolean = behaviorMask(context) and behavior != 0
 
-    fun isEnabled(context: Context): Boolean = behaviorMask(context) != 0
-
     fun targetValues(): List<String> = defaultTargets.map { it.value }
 
     fun behaviorLabels(mask: Int): String = buildList {
