@@ -15,6 +15,8 @@ class V2KeepAliveProvider : ContentProvider() {
         runCatching {
             V2AppLog.init(context)
             V2AppLog.i(TAG, "onCreate early init")
+            V2KeepAliveStatus.recordProvider(context)
+            V2KeepAliveStatus.recordTrigger(context, "provider", "early_init")
             if (!V2KeepAliveSettings.isKeepAliveEnabled(context)) {
                 V2AppLog.i(TAG, "early init skipped: keep alive disabled")
                 return false

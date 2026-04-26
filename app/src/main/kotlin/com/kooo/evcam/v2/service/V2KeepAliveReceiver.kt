@@ -14,6 +14,7 @@ class V2KeepAliveReceiver : BroadcastReceiver() {
         val action = intent?.action ?: return
         V2AppLog.init(context)
         V2BroadcastLogger.logReceive(TAG, intent)
+        V2KeepAliveStatus.recordTrigger(context, "broadcast", reasonFor(action))
         if (!V2KeepAliveSettings.isKeepAliveEnabled(context)) {
             V2AppLog.i(TAG, "skip broadcast: keep alive disabled action=$action")
             return
@@ -62,6 +63,7 @@ class V2KeepAliveReceiver : BroadcastReceiver() {
                 registerDynamicFilter(context, mediaFilter())
                 registerDynamicFilter(context, packageFilter())
                 dynamicRegistered = true
+                V2KeepAliveStatus.setDynamicRegistered(context, true)
                 V2AppLog.i(TAG, "dynamic keep alive broadcasts registered")
             }.onFailure { error -> V2AppLog.e(TAG, "dynamic keep alive broadcasts register failed", error) }
         }
@@ -74,6 +76,7 @@ class V2KeepAliveReceiver : BroadcastReceiver() {
             }
             dynamicReceivers.clear()
             dynamicRegistered = false
+            V2KeepAliveStatus.setDynamicRegistered(context, false)
             V2AppLog.i(TAG, "dynamic keep alive broadcasts unregistered")
         }
 
@@ -99,6 +102,7 @@ class V2KeepAliveReceiver : BroadcastReceiver() {
                 }
                 timeTickReceiver = receiver
                 timeTickRegistered = true
+                V2KeepAliveStatus.setTimeTickRegistered(context, true)
                 V2AppLog.i(TAG, "TIME_TICK registered")
             }.onFailure { error -> V2AppLog.e(TAG, "TIME_TICK register failed", error) }
         }
@@ -109,6 +113,7 @@ class V2KeepAliveReceiver : BroadcastReceiver() {
                 .onFailure { error -> V2AppLog.e(TAG, "TIME_TICK unregister failed", error) }
             timeTickReceiver = null
             timeTickRegistered = false
+            V2KeepAliveStatus.setTimeTickRegistered(context, false)
         }
 
         fun sendKeepAliveCheck(context: Context) {

@@ -24,6 +24,7 @@ struct Input {
     jobject surfaceTexture = nullptr;
     GLuint texture = 0;
     bool dirty = false;
+    bool hasLatchedFrame = false;
     bool previewPending = false;
     int64_t dirtyCount = 0;
     int64_t updateCount = 0;
@@ -57,6 +58,8 @@ struct RecordingState {
     int64_t renderedFrames = 0;
     int64_t droppedFrames = 0;
     int64_t lastTickSteadyMs = 0;
+    int64_t encoderSegmentStartSteadyMs = 0;
+    int64_t lastPresentationTimeNs = -1;
 };
 
 struct Pipe {
@@ -384,8 +387,10 @@ bool RenderPreviewLocked(JNIEnv* env, Pipe& p, int index) {
             return false;
         }
         p.input[index].dirty = false;
+        p.input[index].hasLatchedFrame = true;
         p.input[index].updateCount += 1;
     }
+    if (!p.input[index].hasLatchedFrame) return true;
     int vw = p.previewWindow[index] ? ANativeWindow_getWidth(p.previewWindow[index]) : p.width;
     int vh = p.previewWindow[index] ? ANativeWindow_getHeight(p.previewWindow[index]) : p.height;
     if (vw <= 0) vw = p.width;
@@ -460,6 +465,7 @@ bool UpdateDirtyInputsLocked(JNIEnv* env, Pipe& p) {
             p.input[i].dirtyCount += 1;
             if (!UpdateSurfaceTexture(env, p.input[i].surfaceTexture)) return false;
             p.input[i].dirty = false;
+            p.input[i].hasLatchedFrame = true;
             p.input[i].updateCount += 1;
         }
     }
@@ -494,8 +500,21 @@ bool RenderEncoderLocked(JNIEnv* env, Pipe& p, bool requireDirty, bool* rendered
     DrawOverlay(p);
     std::string glErr = GlError("renderEncoder");
     if (!glErr.empty()) { SetError(glErr); ClearCurrent(p.display); return false; }
-    int fps = p.encoderFps <= 0 ? 15 : p.encoderFps;
-    if (gPresentationTimeAndroid) gPresentationTimeAndroid(p.display, p.encoderSurface, (p.encoderFrameIndex++ * 1000000000LL) / fps);
+    if (gPresentationTimeAndroid) {
+        int64_t presentationTimeNs;
+        if (p.recording.recording) {
+            int64_t startMs = p.recording.encoderSegmentStartSteadyMs > 0 ? p.recording.encoderSegmentStartSteadyMs : NowMs();
+            int64_t elapsedMs = NowMs() - startMs;
+            presentationTimeNs = elapsedMs > 0 ? elapsedMs * 1000000LL : 0;
+            if (presentationTimeNs <= p.recording.lastPresentationTimeNs) presentationTimeNs = p.recording.lastPresentationTimeNs + 1000LL;
+            p.recording.lastPresentationTimeNs = presentationTimeNs;
+            p.encoderFrameIndex += 1;
+        } else {
+            int fps = p.encoderFps <= 0 ? 15 : p.encoderFps;
+            presentationTimeNs = (p.encoderFrameIndex++ * 1000000000LL) / fps;
+        }
+        gPresentationTimeAndroid(p.display, p.encoderSurface, presentationTimeNs);
+    }
     bool ok = eglSwapBuffers(p.display, p.encoderSurface);
     ClearCurrent(p.display);
     p.lastRenderMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
@@ -636,6 +655,8 @@ extern "C" JNIEXPORT jlong JNICALL Java_com_kooo_evcam_v2_nativebridge_VulkanNat
     p->recording.renderedFrames = 0;
     p->recording.droppedFrames = 0;
     p->recording.lastTickSteadyMs = 0;
+    p->recording.encoderSegmentStartSteadyMs = NowMs();
+    p->recording.lastPresentationTimeNs = -1;
     p->encoderSignalCount = 0;
     p->encoderScheduledCount = 0;
     p->encoderCoalescedCount = 0;
@@ -821,7 +842,9 @@ extern "C" JNIEXPORT jboolean JNICALL Java_com_kooo_evcam_v2_nativebridge_Vulkan
     if (!p || index < 0 || index >= 4) return JNI_FALSE;
     if (p->input[index].surfaceTexture) env->DeleteGlobalRef(p->input[index].surfaceTexture);
     p->input[index].surfaceTexture = env->NewGlobalRef(surfaceTexture);
-    p->input[index].dirty = true;
+    p->input[index].dirty = false;
+    p->input[index].hasLatchedFrame = false;
+    p->input[index].previewPending = false;
     LOGD("created OES input index=%d", index);
     return JNI_TRUE;
 }
@@ -905,6 +928,10 @@ extern "C" JNIEXPORT jboolean JNICALL Java_com_kooo_evcam_v2_nativebridge_Vulkan
         return JNI_FALSE;
     }
     p->encoderFrameIndex = 0;
+    if (p->recording.recording) {
+        p->recording.encoderSegmentStartSteadyMs = NowMs();
+        p->recording.lastPresentationTimeNs = -1;
+    }
     p->encoderPending = false;
     p->encoderGeneration += 1;
     return p->encoderSurface != EGL_NO_SURFACE;

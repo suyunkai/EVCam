@@ -7,6 +7,10 @@ object V2BlindSpotSettings {
     private const val PREFS = "evcam_v2_blind_spot_settings"
     private const val KEY_ENABLED = "enabled"
     private const val KEY_TURN_SIGNAL_PROP_ID = "turn_signal_prop_id"
+    private const val KEY_OVERLAY_X = "overlay_x"
+    private const val KEY_OVERLAY_Y = "overlay_y"
+    private const val KEY_OVERLAY_WIDTH = "overlay_width"
+    private const val KEY_OVERLAY_HEIGHT = "overlay_height"
 
     const val DEFAULT_TURN_SIGNAL_PROP_ID = 289408008
     const val LEFT_VALUE = 1
@@ -26,6 +30,29 @@ object V2BlindSpotSettings {
     fun setTurnSignalPropId(context: Context, propId: Int) {
         prefs(context).edit().putInt(KEY_TURN_SIGNAL_PROP_ID, propId).apply()
         V2AppLog.i("V2BlindSpotSettings", "turnSignalPropId=$propId")
+    }
+
+    fun overlayX(context: Context, defaultValue: Int): Int = prefs(context).getInt(KEY_OVERLAY_X, defaultValue)
+
+    fun overlayY(context: Context, defaultValue: Int): Int = prefs(context).getInt(KEY_OVERLAY_Y, defaultValue)
+
+    fun overlayWidth(context: Context, defaultValue: Int): Int = prefs(context).getInt(KEY_OVERLAY_WIDTH, defaultValue)
+
+    fun overlayHeight(context: Context, defaultValue: Int): Int = prefs(context).getInt(KEY_OVERLAY_HEIGHT, defaultValue)
+
+    fun setOverlayPosition(context: Context, x: Int, y: Int) {
+        prefs(context).edit().putInt(KEY_OVERLAY_X, x).putInt(KEY_OVERLAY_Y, y).apply()
+        V2AppLog.i("V2BlindSpotSettings", "overlayPosition=$x,$y")
+    }
+
+    fun setOverlayBounds(context: Context, x: Int, y: Int, width: Int, height: Int) {
+        prefs(context).edit()
+            .putInt(KEY_OVERLAY_X, x)
+            .putInt(KEY_OVERLAY_Y, y)
+            .putInt(KEY_OVERLAY_WIDTH, width)
+            .putInt(KEY_OVERLAY_HEIGHT, height)
+            .apply()
+        V2AppLog.i("V2BlindSpotSettings", "overlayBounds=$x,$y ${width}x$height")
     }
 
     private fun prefs(context: Context) = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

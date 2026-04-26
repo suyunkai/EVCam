@@ -39,6 +39,17 @@
                     android:layout_gravity="center" />
 
                 <TextView
+                    android:id="@+id/preview_placeholder_front"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="#CC111111"
+                    android:gravity="center"
+                    android:text="预览已停止"
+                    android:textColor="#FFFFFF"
+                    android:textSize="26sp"
+                    android:visibility="gone" />
+
+                <TextView
                     android:id="@+id/label_front"
                     android:layout_width="56dp"
                     android:layout_height="56dp"
@@ -63,7 +74,8 @@
                     android:paddingTop="18dp"
                     android:paddingEnd="18dp"
                     android:paddingBottom="18dp"
-                    android:text="0 fps"
+                    android:gravity="center"
+                    android:text="--×--"
                     android:textColor="#FFFFFF"
                     android:textSize="16sp" />
             </FrameLayout>
@@ -86,6 +98,17 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:layout_gravity="top" />
+
+                <TextView
+                    android:id="@+id/preview_placeholder_back"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="#CC111111"
+                    android:gravity="center"
+                    android:text="预览已停止"
+                    android:textColor="#FFFFFF"
+                    android:textSize="26sp"
+                    android:visibility="gone" />
 
                 <TextView
                     android:id="@+id/label_back"
@@ -112,7 +135,8 @@
                     android:paddingTop="18dp"
                     android:paddingEnd="18dp"
                     android:paddingBottom="18dp"
-                    android:text="0 fps"
+                    android:gravity="center"
+                    android:text="--×--"
                     android:textColor="#FFFFFF"
                     android:textSize="16sp" />
             </FrameLayout>
@@ -224,7 +248,7 @@
                         android:paddingBottom="12dp"
                         android:text="调试: 未开始"
                         android:textColor="#FFFFFF"
-                        android:textSize="13sp"
+                        android:textSize="15sp"
                         android:visibility="visible" />
                 </LinearLayout>
             </LinearLayout>
@@ -256,6 +280,17 @@
                         android:layout_gravity="bottom" />
 
                     <TextView
+                        android:id="@+id/preview_placeholder_left"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="#CC111111"
+                        android:gravity="center"
+                        android:text="预览已停止"
+                        android:textColor="#FFFFFF"
+                        android:textSize="26sp"
+                        android:visibility="gone" />
+
+                    <TextView
                         android:id="@+id/label_left"
                         android:layout_width="56dp"
                         android:layout_height="56dp"
@@ -280,7 +315,8 @@
                         android:paddingTop="18dp"
                         android:paddingEnd="18dp"
                         android:paddingBottom="18dp"
-                        android:text="0 fps"
+                        android:gravity="center"
+                        android:text="--×--"
                         android:textColor="#FFFFFF"
                         android:textSize="16sp" />
                 </FrameLayout>
@@ -302,6 +338,17 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:layout_gravity="bottom" />
+
+                    <TextView
+                        android:id="@+id/preview_placeholder_right"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="#CC111111"
+                        android:gravity="center"
+                        android:text="预览已停止"
+                        android:textColor="#FFFFFF"
+                        android:textSize="26sp"
+                        android:visibility="gone" />
 
                     <TextView
                         android:id="@+id/label_right"
@@ -328,7 +375,8 @@
                         android:paddingTop="18dp"
                         android:paddingEnd="18dp"
                         android:paddingBottom="18dp"
-                        android:text="0 fps"
+                        android:gravity="center"
+                        android:text="--×--"
                         android:textColor="#FFFFFF"
                         android:textSize="16sp" />
                 </FrameLayout>

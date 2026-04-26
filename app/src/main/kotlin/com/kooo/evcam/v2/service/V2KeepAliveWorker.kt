@@ -14,6 +14,8 @@ import com.kooo.evcam.v2.settings.V2StartupSettings
 class V2KeepAliveWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
     override fun doWork(): Result {
         val context = applicationContext
+        V2KeepAliveStatus.recordWorker(context)
+        V2KeepAliveStatus.recordTrigger(context, "worker", "periodic")
         if (!V2KeepAliveSettings.isKeepAliveEnabled(context)) return Result.success()
         if (!V2StartupSettings.isAutoStartOnBoot(context)) return Result.success()
         if (!hasRequiredPermissions(context)) return Result.retry()

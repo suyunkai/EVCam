@@ -1,15 +1,15 @@
 #!/system/bin/sh
 #
 # EVCam 保活配置添加脚本（内置版）
-# 用途：将 com.kooo.evcam 添加到车机系统的服务启动列表和后台白名单
+# 用途：将 com.kooo.evcam.v2 添加到车机系统的服务启动列表和后台白名单
 # 从应用内通过 su 执行
 #
 # 基于 E5车友 原始脚本 v2.0
 #
 
 # ==================== 配置区域 ====================
-PACKAGE_NAME="com.kooo.evcam"
-ACTION_NAME="com.kooo.evcam.ACTION_KEEP_ALIVE"
+PACKAGE_NAME="com.kooo.evcam.v2"
+ACTION_NAME="com.kooo.evcam.v2.action.KEEP_ALIVE"
 EXPECTED_DEVICE="e245"
 
 # 文件路径
@@ -274,8 +274,8 @@ modify_files() {
         awk '
         /<\/services>/ {
             print "    <!-- EVCam 保活配置 -->"
-            print "    <service name=\"com.kooo.evcam\">"
-            print "        <action>com.kooo.evcam.ACTION_KEEP_ALIVE</action>"
+            print "    <service name=\"com.kooo.evcam.v2\">"
+            print "        <action>com.kooo.evcam.v2.action.KEEP_ALIVE</action>"
             print "        <stage>2</stage>"
             print "        <user>10</user>"
             print "        <sticky>true</sticky>"
@@ -319,7 +319,7 @@ modify_files() {
         awk '
         /<\/whitelist>/ {
             print "            <!-- EVCam 保活配置 -->"
-            print "            <item package=\"com.kooo.evcam\" />"
+            print "            <item package=\"com.kooo.evcam.v2\" />"
         }
         { print }
         ' "$WHITELIST_FILE" > "$TEMP_FILE"
@@ -380,7 +380,7 @@ modify_files() {
             TEMP_FILE2="${TEMP_FILE}.2"
             sed "${CLOSE_LINE}i\\
     <!-- EVCam 保活配置 -->\\
-    <pkg>com.kooo.evcam</pkg>" "$TEMP_FILE" > "$TEMP_FILE2"
+    <pkg>com.kooo.evcam.v2</pkg>" "$TEMP_FILE" > "$TEMP_FILE2"
 
             if [ $? -ne 0 ] || [ ! -s "$TEMP_FILE2" ]; then
                 print_error "sed 插入 ${ARRAY_NAME} 失败"

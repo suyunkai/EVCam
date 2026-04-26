@@ -26,11 +26,13 @@ import androidx.core.content.ContextCompat
 import com.kooo.evcam.R
 import com.kooo.evcam.v2.log.V2AppLog
 import com.kooo.evcam.v2.service.V2CameraForegroundService
+import com.kooo.evcam.v2.service.V2KeepAliveStatus
 import com.kooo.evcam.v2.settings.V2AvoidanceSettings
 import com.kooo.evcam.v2.settings.V2BlindSpotSettings
 import com.kooo.evcam.v2.settings.V2CustomKeySettings
 import com.kooo.evcam.v2.settings.V2FisheyeSettings
 import com.kooo.evcam.v2.settings.V2KeepAliveSettings
+import com.kooo.evcam.v2.settings.V2RecordingSettings
 import com.kooo.evcam.v2.settings.V2StartupSettings
 import com.kooo.evcam.v2.settings.V2StorageCleanupSettings
 import com.kooo.evcam.v2.settings.V2VehicleModelSettings
@@ -110,6 +112,7 @@ class V2SettingsActivity : AppCompatActivity() {
         scroll.addView(content)
 
         content.addView(versionCard())
+        content.addView(keepAliveStatusCard())
         content.addView(vehicleModelCard())
         content.addView(entryCard(
             title = "权限设置",
@@ -125,8 +128,7 @@ class V2SettingsActivity : AppCompatActivity() {
         ))
         content.addView(startupSwitchCard())
         content.addView(recordingSwitchCard())
-        content.addView(keepAliveSwitchCard())
-        content.addView(preventSleepSwitchCard())
+        content.addView(recordingSettingsCard())
         content.addView(storageCleanupCard())
         content.addView(avoidanceBehaviorCard())
         content.addView(fisheyeSwitchCard())
@@ -223,7 +225,7 @@ class V2SettingsActivity : AppCompatActivity() {
         val switch = Switch(this).apply { isChecked = checked }
         val controls = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+            gravity = Gravity.CENTER
         }
         controls.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
         controls.addView(propEdit, LinearLayout.LayoutParams(dp(150), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(12) })
@@ -308,7 +310,7 @@ class V2SettingsActivity : AppCompatActivity() {
 
         private fun styledText(view: TextView, dropdown: Boolean): TextView = view.apply {
             textSize = 16f
-            gravity = Gravity.CENTER_VERTICAL
+            gravity = Gravity.CENTER
             setTextColor(ContextCompat.getColor(this@V2SettingsActivity, R.color.text_primary))
             setBackgroundColor(ContextCompat.getColor(this@V2SettingsActivity, if (dropdown) R.color.card_background else R.color.input_background))
             setPadding(dp(12), dp(10), dp(12), dp(10))
@@ -329,27 +331,103 @@ class V2SettingsActivity : AppCompatActivity() {
         onCheckedChange = { enabled -> V2StartupSettings.setAutoStartRecording(this, enabled); V2AppLog.i("V2SettingsActivity", "autoStartRecording=$enabled") }
     )
 
-    private fun keepAliveSwitchCard(): View = switchCard(
-        title = "保活增强",
-        subtitle = "启用广播、无障碍、ContentProvider、WorkManager 多路保活；不改变熄屏停止录制策略",
-        checked = V2KeepAliveSettings.isKeepAliveEnabled(this),
-        onCheckedChange = { enabled ->
-            V2KeepAliveSettings.setKeepAliveEnabled(this, enabled)
-            V2AppLog.i("V2SettingsActivity", "keepAliveEnabled=$enabled")
-            if (enabled) {
-                com.kooo.evcam.v2.service.V2KeepAliveScheduler.schedule(this)
-                com.kooo.evcam.v2.service.V2KeepAliveReceiver.registerTimeTick(this)
-            } else {
-                com.kooo.evcam.v2.service.V2KeepAliveReceiver.unregisterTimeTick(this)
+    private fun recordingSettingsCard(): View {
+        val resolutionOptions = V2RecordingSettings.supportedResolutionOptions(this)
+        val bitrateOptions = V2RecordingSettings.bitrateOptionsWithMbps(this)
+        val row = cardContainer()
+        row.addView(cardTexts(
+            "录制设置",
+            V2RecordingSettings.summary(this),
+            0,
+            useWeight = false
+        ))
+        val controls = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(12), 0, 0)
+        }
+        controls.addView(settingsSpinnerCell(
+            label = "分辨率",
+            labels = resolutionOptions.map { it.label },
+            selectedIndex = resolutionOptions.indexOfFirst { it.value == V2RecordingSettings.resolution(this) }.coerceAtLeast(0),
+            onSelected = { index -> V2RecordingSettings.setResolution(this, resolutionOptions[index].value); restartNotice() }
+        ))
+        controls.addView(settingsSpinnerCell(
+            label = "码率",
+            labels = bitrateOptions.map { it.label },
+            selectedIndex = V2RecordingSettings.bitrateOptions.indexOfFirst { it.value == V2RecordingSettings.bitrateLevel(this) }.coerceAtLeast(0),
+            onSelected = { index -> V2RecordingSettings.setBitrateLevel(this, V2RecordingSettings.bitrateOptions[index].value); restartNotice() }
+        ))
+        controls.addView(settingsSpinnerCell(
+            label = "帧率",
+            labels = V2RecordingSettings.fpsOptions.map { "${it}fps" },
+            selectedIndex = V2RecordingSettings.fpsOptions.indexOf(V2RecordingSettings.fps(this)).coerceAtLeast(0),
+            onSelected = { index -> V2RecordingSettings.setFps(this, V2RecordingSettings.fpsOptions[index]); restartNotice() }
+        ))
+        controls.addView(settingsSpinnerCell(
+            label = "分段时长",
+            labels = V2RecordingSettings.segmentMinuteOptions.map { "${it}分钟" },
+            selectedIndex = V2RecordingSettings.segmentMinuteOptions.indexOf(V2RecordingSettings.segmentMinutes(this)).coerceAtLeast(0),
+            onSelected = { index -> V2RecordingSettings.setSegmentMinutes(this, V2RecordingSettings.segmentMinuteOptions[index]); restartNotice() }
+        ))
+        row.addView(controls)
+        return row
+    }
+
+    private fun settingsSpinnerCell(label: String, labels: List<String>, selectedIndex: Int, onSelected: (Int) -> Unit): View {
+        val cell = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            isClickable = true
+            isFocusable = true
+            setPadding(dp(4), 0, dp(4), 0)
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        cell.addView(TextView(this).apply {
+            text = label
+            textSize = 16f
+            gravity = Gravity.CENTER
+            setTextColor(ContextCompat.getColor(this@V2SettingsActivity, R.color.text_primary))
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        var initialized = false
+        val spinner = Spinner(this).apply {
+            adapter = settingsSpinnerAdapter(labels)
+            setSelection(selectedIndex)
+            onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                    if (!initialized) { initialized = true; return }
+                    onSelected(position)
+                }
+                override fun onNothingSelected(parent: AdapterView<*>?) = Unit
             }
         }
-    )
+        cell.setOnClickListener { spinner.performClick() }
+        cell.addView(spinner, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6) })
+        return cell
+    }
 
-    private fun preventSleepSwitchCard(): View = switchCard(
-        title = "防止休眠",
-        subtitle = "与旧版一致：开机自启动开启且本开关开启时，服务运行才持有 CPU WakeLock",
-        checked = V2KeepAliveSettings.isPreventSleepEnabled(this),
-        onCheckedChange = { enabled -> V2KeepAliveSettings.setPreventSleepEnabled(this, enabled); V2AppLog.i("V2SettingsActivity", "preventSleepEnabled=$enabled") }
+    private fun settingsSpinnerAdapter(labels: List<String>) = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, labels) {
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View = styledText(super.getView(position, convertView, parent) as TextView, false)
+        override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View = styledText(super.getDropDownView(position, convertView, parent) as TextView, true)
+        private fun styledText(view: TextView, dropdown: Boolean) = view.apply {
+            textSize = 16f
+            gravity = Gravity.CENTER
+            setTextColor(ContextCompat.getColor(this@V2SettingsActivity, R.color.text_primary))
+            setBackgroundColor(ContextCompat.getColor(this@V2SettingsActivity, if (dropdown) R.color.card_background else R.color.input_background))
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+        }
+    }
+
+    private fun restartNotice() {
+        Toast.makeText(this, "录制设置已保存，重启应用/服务后生效", Toast.LENGTH_SHORT).show()
+        V2AppLog.i("V2SettingsActivity", "recording settings changed ${V2RecordingSettings.summary(this).replace('\n', ' ')}")
+        showHomePage()
+    }
+
+    private fun keepAliveStatusCard(): View = entryCard(
+        title = "保活状态",
+        subtitle = V2KeepAliveStatus.summary(this),
+        buttonText = "刷新 →",
+        onClick = { showHomePage() }
     )
 
     private fun storageCleanupCard(): View {

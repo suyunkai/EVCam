@@ -24,12 +24,12 @@ class V2CompositeRecorder(
     private val outputWidth: Int,
     private val outputHeight: Int,
     private val videoBitrate: Int,
+    private val recordingFps: Int,
+    private val segmentDurationMs: Long,
 ) {
     interface DebugListener { fun onCompositeDebug(message: String) }
 
     companion object {
-        private const val RECORDING_FPS = 15
-        private const val SEGMENT_DURATION_MS = 60_000L
         private const val TICK_SHOULD_RENDER = 1L
         private const val TICK_DROPPED = 2L
         private const val TICK_SEGMENT_DUE = 4L
@@ -46,14 +46,14 @@ class V2CompositeRecorder(
     @Volatile private var cleanupFuture: Future<V2StorageCleaner.CleanupResult>? = null
 
     fun start(): Boolean {
-        V2AppLog.i("V2CompositeRecorder", "start output=${outputDir.absolutePath} size=${outputWidth}x${outputHeight} bitrate=$videoBitrate fps=$RECORDING_FPS")
+        V2AppLog.i("V2CompositeRecorder", "start output=${outputDir.absolutePath} size=${outputWidth}x${outputHeight} bitrate=$videoBitrate fps=$recordingFps segmentMs=$segmentDurationMs")
         startedAtMs = SystemClock.elapsedRealtime()
         metrics.apply {
             requestedFrames = 0; renderedFrames = 0; encodedSamples = 0; droppedFrames = 0
             segmentIndex = 0; segmentSwitchMs = 0; firstSampleLatencyMs = -1; lastError = "无"
         }
         runStorageCleanupBlocking()
-        val firstSegmentWallClockMs = VulkanNative.startRecordingSession(nativeHandle, RECORDING_FPS, SEGMENT_DURATION_MS, System.currentTimeMillis())
+        val firstSegmentWallClockMs = VulkanNative.startRecordingSession(nativeHandle, recordingFps, segmentDurationMs, System.currentTimeMillis())
         recording = true
         generation += 1
         val startGeneration = generation
@@ -133,7 +133,7 @@ class V2CompositeRecorder(
                 .onFailure { V2AppLog.e("V2CompositeRecorder", "detach encoder surface before segment switch failed", it) }
             writer?.let { releaseWriterAsync(it, finish = true) }
         }
-        writer = EncoderSegmentWriter(outputDir, metrics, outputWidth, outputHeight, RECORDING_FPS, videoBitrate)
+        writer = EncoderSegmentWriter(outputDir, metrics, outputWidth, outputHeight, recordingFps, videoBitrate)
         writer?.startSegment(segmentIndex, segmentWallClockMs)
         val surface = writer?.surface ?: throw IllegalStateException("Encoder surface unavailable")
         if (nativeHandle == 0L) throw java.lang.IllegalStateException(VulkanNative.getLastError())
@@ -187,7 +187,7 @@ class V2CompositeRecorder(
         } finally {
             publishMaybe()
             if (recording && tickGeneration == generation) {
-                val nextDelay = VulkanNative.getRecordingNextTickDelayMs(nativeHandle).takeIf { it >= 0L } ?: (1000L / RECORDING_FPS)
+                val nextDelay = VulkanNative.getRecordingNextTickDelayMs(nativeHandle).takeIf { it >= 0L } ?: (1000L / recordingFps.coerceAtLeast(1))
                 scheduleRecordingTick(tickGeneration, nextDelay)
             }
         }
@@ -256,7 +256,7 @@ class V2CompositeRecorder(
     }
 
     private fun publishMaybe() {
-        if (metrics.requestedFrames % RECORDING_FPS.toLong() == 0L) publishDebug()
+        if (metrics.requestedFrames % recordingFps.coerceAtLeast(1).toLong() == 0L) publishDebug()
     }
 
     private fun publishDebug() {

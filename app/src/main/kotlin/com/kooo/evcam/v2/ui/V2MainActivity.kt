@@ -12,6 +12,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.view.Surface
 import android.view.TextureView
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -38,6 +39,7 @@ class V2MainActivity : AppCompatActivity() {
     private var service: V2CameraForegroundService? = null
     private var bound = false
     private val fpsCounters = Array(4) { FpsCounter() }
+    private val previewSizeLabels = Array(4) { "--×--" }
     private val previewSurfaces = arrayOfNulls<Surface>(4)
     private var autoStartFromBoot = false
     private var silentMode = false
@@ -51,11 +53,13 @@ class V2MainActivity : AppCompatActivity() {
             service?.setUiStatusListener { status ->
                 binding.tvRecordingStats.post {
                     binding.tvRecordingStats.text = status
+                    updatePreviewPlaceholders(service?.isPreviewPausedByAvoidance() == true)
                     syncRecordButtonFromService()
                 }
             }
             service?.setUiVisibility(true) { moveTaskToBack(true) }
             bindPreviews()
+            updatePreviewPlaceholders(service?.isPreviewPausedByAvoidance() == true)
             syncRecordButtonFromService()
             maybeStartBootRecording()
         }
@@ -221,19 +225,20 @@ class V2MainActivity : AppCompatActivity() {
     }
 
     private fun bindPreviews() {
-        val fpsViews = listOf(binding.fpsFront, binding.fpsBack, binding.fpsLeft, binding.fpsRight)
+        val sizeViews = listOf(binding.fpsFront, binding.fpsBack, binding.fpsLeft, binding.fpsRight)
         listOf(binding.textureFront, binding.textureBack, binding.textureLeft, binding.textureRight).forEachIndexed { index, texture ->
             texture.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
                 override fun onSurfaceTextureAvailable(surface: android.graphics.SurfaceTexture, width: Int, height: Int) {
                     V2AppLog.i("V2MainActivity", "preview surface available index=$index size=${width}x$height")
                     fpsCounters[index].reset()
-                    fpsViews[index].text = "-- fps"
+                    previewSizeLabels[index] = service?.previewInputSizeLabel(index) ?: "--×--"
+                    sizeViews[index].text = "${previewSizeLabels[index]}\n-- fps"
                     attachPreviewSurface(index, surface)
                 }
                 override fun onSurfaceTextureSizeChanged(surface: android.graphics.SurfaceTexture, width: Int, height: Int) {}
                 override fun onSurfaceTextureDestroyed(surface: android.graphics.SurfaceTexture): Boolean { V2AppLog.i("V2MainActivity", "preview surface destroyed index=$index"); detachPreviewSurface(index); return true }
                 override fun onSurfaceTextureUpdated(surface: android.graphics.SurfaceTexture) {
-                    fpsCounters[index].onFrame()?.let { fps -> fpsViews[index].text = "$fps fps" }
+                    fpsCounters[index].onFrame()?.let { fps -> sizeViews[index].text = "${previewSizeLabels[index]}\n$fps fps" }
                 }
             }
             if (texture.isAvailable && texture.surfaceTexture != null) attachPreviewSurface(index, texture.surfaceTexture!!)
@@ -246,6 +251,9 @@ class V2MainActivity : AppCompatActivity() {
         previewSurfaces[index] = surface
         V2AppLog.d("V2MainActivity", "attachPreviewSurface index=$index valid=${surface.isValid}")
         service?.attachPreviewSurface(index, surface)
+        updatePreviewPlaceholders(service?.isPreviewPausedByAvoidance() == true)
+        previewSizeLabels[index] = service?.previewInputSizeLabel(index) ?: "--×--"
+        listOf(binding.fpsFront, binding.fpsBack, binding.fpsLeft, binding.fpsRight).getOrNull(index)?.text = "${previewSizeLabels[index]}\n-- fps"
     }
 
     private fun detachPreviewSurface(index: Int) {
@@ -256,6 +264,16 @@ class V2MainActivity : AppCompatActivity() {
     }
 
     private fun unbindPreviews() { repeat(4) { detachPreviewSurface(it) } }
+
+    private fun updatePreviewPlaceholders(paused: Boolean) {
+        val visibility = if (paused) View.VISIBLE else View.GONE
+        listOf(
+            binding.previewPlaceholderFront,
+            binding.previewPlaceholderBack,
+            binding.previewPlaceholderLeft,
+            binding.previewPlaceholderRight
+        ).forEach { it.visibility = visibility }
+    }
 
     private class FpsCounter {
         private var frames = 0
