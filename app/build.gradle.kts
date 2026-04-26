@@ -6,6 +6,12 @@ android {
     namespace = "com.kooo.evcam"
     compileSdk = 36
 
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+        }
+    }
+
     // 签名配置 (使用 AOSP 公共测试签名)
     signingConfigs {
         create("release") {
@@ -17,11 +23,17 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.kooo.evcam"
+        applicationId = "com.kooo.evcam.v2"
         minSdk = 28
         targetSdk = 36
         versionCode = 75
-        versionName = "1.6.5"
+        versionName = "2.0.0-test-04260933"
+
+        externalNativeBuild {
+            cmake {
+                arguments += listOf("-DANDROID_STL=c++_shared")
+            }
+        }
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -43,9 +55,13 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
+    buildFeatures {
+        viewBinding = true
+    }
+
     sourceSets {
         getByName("main") {
-            assets.srcDir("../assets")
+            assets.directories.add("../assets")
         }
     }
 

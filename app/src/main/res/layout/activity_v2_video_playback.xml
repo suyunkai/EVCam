@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/page_background">
+
+    <LinearLayout
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingTop="15dp"
+        android:paddingBottom="8dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:gravity="center_vertical"
+        android:background="@color/menu_background">
+
+        <TextView android:id="@+id/toolbar_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="视频回看" android:textColor="@color/text_primary" android:textSize="24sp" android:textStyle="bold" />
+        <TextView android:id="@+id/current_datetime" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="16dp" android:text="" android:textColor="@color/text_secondary" android:textSize="16sp" android:gravity="start|center_vertical" />
+        <Button android:id="@+id/btn_refresh" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="刷新" android:textSize="20sp" android:minHeight="48dp" android:backgroundTint="@color/button_background" android:textColor="@color/button_text" />
+        <Button android:id="@+id/btn_home" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="⌂" android:textSize="20sp" android:minWidth="48dp" android:minHeight="48dp" android:layout_marginStart="8dp" android:backgroundTint="@color/button_background" android:textColor="@color/button_text" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/content_layout"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <FrameLayout android:id="@+id/list_container" android:layout_width="220dp" android:layout_height="match_parent" android:background="@color/page_background">
+            <androidx.recyclerview.widget.RecyclerView android:id="@+id/video_list" android:layout_width="match_parent" android:layout_height="match_parent" android:padding="4dp" android:clipToPadding="false" />
+            <TextView android:id="@+id/empty_text" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="暂无录制文件" android:textColor="@color/text_secondary" android:textSize="16sp" android:visibility="gone" />
+        </FrameLayout>
+
+        <LinearLayout android:id="@+id/preview_container" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:background="@color/preview_background">
+            <FrameLayout android:id="@+id/grid_container" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:layout_marginTop="15dp" android:layout_marginBottom="15dp" android:background="@color/preview_frame_background">
+                <com.kooo.evcam.v2.ui.playback.V2StretchVideoView android:id="@+id/video_front" android:layout_width="match_parent" android:layout_height="match_parent" />
+                <TextView android:id="@+id/placeholder_front" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="请选择视频" android:textColor="@color/preview_placeholder_text" android:textSize="18sp" />
+            </FrameLayout>
+            <LinearLayout android:id="@+id/controls_layout" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:padding="8dp" android:gravity="center_vertical" android:background="@color/preview_controls_background">
+                <Button android:id="@+id/btn_play_pause" android:layout_width="wrap_content" android:layout_height="48dp" android:minWidth="80dp" android:text="播放" android:textSize="16sp" android:backgroundTint="@color/button_background" android:textColor="@color/button_text" />
+                <TextView android:id="@+id/current_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:text="00:00" android:textColor="@color/text_primary" android:textSize="16sp" />
+                <SeekBar android:id="@+id/seek_bar" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginHorizontal="12dp" android:minHeight="48dp" android:max="100" android:progress="0" android:progressTint="@color/button_accent" android:thumbTint="@color/button_accent" />
+                <TextView android:id="@+id/total_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="00:00" android:textColor="@color/text_primary" android:textSize="16sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

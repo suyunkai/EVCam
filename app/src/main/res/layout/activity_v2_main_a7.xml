@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+        <!-- V2：按原 activity_main_4cam 主界面直接裁剪，只删除当前不用部分 -->
+        <LinearLayout
+            android:id="@+id/main"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/menu_background"
+            android:orientation="horizontal"
+            android:padding="18dp">
+
+        <!-- 左侧：前后摄像头垂直排列 (横向1280x800) -->
+        <LinearLayout
+            android:layout_width="215dp"
+            android:layout_height="match_parent"
+            android:layout_weight="16"
+            android:layout_marginEnd="18dp"
+            android:orientation="vertical">
+
+            <!-- 前摄像头 -->
+            <FrameLayout
+                android:id="@+id/frame_front"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginStart="0dp"
+                android:layout_marginTop="0dp"
+                android:layout_marginEnd="0dp"
+                android:layout_marginBottom="9dp"
+                android:layout_weight="1.0"
+                android:gravity="center">
+
+                <com.kooo.evcam.v2.ui.V2AutoFitTextureView
+                    android:id="@+id/texture_front"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_gravity="center" />
+
+                <TextView
+                    android:id="@+id/label_front"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:layout_gravity="top|start"
+                    android:layout_marginStart="18dp"
+                    android:layout_marginTop="18dp"
+                    android:background="@drawable/camera_label_background"
+                    android:gravity="center"
+                    android:text="前"
+                    android:textColor="#FFFFFF"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:id="@+id/fps_front"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|start"
+                    android:layout_marginStart="18dp"
+                    android:layout_marginBottom="18dp"
+                    android:background="@drawable/camera_label_background"
+                    android:paddingStart="18dp"
+                    android:paddingTop="18dp"
+                    android:paddingEnd="18dp"
+                    android:paddingBottom="18dp"
+                    android:text="0 fps"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp" />
+            </FrameLayout>
+
+            <!-- 后摄像头 -->
+            <FrameLayout
+                android:id="@+id/frame_back"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginStart="0dp"
+                android:layout_marginTop="9dp"
+                android:layout_marginEnd="0dp"
+                android:layout_marginBottom="0dp"
+                android:layout_weight="1.0"
+                android:clipChildren="true"
+                android:gravity="center">
+
+                <com.kooo.evcam.v2.ui.V2AutoFitTextureView
+                    android:id="@+id/texture_back"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_gravity="top" />
+
+                <TextView
+                    android:id="@+id/label_back"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:layout_gravity="top|start"
+                    android:layout_marginStart="18dp"
+                    android:layout_marginTop="18dp"
+                    android:background="@drawable/camera_label_background"
+                    android:gravity="center"
+                    android:text="后"
+                    android:textColor="#FFFFFF"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:id="@+id/fps_back"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|start"
+                    android:layout_marginStart="18dp"
+                    android:layout_marginBottom="18dp"
+                    android:background="@drawable/camera_label_background"
+                    android:paddingStart="18dp"
+                    android:paddingTop="18dp"
+                    android:paddingEnd="18dp"
+                    android:paddingBottom="18dp"
+                    android:text="0 fps"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <!-- 右侧：上方按钮区域，下方左右摄像头 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="24"
+            android:orientation="vertical">
+
+            <!-- 按钮区域 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="0dp"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/btn_start_record"
+                        android:layout_width="120dp"
+                        android:layout_height="120dp"
+                        android:layout_marginStart="9dp"
+                        android:layout_marginTop="0dp"
+                        android:layout_marginEnd="9dp"
+                        android:layout_marginBottom="0dp"
+                        android:background="@drawable/v2_record_control_idle"
+                        android:clickable="true"
+                        android:contentDescription="录制"
+                        android:elevation="4dp"
+                        android:focusable="true" />
+
+                    <TextView
+                        android:id="@+id/btn_video_playback"
+                        android:layout_width="120dp"
+                        android:layout_height="120dp"
+                        android:layout_marginStart="9dp"
+                        android:layout_marginTop="0dp"
+                        android:layout_marginEnd="9dp"
+                        android:layout_marginBottom="0dp"
+                        android:background="@drawable/v2_control_button_bg"
+                        android:clickable="true"
+                        android:contentDescription="回看"
+                        android:elevation="4dp"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:text="▶"
+                        android:textColor="@color/button_text"
+                        android:textSize="52sp" />
+
+                    <TextView
+                        android:id="@+id/btn_settings"
+                        android:layout_width="120dp"
+                        android:layout_height="120dp"
+                        android:layout_marginStart="9dp"
+                        android:layout_marginTop="0dp"
+                        android:layout_marginEnd="9dp"
+                        android:layout_marginBottom="0dp"
+                        android:background="@drawable/v2_control_button_bg"
+                        android:clickable="true"
+                        android:contentDescription="设置"
+                        android:elevation="4dp"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:text="⚙"
+                        android:textColor="@color/button_text"
+                        android:textSize="46sp" />
+
+                    <TextView
+                        android:id="@+id/btn_exit"
+                        android:layout_width="120dp"
+                        android:layout_height="120dp"
+                        android:layout_marginStart="9dp"
+                        android:layout_marginTop="0dp"
+                        android:layout_marginEnd="9dp"
+                        android:layout_marginBottom="0dp"
+                        android:background="@drawable/v2_control_button_bg"
+                        android:clickable="true"
+                        android:contentDescription="关闭"
+                        android:elevation="4dp"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:text="✕"
+                        android:textColor="@color/button_text"
+                        android:textSize="48sp" />
+
+                    <TextView
+                        android:id="@+id/tv_recording_stats"
+                        android:layout_width="0dp"
+                        android:layout_height="120dp"
+                        android:layout_marginStart="18dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/camera_label_background"
+                        android:ellipsize="end"
+                        android:gravity="center_vertical|start"
+                        android:maxLines="3"
+                        android:paddingStart="18dp"
+                        android:paddingTop="12dp"
+                        android:paddingEnd="18dp"
+                        android:paddingBottom="12dp"
+                        android:text="调试: 未开始"
+                        android:textColor="#FFFFFF"
+                        android:textSize="13sp"
+                        android:visibility="visible" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- 左右摄像头水平排列 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="18dp"
+                android:layout_weight="1"
+                android:orientation="horizontal">
+
+                <!-- 左摄像头（逆时针旋转90度） -->
+                <FrameLayout
+                    android:id="@+id/frame_left"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="0dp"
+                    android:layout_marginTop="0dp"
+                    android:layout_marginEnd="9dp"
+                    android:layout_marginBottom="0dp"
+                    android:layout_weight="1"
+                    android:gravity="center">
+
+                    <com.kooo.evcam.v2.ui.V2AutoFitTextureView
+                        android:id="@+id/texture_left"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="bottom" />
+
+                    <TextView
+                        android:id="@+id/label_left"
+                        android:layout_width="56dp"
+                        android:layout_height="56dp"
+                        android:layout_gravity="top|start"
+                        android:layout_marginStart="18dp"
+                        android:layout_marginTop="18dp"
+                        android:background="@drawable/camera_label_background"
+                        android:gravity="center"
+                        android:text="左"
+                        android:textColor="#FFFFFF"
+                        android:textSize="22sp" />
+
+                    <TextView
+                        android:id="@+id/fps_left"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom|start"
+                        android:layout_marginStart="18dp"
+                        android:layout_marginBottom="18dp"
+                        android:background="@drawable/camera_label_background"
+                        android:paddingStart="18dp"
+                        android:paddingTop="18dp"
+                        android:paddingEnd="18dp"
+                        android:paddingBottom="18dp"
+                        android:text="0 fps"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp" />
+                </FrameLayout>
+
+                <!-- 右摄像头（顺时针旋转90度） -->
+                <FrameLayout
+                    android:id="@+id/frame_right"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="9dp"
+                    android:layout_marginTop="0dp"
+                    android:layout_marginEnd="0dp"
+                    android:layout_marginBottom="0dp"
+                    android:layout_weight="1"
+                    android:gravity="center">
+
+                    <com.kooo.evcam.v2.ui.V2AutoFitTextureView
+                        android:id="@+id/texture_right"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="bottom" />
+
+                    <TextView
+                        android:id="@+id/label_right"
+                        android:layout_width="56dp"
+                        android:layout_height="56dp"
+                        android:layout_gravity="top|start"
+                        android:layout_marginStart="18dp"
+                        android:layout_marginTop="18dp"
+                        android:background="@drawable/camera_label_background"
+                        android:gravity="center"
+                        android:text="右"
+                        android:textColor="#FFFFFF"
+                        android:textSize="22sp" />
+
+                    <TextView
+                        android:id="@+id/fps_right"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom|start"
+                        android:layout_marginStart="18dp"
+                        android:layout_marginBottom="18dp"
+                        android:background="@drawable/camera_label_background"
+                        android:paddingStart="18dp"
+                        android:paddingTop="18dp"
+                        android:paddingEnd="18dp"
+                        android:paddingBottom="18dp"
+                        android:text="0 fps"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp" />
+                </FrameLayout>
+            </LinearLayout>
+        </LinearLayout>
+        </LinearLayout>
+
+</FrameLayout>
