@@ -1,7 +1,5 @@
 package com.kooo.evcam.v2.service
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.os.Binder
@@ -13,17 +11,13 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.view.Surface
 import android.widget.Toast
-import androidx.core.app.NotificationCompat
-import com.kooo.evcam.R
 import com.kooo.evcam.v2.log.V2BroadcastLogger
 import com.kooo.evcam.v2.log.V2AppLog
 import com.kooo.evcam.v2.settings.V2AvoidanceSettings
 import com.kooo.evcam.v2.settings.V2BlindSpotSettings
 import com.kooo.evcam.v2.settings.V2CustomKeySettings
-import com.kooo.evcam.v2.settings.V2FisheyeSettings
 import com.kooo.evcam.v2.settings.V2StartupSettings
 import com.kooo.evcam.v2.ui.V2BlindSpotOverlay
-import com.kooo.evcam.v2.ui.V2FisheyePreviewOverlay
 import com.kooo.evcam.v2.ui.V2MainActivity
 
 class V2CameraForegroundService : Service(), V2CameraEngine.Listener {
@@ -51,6 +45,7 @@ class V2CameraForegroundService : Service(), V2CameraEngine.Listener {
     private val binder = LocalBinder()
     private val mainHandler = Handler(Looper.getMainLooper())
     private lateinit var engine: V2CameraEngine
+    private val notificationHelper = V2CameraNotificationHelper(this)
     private val wakeLockHolder = V2WakeLockHolder(this)
     private val autoRecordingController = V2AutoRecordingController(
         service = this,
@@ -75,8 +70,7 @@ class V2CameraForegroundService : Service(), V2CameraEngine.Listener {
     private var blindSpotOverlay: V2BlindSpotOverlay? = null
     private var blindSpotCameraIndex = -1
     private var restoreUiAfterBlindSpot = false
-    private var fisheyePreviewOverlay: V2FisheyePreviewOverlay? = null
-    private var fisheyePreviewCameraIndex = -1
+    private lateinit var fisheyePreviewController: V2FisheyePreviewController
     @Volatile private var blindSpotSignalIsOff = true
     private lateinit var foregroundAppMonitor: V2ForegroundAppMonitor
     private var avoidanceSnapshot: AvoidanceSnapshot? = null
@@ -95,8 +89,15 @@ class V2CameraForegroundService : Service(), V2CameraEngine.Listener {
         displayPowerOn = V2DisplayPowerState.initialValue(isSystemInteractive())
         V2AppLog.i("V2CameraService", "onCreate autoRecord=${V2StartupSettings.isAutoStartRecording(this)} displayPowerOn=${isDisplayPowerOn()} systemInteractive=${isSystemInteractive()}")
         engine = V2CameraEngine(this, this)
+        fisheyePreviewController = V2FisheyePreviewController(
+            service = this,
+            engine = engine,
+            previewSurfaces = previewSurfaces,
+            isDisplayPowerOn = { isDisplayPowerOn() },
+            showToast = { showServiceToast(it) }
+        )
         foregroundAppMonitor = V2ForegroundAppMonitor(this)
-        startForeground(2001, buildNotification("camera ready"))
+        notificationHelper.startForeground("camera ready")
         V2AppLog.i("V2CameraService", "foreground notification started")
         displayPowerCoordinator.register()
         engine.setCameraAccessAllowed(isDisplayPowerOn())
@@ -121,8 +122,8 @@ class V2CameraForegroundService : Service(), V2CameraEngine.Listener {
             action == ACTION_REFRESH_CUSTOM_KEY -> restartCustomKeyObserver()
             action == ACTION_REFRESH_BLIND_SPOT -> restartBlindSpotObserver()
             action == ACTION_REFRESH_FISHEYE -> engine.applyFisheyeSettings()
-            action == ACTION_SHOW_FISHEYE_PREVIEW -> showFisheyePreview(intent.getIntExtra(EXTRA_CAMERA_INDEX, 0))
-            action == ACTION_HIDE_FISHEYE_PREVIEW -> hideFisheyePreview()
+            action == ACTION_SHOW_FISHEYE_PREVIEW -> fisheyePreviewController.show(intent.getIntExtra(EXTRA_CAMERA_INDEX, 0))
+            action == ACTION_HIDE_FISHEYE_PREVIEW -> fisheyePreviewController.hide()
             V2DisplayPowerActions.isDisplayOff(action) -> handleDisplayOff(action)
             V2DisplayPowerActions.isDisplayOn(action) -> handleDisplayOn(action)
         }
@@ -136,7 +137,7 @@ class V2CameraForegroundService : Service(), V2CameraEngine.Listener {
         V2KeepAliveReceiver.unregisterDynamic(this)
         stopBlindSpotObserver()
         hideBlindSpotOverlay()
-        hideFisheyePreview()
+        fisheyePreviewController.hide()
         stopCustomKeyObserver()
         releaseWakeLock()
         engine.release()
@@ -223,7 +224,7 @@ class V2CameraForegroundService : Service(), V2CameraEngine.Listener {
         avoidanceSnapshot = null
         activeAvoidanceTarget = null
         hideBlindSpotOverlay()
-        hideFisheyePreview()
+        fisheyePreviewController.hide()
         pauseCameraForDisplayOff()
         uiStatusListener?.invoke(engine.statusText())
         V2AppLog.saveToPersistentLog(this)
@@ -375,46 +376,6 @@ class V2CameraForegroundService : Service(), V2CameraEngine.Listener {
             .onFailure { V2AppLog.e("V2CameraService", "blind spot restore UI failed", it) }
     }
 
-    private fun showFisheyePreview(index: Int) {
-        if (!isDisplayPowerOn()) {
-            V2AppLog.w("V2CameraService", "fisheye preview skipped: display off index=$index")
-            showServiceToast("屏幕关闭，无法打开鱼眼预览")
-            return
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-            V2AppLog.w("V2CameraService", "fisheye preview skipped: overlay permission missing")
-            showServiceToast("鱼眼预览需要悬浮窗权限")
-            return
-        }
-        val params = V2FisheyeSettings.defaultParamsForIndex(index)
-        if (fisheyePreviewOverlay == null) {
-            fisheyePreviewOverlay = V2FisheyePreviewOverlay(
-                this,
-                attachPreview = { cameraIndex, surface -> engine.attachPreviewSurface(cameraIndex, surface) },
-                detachPreview = { cameraIndex -> engine.detachPreviewSurface(cameraIndex) },
-                onClose = { hideFisheyePreview() }
-            )
-        }
-        val previousIndex = fisheyePreviewCameraIndex
-        fisheyePreviewCameraIndex = index
-        engine.applyFisheyeSettings()
-        fisheyePreviewOverlay?.show(params.label, index)
-        if (previousIndex >= 0 && previousIndex != index && isDisplayPowerOn()) {
-            previewSurfaces.getOrNull(previousIndex)?.takeIf { it.isValid }?.let { engine.attachPreviewSurface(previousIndex, it) }
-        }
-        V2AppLog.i("V2CameraService", "fisheye preview show index=$index label=${params.label}")
-    }
-
-    private fun hideFisheyePreview() {
-        val index = fisheyePreviewCameraIndex
-        fisheyePreviewOverlay?.hide()
-        fisheyePreviewCameraIndex = -1
-        if (index >= 0 && isDisplayPowerOn()) {
-            previewSurfaces.getOrNull(index)?.takeIf { it.isValid }?.let { engine.attachPreviewSurface(index, it) }
-        }
-        V2AppLog.i("V2CameraService", "fisheye preview hidden index=$index")
-    }
-
     private fun handleCustomKeyToggle() {
         mainHandler.post {
             if (uiVisible) {
@@ -470,7 +431,7 @@ class V2CameraForegroundService : Service(), V2CameraEngine.Listener {
         V2AppLog.i("V2CameraService", "enter avoidance target=$target behavior=${V2AvoidanceSettings.behaviorLabels(behaviorMask)} wasRecording=${snapshot.wasRecording} wasUiVisible=${snapshot.wasUiVisible}")
         mainHandler.removeCallbacksAndMessages(BLIND_SPOT_HIDE_TOKEN)
         hideBlindSpotOverlay()
-        hideFisheyePreview()
+        fisheyePreviewController.hide()
         showServiceToast("避让中")
 
         if (behaviorMask and V2AvoidanceSettings.BEHAVIOR_EXIT_FOREGROUND != 0 && uiVisible) {
@@ -655,22 +616,7 @@ class V2CameraForegroundService : Service(), V2CameraEngine.Listener {
     private fun releaseWakeLock() = wakeLockHolder.release()
 
     override fun onStatusChanged(status: String) {
-        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        nm.notify(2001, buildNotification(status))
+        notificationHelper.update(status)
         uiStatusListener?.invoke(status)
-    }
-
-    private fun buildNotification(text: String) : android.app.Notification {
-        val channelId = "v2_camera"
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            nm.createNotificationChannel(NotificationChannel(channelId, "V2 Camera", NotificationManager.IMPORTANCE_LOW))
-        }
-        return NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("EVCam V2")
-            .setContentText(text)
-            .setOngoing(true)
-            .build()
     }
 }
