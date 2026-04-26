@@ -9,8 +9,8 @@ object V2BlindSpotSettings {
     private const val KEY_TURN_SIGNAL_PROP_ID = "turn_signal_prop_id"
 
     const val DEFAULT_TURN_SIGNAL_PROP_ID = 289408008
-    const val LEFT_VALUE = 2
-    const val RIGHT_VALUE = 1
+    const val LEFT_VALUE = 1
+    const val RIGHT_VALUE = 2
     const val OFF_VALUE = 0
     const val HIDE_DELAY_MS = 1_000L
 

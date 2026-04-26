@@ -278,11 +278,7 @@ class V2SettingsActivity : AppCompatActivity() {
 
         var initialized = false
         val spinner = Spinner(this).apply {
-            adapter = ArrayAdapter(
-                this@V2SettingsActivity,
-                android.R.layout.simple_spinner_item,
-                models.map { it.label }
-            ).apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+            adapter = vehicleModelAdapter(models.map { it.label })
             setSelection(currentIndex)
             onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -304,6 +300,19 @@ class V2SettingsActivity : AppCompatActivity() {
         row.addView(texts)
         row.addView(spinner, LinearLayout.LayoutParams(dp(170), ViewGroup.LayoutParams.WRAP_CONTENT))
         return row
+    }
+
+    private fun vehicleModelAdapter(labels: List<String>) = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, labels) {
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View = styledText(super.getView(position, convertView, parent) as TextView, dropdown = false)
+        override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View = styledText(super.getDropDownView(position, convertView, parent) as TextView, dropdown = true)
+
+        private fun styledText(view: TextView, dropdown: Boolean): TextView = view.apply {
+            textSize = 16f
+            gravity = Gravity.CENTER_VERTICAL
+            setTextColor(ContextCompat.getColor(this@V2SettingsActivity, R.color.text_primary))
+            setBackgroundColor(ContextCompat.getColor(this@V2SettingsActivity, if (dropdown) R.color.card_background else R.color.input_background))
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+        }
     }
 
     private fun startupSwitchCard(): View = switchCard(
