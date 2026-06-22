@@ -86,7 +86,7 @@ public class SettingsFragment extends Fragment {
     // 车型配置相关
     private Spinner carModelSpinner;
     private Button customCameraConfigButton;
-    private static final String[] CAR_MODEL_OPTIONS = {"银河E5", "银河A7", "银河E5-多按钮", "银河L6/L7", "银河L7-多按钮", "26款星舰7", "手机", "自定义车型", "多视角布局"};
+    private static final String[] CAR_MODEL_OPTIONS = {"银河E5", "银河A7", "银河E5-多按钮", "银河L6/L7", "银河L7-多按钮", "26款星舰7", "25款星舰7（单通道分割）", "手机", "自定义车型", "多视角布局"};
     private boolean isInitializingCarModel = false;
     private String lastAppliedCarModel = null;
     
@@ -1179,9 +1179,12 @@ public class SettingsFragment extends Fragment {
                     newModel = AppConfig.CAR_MODEL_XINGHAN_7;
                     modelName = "26款星舰7";
                 } else if (position == 6) {
+                    newModel = AppConfig.CAR_MODEL_XINGJIAN_7_25;
+                    modelName = "25款星舰7（单通道分割）";
+                } else if (position == 7) {
                     newModel = AppConfig.CAR_MODEL_PHONE;
                     modelName = "手机";
-                } else if (position == 8) {
+                } else if (position == 9) {
                     newModel = AppConfig.CAR_MODEL_MULTIVIEW;
                     modelName = "多视角布局";
                 } else {
@@ -1189,8 +1192,12 @@ public class SettingsFragment extends Fragment {
                     modelName = "自定义车型";
                 }
 
-                // 自定义车型和多视角布局显示配置按钮
-                updateCustomConfigButtonVisibility(position == 7 || position == 8);
+                // 自定义车型、多视角布局、单通道分割显示配置按钮
+                updateCustomConfigButtonVisibility(position == 8 || position == 9 || position == 6);
+                if (customCameraConfigButton != null) {
+                    boolean split = (position == 6);
+                    customCameraConfigButton.setText(split ? "分割画面配置" : "自定义界面配置");
+                }
 
                 if (isInitializingCarModel) {
                     return;
@@ -1210,7 +1217,10 @@ public class SettingsFragment extends Fragment {
                 updateRecordingCameraSelectionUI();
                 
                 if (getContext() != null) {
-                    Toast.makeText(getContext(), "已切换为「" + modelName + "」，重启应用后生效", Toast.LENGTH_SHORT).show();
+                    String tip = AppConfig.CAR_MODEL_XINGJIAN_7_25.equals(newModel)
+                            ? "已切换为「25款星舰7（单通道分割）」，重启应用后将自动进入分割配置"
+                            : "已切换为「" + modelName + "」，重启应用后生效";
+                    Toast.makeText(getContext(), tip, Toast.LENGTH_SHORT).show();
                 }
             }
             
@@ -1231,21 +1241,38 @@ public class SettingsFragment extends Fragment {
             selectedIndex = 4;
         } else if (AppConfig.CAR_MODEL_XINGHAN_7.equals(currentModel)) {
             selectedIndex = 5;
-        } else if (AppConfig.CAR_MODEL_PHONE.equals(currentModel)) {
+        } else if (AppConfig.CAR_MODEL_XINGJIAN_7_25.equals(currentModel)) {
             selectedIndex = 6;
-        } else if (AppConfig.CAR_MODEL_CUSTOM.equals(currentModel)) {
+        } else if (AppConfig.CAR_MODEL_PHONE.equals(currentModel)) {
             selectedIndex = 7;
-        } else if (AppConfig.CAR_MODEL_MULTIVIEW.equals(currentModel)) {
+        } else if (AppConfig.CAR_MODEL_CUSTOM.equals(currentModel)) {
             selectedIndex = 8;
+        } else if (AppConfig.CAR_MODEL_MULTIVIEW.equals(currentModel)) {
+            selectedIndex = 9;
         }
         carModelSpinner.setSelection(selectedIndex);
+
+        // 初始化配置按钮的显示与文案
+        boolean isSplit = AppConfig.CAR_MODEL_XINGJIAN_7_25.equals(currentModel);
+        updateCustomConfigButtonVisibility(
+                isSplit
+                        || AppConfig.CAR_MODEL_CUSTOM.equals(currentModel)
+                        || AppConfig.CAR_MODEL_MULTIVIEW.equals(currentModel));
+        if (customCameraConfigButton != null) {
+            customCameraConfigButton.setText(isSplit ? "分割画面配置" : "自定义界面配置");
+        }
         
         carModelSpinner.post(() -> {
             isInitializingCarModel = false;
         });
         
         customCameraConfigButton.setOnClickListener(v -> {
-            openCustomCameraConfig();
+            if (AppConfig.CAR_MODEL_XINGJIAN_7_25.equals(appConfig.getCarModel())
+                    && getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).openSplitViewEditor();
+            } else {
+                openCustomCameraConfig();
+            }
         });
     }
     

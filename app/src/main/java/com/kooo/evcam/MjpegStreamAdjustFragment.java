@@ -135,10 +135,10 @@ public class MjpegStreamAdjustFragment extends Fragment {
     private void setupProtocolOptions(String mode, String selectedProto) {
         boolean clientMode = "CLIENT".equalsIgnoreCase(mode);
         String[] labels = clientMode
-                ? new String[]{"TCP (主动连接 ESP32)", "UDP (主动发送 ESP32)"}
+                ? new String[]{"TCP (主动连接)", "UDP (主动发送)", "RTP (JPEG 推送)"}
                 : new String[]{"HTTP (浏览器调试)", "TCP (裸 TCP, ESP32)", "UDP (分片, ESP32)"};
         String[] values = clientMode
-                ? new String[]{"TCP", "UDP"}
+                ? new String[]{"TCP", "UDP", "RTP"}
                 : new String[]{"HTTP", "TCP", "UDP"};
         updatingProtocolOptions = true;
         ArrayAdapter<String> protoAdapter = new ArrayAdapter<>(requireContext(),

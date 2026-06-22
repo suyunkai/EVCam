@@ -162,6 +162,7 @@ public class MjpegStreamManager {
 
     private static String normalizeProtocolForMode(String proto, String mode) {
         String p = proto == null ? "HTTP" : proto.trim().toUpperCase();
+        if ("RTP".equals(p)) return isClientMode(mode) ? "RTP" : "HTTP";
         if ("UDP".equals(p)) return "UDP";
         if ("TCP".equals(p)) return "TCP";
         return isClientMode(mode) ? "TCP" : "HTTP";
@@ -517,14 +518,13 @@ public class MjpegStreamManager {
 
     public String getAccessUrl() {
         String mode = appConfig.getMjpegStreamMode();
-        String proto = appConfig.getMjpegStreamProtocol();
+        String proto = normalizeProtocolForMode(appConfig.getMjpegStreamProtocol(), mode);
         if (isClientMode(mode)) {
             String host = appConfig.getMjpegStreamClientHost().trim();
             if (host.isEmpty()) {
                 return discoveryRunning ? "discover://:8444" : "client://not-configured";
             }
-            String clientProto = normalizeProtocolForMode(proto, "CLIENT").toLowerCase();
-            return clientProto + "://" + host + ":" + appConfig.getMjpegStreamClientPort();
+            return proto.toLowerCase() + "://" + host + ":" + appConfig.getMjpegStreamClientPort();
         }
         if (server == null) return null;
         int port = appConfig.getMjpegStreamPort();

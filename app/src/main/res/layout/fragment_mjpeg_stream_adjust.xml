@@ -381,7 +381,7 @@
                         <TextView
                             android:layout_width="72dp"
                             android:layout_height="wrap_content"
-                            android:text="ESP32 IP"
+                            android:text="目标地址"
                             android:textColor="@color/text_primary"
                             android:textSize="16sp" />
 
@@ -390,7 +390,7 @@
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="48dp"
-                            android:hint="自动发现或手动输入"
+                            android:hint="自动发现或手动输入 IP/域名"
                             android:inputType="textUri"
                             android:singleLine="true"
                             android:background="@drawable/spinner_background"
@@ -408,7 +408,7 @@
                         <TextView
                             android:layout_width="72dp"
                             android:layout_height="wrap_content"
-                            android:text="ESP32 端口"
+                            android:text="目标端口"
                             android:textColor="@color/text_primary"
                             android:textSize="16sp" />
 

@@ -126,6 +126,21 @@ public class CameraManagerHolder {
             initCamerasForPhone(cameraIds);
         } else if (AppConfig.CAR_MODEL_XINGHAN_7.equals(carModel)) {
             initCamerasForXinghan7(cameraIds);
+        } else if (AppConfig.CAR_MODEL_XINGJIAN_7_25.equals(carModel)) {
+            // 25款星舰7：单通道分割，后台只打开一个物理通道
+            String physicalId = appConfig.getSplitPhysicalCameraId();
+            boolean exists = false;
+            for (String id : cameraIds) {
+                if (id.equals(physicalId)) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists && cameraIds.length > 0) {
+                physicalId = cameraIds[0];
+            }
+            cameraManager.setSplitChannelMode(true);
+            cameraManager.initSplitCamera(physicalId, null, null, null, null);
         } else if (AppConfig.CAR_MODEL_GALAXY_A7.equals(carModel)) {
             // 银河A7：沿用银河E5固定映射
             initCamerasForGalaxyE5(cameraIds);

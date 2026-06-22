@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 
 import com.kooo.evcam.config.BlindSpotConfig;
 import com.kooo.evcam.config.RecordingConfig;
+import com.kooo.evcam.config.SplitChannelConfig;
 
 /**
  * 应用配置管理类
@@ -102,7 +103,7 @@ public class AppConfig {
     private static final String KEY_MJPEG_STREAM_PAN_Y = "mjpeg_stream_pan_y";                // 位置偏移 Y [0,1]
     private static final String KEY_MJPEG_STREAM_COVER_SCALE = "mjpeg_stream_cover_scale";    // 覆盖缩放倍数 ≥1.0
     private static final String KEY_MJPEG_STREAM_LINKAGE_MODE = "mjpeg_stream_linkage_mode";  // 联动补盲模式（跟随转向灯/车门切换摄像头）
-    private static final String KEY_MJPEG_STREAM_PROTOCOL = "mjpeg_stream_protocol";          // 传输协议：HTTP/TCP/UDP
+    private static final String KEY_MJPEG_STREAM_PROTOCOL = "mjpeg_stream_protocol";          // 传输协议：HTTP/TCP/UDP/RTP
     private static final String KEY_MJPEG_STREAM_MODE = "mjpeg_stream_mode";                  // 模式：SERVER/CLIENT
     private static final String KEY_MJPEG_STREAM_CLIENT_HOST = "mjpeg_stream_client_host";    // 客户端模式：ESP32 IP
     private static final String KEY_MJPEG_STREAM_CLIENT_PORT = "mjpeg_stream_client_port";    // 客户端模式：ESP32 端口
@@ -320,6 +321,7 @@ public class AppConfig {
     private static final String KEY_CUSTOM_BUTTON_ORIENTATION = "custom_button_orientation";  // 按钮布局方向（horizontal/vertical）
     private static final String KEY_CUSTOM_LAYOUT_DATA = "custom_layout_data";  // 布局位置数据（JSON格式）
     private static final String KEY_CUSTOM_LAYOUT_VERSION = "custom_layout_version";
+    private static final String KEY_SPLIT_CHANNEL_CONFIG = "split_channel_config";  // 单通道分割配置（JSON格式）
 
     // 前轮/后轮模式视图配置（用于自定义车型）
     private static final String KEY_FRONT_WHEEL_LEFT_WIDTH = "front_wheel_left_width";
@@ -377,6 +379,7 @@ public class AppConfig {
     public static final String CAR_MODEL_PHONE = "phone";  // 手机
     public static final String CAR_MODEL_CUSTOM = "custom";  // 自定义车型
     public static final String CAR_MODEL_XINGHAN_7 = "xinghan_7";  // 26款星舰7
+    public static final String CAR_MODEL_XINGJIAN_7_25 = "xingjian_7_25";  // 25款星舰7（4路合并为单通道，手动分割）
     public static final String CAR_MODEL_MULTIVIEW = "multiview";  // 多视角布局
     
     private final SharedPreferences prefs;
@@ -550,6 +553,10 @@ public class AppConfig {
      * @return true 表示应该使用 CodecVideoRecorder
      */
     public boolean shouldUseCodecRecording() {
+        // 单通道分割必须走 GL + MediaCodec 管线，才能按区域裁剪编码
+        if (isSplitChannelModel()) {
+            return true;
+        }
         String mode = getRecordingMode();
         if (RECORDING_MODE_CODEC.equals(mode)) {
             // 强制使用 Codec 模式
@@ -826,6 +833,67 @@ public class AppConfig {
     public boolean isMultiviewCarModel() {
         return CAR_MODEL_MULTIVIEW.equals(getCarModel());
     }
+
+    /**
+     * 是否为单通道分割车型（例如 25 款星舰 7：4 路画面合并为一路输出）
+     */
+    public boolean isSplitChannelModel() {
+        return CAR_MODEL_XINGJIAN_7_25.equals(getCarModel());
+    }
+
+    /**
+     * 获取单通道分割配置
+     * @return 配置，未配置时返回 null
+     */
+    public SplitChannelConfig getSplitChannelConfig() {
+        return SplitChannelConfig.fromJson(prefs.getString(KEY_SPLIT_CHANNEL_CONFIG, null));
+    }
+
+    /**
+     * 保存单通道分割配置
+     */
+    public void setSplitChannelConfig(SplitChannelConfig config) {
+        if (config == null) {
+            prefs.edit().remove(KEY_SPLIT_CHANNEL_CONFIG).apply();
+        } else {
+            prefs.edit().putString(KEY_SPLIT_CHANNEL_CONFIG, config.toJsonString()).apply();
+        }
+        AppLog.d(TAG, "单通道分割配置已保存");
+    }
+
+    /**
+     * 是否已完成单通道分割配置
+     */
+    public boolean hasSplitChannelConfig() {
+        return getSplitChannelConfig() != null;
+    }
+
+    /**
+     * 获取单通道分割配置，未配置时返回默认四等分配置（仅用于预览占位，不落盘）
+     */
+    public SplitChannelConfig getSplitChannelConfigOrDefault() {
+        SplitChannelConfig config = getSplitChannelConfig();
+        return config != null ? config : SplitChannelConfig.defaultQuad();
+    }
+
+    /**
+     * 获取单通道物理摄像头编号
+     */
+    public String getSplitPhysicalCameraId() {
+        SplitChannelConfig config = getSplitChannelConfig();
+        if (config != null && config.cameraId != null && !config.cameraId.isEmpty()) {
+            return config.cameraId;
+        }
+        return "0";
+    }
+
+    /**
+     * 获取某个逻辑画面槽位的分割区域
+     */
+    public SplitChannelConfig.Region getSplitRegion(String position) {
+        SplitChannelConfig config = getSplitChannelConfig();
+        return config != null ? config.getRegion(position) : null;
+    }
     
     /**
      * 是否需要自定义布局管理器（自定义车型和多视角都需要）
@@ -860,7 +928,8 @@ public class AppConfig {
             case CAR_MODEL_L7:
             case CAR_MODEL_L7_MULTI:
             case CAR_MODEL_XINGHAN_7:
-                return 4;  // 银河E5/L7/26款星舰7：4摄
+            case CAR_MODEL_XINGJIAN_7_25:
+                return 4;  // 银河E5/L7/星舰7：4摄（25款星舰7为单通道分割出的4画面）
             case CAR_MODEL_MULTIVIEW:
             case CAR_MODEL_CUSTOM:
             default:
@@ -988,6 +1057,15 @@ public class AppConfig {
      * @return 摄像头名称
      */
     public String getCameraName(String position) {
+        // 单通道分割车型：使用分割区域编号+备注作为画面名称
+        if (isSplitChannelModel()) {
+            String name = getSplitChannelConfigOrDefault().getDisplayName(position);
+            if (name != null && !name.trim().isEmpty()) {
+                return name;
+            }
+            return getDefaultCameraName(position);
+        }
+
         // 预设车型返回默认名称
         if (!isCustomCarModel()) {
             return getDefaultCameraName(position);
@@ -3720,11 +3798,12 @@ public class AppConfig {
         AppLog.d(TAG, "MJPEG流联动模式: " + enabled);
     }
 
-    /** 传输协议：HTTP（MJPEG over HTTP）/ TCP（裸 TCP）/ UDP（分片）。 */
+    /** 传输协议：HTTP（MJPEG over HTTP）/ TCP（裸 TCP）/ UDP（分片）/ RTP（RTP/JPEG）。 */
     public String getMjpegStreamProtocol() {
         String proto = prefs.getString(KEY_MJPEG_STREAM_PROTOCOL, "HTTP");
         if ("TCP".equalsIgnoreCase(proto)) return "TCP";
         if ("UDP".equalsIgnoreCase(proto)) return "UDP";
+        if ("RTP".equalsIgnoreCase(proto)) return "RTP";
         return "HTTP";
     }
 
@@ -3732,6 +3811,7 @@ public class AppConfig {
         String normalized;
         if ("TCP".equalsIgnoreCase(proto)) normalized = "TCP";
         else if ("UDP".equalsIgnoreCase(proto)) normalized = "UDP";
+        else if ("RTP".equalsIgnoreCase(proto)) normalized = "RTP";
         else normalized = "HTTP";
         prefs.edit().putString(KEY_MJPEG_STREAM_PROTOCOL, normalized).apply();
         AppLog.d(TAG, "MJPEG流协议: " + normalized);

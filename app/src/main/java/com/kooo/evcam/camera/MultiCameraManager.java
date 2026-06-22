@@ -5,6 +5,7 @@ import com.kooo.evcam.AppConfig;
 import com.kooo.evcam.AppLog;
 import com.kooo.evcam.FileTransferManager;
 import com.kooo.evcam.StorageHelper;
+import com.kooo.evcam.config.SplitChannelConfig;
 import android.content.Context;
 import android.os.Environment;
 import android.util.Log;
@@ -44,6 +45,10 @@ public class MultiCameraManager {
     private boolean isRecording = false;
     private volatile boolean repairSuppressed = false;  // 主动关闭摄像头时抑制 repair loop
     private boolean useCodecRecording = false;  // 是否使用软编码录制（用于 L6/L7）
+    private boolean splitChannelMode = false;   // 单通道分割模式（如 25 款星舰 7）
+    private String splitPhysicalCameraId = null;  // 单通道分割对应的物理摄像头 ID
+    private TextureView splitFrontView, splitBackView, splitLeftView, splitRightView;
+    private TextureView splitEditorView;  // 分割配置界面的全画面预览
     private boolean useRelayWrite = false;      // 是否使用中转写入（录制到内部存储，异步传输到U盘）
     private File finalSaveDir = null;           // 最终存储目录（用于中转写入模式）
     private volatile int lastNotifiedSegmentIndex = -1;  // 已通知的分段索引，避免重复通知
@@ -278,6 +283,164 @@ public class MultiCameraManager {
         return useCodecRecording;
     }
 
+    // ==================== 单通道分割模式（25 款星舰 7 等） ====================
+
+    /**
+     * 设置是否为单通道分割模式。
+     * 该模式下只有一个物理摄像头，画面由 GL 渲染器按区域分发到 4 个逻辑画面。
+     */
+    public void setSplitChannelMode(boolean enabled) {
+        this.splitChannelMode = enabled;
+        if (enabled) {
+            // 分割必须使用 GL + MediaCodec 才能按区域裁剪编码
+            this.useCodecRecording = true;
+        }
+        AppLog.d(TAG, "Split channel mode: " + (enabled ? "ENABLED" : "DISABLED"));
+    }
+
+    public boolean isSplitChannelMode() {
+        return splitChannelMode;
+    }
+
+    public String getSplitPhysicalCameraId() {
+        return splitPhysicalCameraId;
+    }
+
+    /**
+     * 初始化单通道分割摄像头。
+     * 四个逻辑画面共用同一个物理摄像头 ID，只有第一个实例真正打开摄像头。
+     */
+    public void initSplitCamera(String cameraId, TextureView frontView, TextureView backView,
+                                TextureView leftView, TextureView rightView) {
+        splitChannelMode = true;
+        useCodecRecording = true;
+        splitPhysicalCameraId = cameraId;
+        AppLog.d(TAG, "Initializing split channel camera: " + cameraId);
+
+        initCameras(cameraId, frontView,
+                cameraId, backView,
+                cameraId, leftView,
+                cameraId, rightView);
+
+        maxOpenCameras = 1;
+        applySplitConfiguration(frontView, backView, leftView, rightView);
+    }
+
+    /**
+     * 在已有 MultiCameraManager 上切换到单通道分割模式（用于后台初始化后的复用场景）
+     */
+    public void configureSplitChannel(String cameraId, TextureView frontView, TextureView backView,
+                                      TextureView leftView, TextureView rightView) {
+        AppLog.d(TAG, "Configuring existing manager for split channel mode");
+        try {
+            closeAllCameras();
+        } catch (Exception ignored) {
+        }
+        for (VideoRecorder recorder : recorders.values()) {
+            try {
+                recorder.release();
+            } catch (Exception ignored) {
+            }
+        }
+        recorders.clear();
+        for (CodecVideoRecorder recorder : codecRecorders.values()) {
+            try {
+                recorder.release();
+            } catch (Exception ignored) {
+            }
+        }
+        codecRecorders.clear();
+        initSplitCamera(cameraId, frontView, backView, leftView, rightView);
+    }
+
+    private void applySplitConfiguration(TextureView frontView, TextureView backView,
+                                         TextureView leftView, TextureView rightView) {
+        splitFrontView = frontView;
+        splitBackView = backView;
+        splitLeftView = leftView;
+        splitRightView = rightView;
+
+        // 重置可能由 setCameraPosition("back") 添加的镜像变换，分割画面由渲染器控制
+        android.graphics.Matrix identity = new android.graphics.Matrix();
+        for (TextureView view : new TextureView[]{frontView, backView, leftView, rightView}) {
+            if (view != null) {
+                view.setTransform(identity);
+            }
+        }
+
+        SingleCamera primary = cameras.get("front");
+        if (primary != null) {
+            primary.setSplitChannelMode(true);
+            SplitChannelConfig config = new AppConfig(context).getSplitChannelConfigOrDefault();
+            primary.setSplitRegions(config.regions);
+            primary.setSplitPreviewViews(frontView, backView, leftView, rightView);
+        }
+        // 其余逻辑画面只是共享同一物理通道，禁止它们应用镜像/旋转变换
+        for (Map.Entry<String, SingleCamera> entry : cameras.entrySet()) {
+            if (!"front".equals(entry.getKey())) {
+                entry.getValue().setSplitChannelMode(true);
+            }
+        }
+    }
+
+    /**
+     * 更新分割区域（用户保存配置后调用）
+     */
+    public void applySplitRegions(List<SplitChannelConfig.Region> regions) {
+        SingleCamera primary = cameras.get("front");
+        if (primary != null) {
+            primary.setSplitRegions(regions);
+        }
+    }
+
+    /**
+     * 编辑界面全画面预览
+     */
+    public void attachSplitEditorPreview(TextureView view) {
+        splitEditorView = view;
+        SingleCamera primary = cameras.get("front");
+        if (primary != null) {
+            primary.setSplitEditorPreviewView(view);
+        }
+    }
+
+    public void detachSplitEditorPreview() {
+        splitEditorView = null;
+        SingleCamera primary = cameras.get("front");
+        if (primary != null) {
+            primary.setSplitEditorPreviewView(null);
+        }
+    }
+
+    /**
+     * 获取单通道分割的合成画面尺寸（未打开时返回 null）
+     */
+    public Size getSplitPreviewSize() {
+        SingleCamera primary = cameras.get("front");
+        return primary != null ? primary.getPreviewSize() : null;
+    }
+
+    /**
+     * 切换单通道分割的物理摄像头通道（前/后/左/右），切换后立即重新打开并刷新画面
+     */
+    public void switchSplitPhysicalCamera(String cameraId) {
+        if (!splitChannelMode || cameraId == null) {
+            return;
+        }
+        SingleCamera primary = cameras.get("front");
+        if (primary != null && cameraId.equals(primary.getCameraId())) {
+            return;
+        }
+        AppLog.d(TAG, "切换分割物理通道: " + (primary != null ? primary.getCameraId() : "null")
+                + " -> " + cameraId);
+        isRecording = false;
+        configureSplitChannel(cameraId, splitFrontView, splitBackView, splitLeftView, splitRightView);
+        openAllCameras();
+        if (splitEditorView != null) {
+            attachSplitEditorPreview(splitEditorView);
+        }
+    }
+
     /**
      * 获取指定位置的摄像头实例
      * @param position 位置（front/back/left/right）
@@ -291,6 +454,14 @@ public class MultiCameraManager {
                                           TextureView backView,
                                           TextureView leftView,
                                           TextureView rightView) {
+        if (splitChannelMode) {
+            SingleCamera primary = cameras.get("front");
+            if (primary != null) {
+                primary.setSplitPreviewViews(frontView, backView, leftView, rightView);
+                primary.recreateSession();
+            }
+            return;
+        }
         updatePreviewTextureView("front", frontView);
         updatePreviewTextureView("back", backView);
         updatePreviewTextureView("left", leftView);
@@ -298,6 +469,13 @@ public class MultiCameraManager {
     }
 
     public void onPreviewTextureDestroyed(String cameraKey) {
+        if (splitChannelMode) {
+            SingleCamera primary = cameras.get("front");
+            if (primary != null) {
+                primary.removeSplitPreviewTarget(cameraKey);
+            }
+            return;
+        }
         SingleCamera camera = cameras.get(cameraKey);
         if (camera == null) {
             return;
@@ -1120,6 +1298,9 @@ public class MultiCameraManager {
      * @param enabledCameras 要录制的摄像头位置集合，为 null 时录制所有摄像头
      */
     private boolean startCodecRecording(String timestamp, Set<String> enabledCameras) {
+        if (splitChannelMode) {
+            return startSplitCodecRecording(timestamp, enabledCameras);
+        }
         AppLog.d(TAG, "Starting CODEC recording with timestamp: " + timestamp);
 
         // 重置首次写入通知标志（每次录制只通知一次）
@@ -1391,6 +1572,199 @@ public class MultiCameraManager {
         mainHandler.postDelayed(sessionTimeoutRunnable, 3000);
 
         return true;
+    }
+
+    /**
+     * 单通道分割模式的录制。
+     * 一个物理摄像头，按配置的区域分别创建 CodecVideoRecorder，
+     * 由 SingleCamera 内部的分割渲染器把裁剪后的画面送入各自的编码器。
+     */
+    private boolean startSplitCodecRecording(String timestamp, Set<String> enabledCameras) {
+        AppLog.d(TAG, "Starting SPLIT CODEC recording with timestamp: " + timestamp);
+        hasNotifiedFirstDataWritten = false;
+
+        AppConfig appConfig = new AppConfig(context);
+        useRelayWrite = appConfig.shouldUseRelayWrite();
+
+        File saveDir = StorageHelper.getRecordingDir(context);
+        if (!saveDir.exists()) {
+            saveDir.mkdirs();
+        }
+        if (useRelayWrite) {
+            finalSaveDir = StorageHelper.getFinalVideoDir(context);
+            if (!finalSaveDir.exists()) {
+                finalSaveDir.mkdirs();
+            }
+        } else {
+            finalSaveDir = null;
+        }
+
+        SingleCamera camera = cameras.get("front");
+        if (camera == null) {
+            AppLog.e(TAG, "Split recording: primary camera is null");
+            return false;
+        }
+        Size previewSize = camera.getPreviewSize();
+        if (previewSize == null) {
+            AppLog.e(TAG, "Split recording: preview size not ready");
+            return false;
+        }
+
+        SplitChannelConfig config = appConfig.getSplitChannelConfig();
+        if (config == null || !config.isValid()) {
+            AppLog.e(TAG, "Split recording: no split regions configured");
+            return false;
+        }
+
+        List<SplitChannelConfig.Region> regions = new ArrayList<>();
+        for (SplitChannelConfig.Region region : config.regions) {
+            if (enabledCameras == null || enabledCameras.isEmpty() || enabledCameras.contains(region.key)) {
+                regions.add(region);
+            }
+        }
+        if (regions.isEmpty()) {
+            AppLog.e(TAG, "Split recording: no enabled regions");
+            return false;
+        }
+
+        long segmentDurationMs = (overrideSegmentDurationMs > 0)
+                ? overrideSegmentDurationMs
+                : appConfig.getSegmentDurationMs();
+        int targetFrameRate = appConfig.getActualFrameRate(25);
+
+        for (CodecVideoRecorder recorder : codecRecorders.values()) {
+            recorder.release();
+        }
+        codecRecorders.clear();
+
+        currentRecordingTimestamp = timestamp;
+        currentEnabledCameras = enabledCameras;
+
+        boolean prepareSuccess = true;
+        for (SplitChannelConfig.Region region : regions) {
+            // 每个分割画面目标 1280x800，实际区域达不到时按实际区域分辨率等比输出
+            int[] encode = region.encodePixels(previewSize.getWidth(), previewSize.getHeight());
+            int encodeWidth = encode[0];
+            int encodeHeight = encode[1];
+            int bitrate = appConfig.getActualBitrate(encodeWidth, encodeHeight, targetFrameRate);
+
+            final String regionKey = region.key;
+            CodecVideoRecorder recorder = new CodecVideoRecorder(
+                    camera.getCameraId(), encodeWidth, encodeHeight);
+            recorder.setTimestampProvider(segmentTimestampProvider);
+            recorder.setSegmentDuration(segmentDurationMs);
+            recorder.setBitRate(bitrate);
+            recorder.setFrameRate(targetFrameRate);
+            recorder.setQualityLevel(3);
+            recorder.setForceH264(appConfig.isForceH264Encoding());
+            recorder.setWatermarkEnabled(appConfig.isTimestampWatermarkEnabled());
+            recorder.setCallback(new RecordCallback() {
+                @Override
+                public void onRecordStart(String cameraId) {
+                    AppLog.d(TAG, "Split codec recording started: " + regionKey);
+                }
+
+                @Override
+                public void onRecordStop(String cameraId) {
+                    AppLog.d(TAG, "Split codec recording stopped: " + regionKey);
+                }
+
+                @Override
+                public void onRecordError(String cameraId, String error) {
+                    AppLog.e(TAG, "Split codec recording error " + regionKey + ": " + error);
+                }
+
+                @Override
+                public void onPrepareSegmentSwitch(String cameraId, int currentSegmentIndex) {
+                }
+
+                @Override
+                public void onSegmentSwitch(String cameraId, int newSegmentIndex, String completedFilePath) {
+                    if (useRelayWrite && finalSaveDir != null && newSegmentIndex > 0 && completedFilePath != null) {
+                        scheduleRelayTransfer(completedFilePath);
+                    }
+                    if (segmentSwitchCallback != null && newSegmentIndex > lastNotifiedSegmentIndex) {
+                        lastNotifiedSegmentIndex = newSegmentIndex;
+                        segmentSwitchCallback.onSegmentSwitch(newSegmentIndex);
+                    }
+                }
+
+                @Override
+                public void onCorruptedFilesDeleted(String cameraId, List<String> deletedFiles) {
+                    if (deletedFiles != null && !deletedFiles.isEmpty() && corruptedFilesCallback != null) {
+                        mainHandler.post(() -> corruptedFilesCallback.onCorruptedFilesDeleted(deletedFiles));
+                    }
+                }
+
+                @Override
+                public void onRecordingRebuildRequested(String cameraId, String reason) {
+                }
+
+                @Override
+                public void onFirstDataWritten(String cameraId) {
+                    if (!hasNotifiedFirstDataWritten && firstDataWrittenCallback != null) {
+                        hasNotifiedFirstDataWritten = true;
+                        mainHandler.post(() -> firstDataWrittenCallback.onFirstDataWritten());
+                    }
+                }
+            });
+
+            String path = new File(saveDir, timestamp + "_" + region.key + ".mp4").getAbsolutePath();
+            android.graphics.SurfaceTexture surfaceTexture = recorder.prepareRecording(path);
+            if (surfaceTexture == null) {
+                AppLog.e(TAG, "Split recording: failed to prepare " + region.key);
+                recorder.release();
+                prepareSuccess = false;
+                break;
+            }
+            if (!camera.addSplitRecordTarget(region.key, surfaceTexture, region, encodeWidth, encodeHeight)) {
+                AppLog.e(TAG, "Split recording: failed to attach record target " + region.key);
+                recorder.release();
+                prepareSuccess = false;
+                break;
+            }
+            codecRecorders.put(region.key, recorder);
+            AppLog.d(TAG, "Split recording prepared " + region.key + " " +
+                    encodeWidth + "x" + encodeHeight + " @" + targetFrameRate + "fps");
+        }
+
+        if (!prepareSuccess) {
+            for (CodecVideoRecorder recorder : codecRecorders.values()) {
+                recorder.release();
+            }
+            codecRecorders.clear();
+            return false;
+        }
+
+        Set<String> active = new HashSet<>();
+        Set<String> failed = new HashSet<>();
+        for (Map.Entry<String, CodecVideoRecorder> entry : codecRecorders.entrySet()) {
+            if (entry.getValue().startRecording()) {
+                active.add(entry.getKey());
+            } else {
+                failed.add(entry.getKey());
+            }
+        }
+
+        if (!active.isEmpty()) {
+            isRecording = true;
+            lastNotifiedSegmentIndex = -1;
+            AppLog.d(TAG, "Split recording started for " + active.size() + " region(s): " + active);
+            if (!failed.isEmpty() && recordingStatusCallback != null) {
+                mainHandler.post(() -> recordingStatusCallback.onPartialRecordingStart(active, failed));
+            }
+            return true;
+        }
+
+        AppLog.e(TAG, "Split recording failed to start on all regions");
+        for (CodecVideoRecorder recorder : codecRecorders.values()) {
+            recorder.release();
+        }
+        codecRecorders.clear();
+        if (recordingStatusCallback != null) {
+            mainHandler.post(() -> recordingStatusCallback.onPartialRecordingStart(active, failed));
+        }
+        return false;
     }
 
     private void executeCodecRecordingStart(List<String> keys, int stableAttempt, boolean forcedReopen) {
@@ -1684,7 +2058,9 @@ public class MultiCameraManager {
                     sessionTimeoutRunnable = null;
                 }
 
-                List<String> keys = getActiveCameraKeys();
+                List<String> keys = splitChannelMode
+                        ? new ArrayList<>(codecRecorders.keySet())
+                        : getActiveCameraKeys();
 
                 if (!wasRecording) {
                     AppLog.w(TAG, "Not recording, but cleaning up anyway");
@@ -1749,6 +2125,15 @@ public class MultiCameraManager {
 
                 // 在主线程清理摄像头会话（使用短延迟确保录制器已完全停止）
                 mainHandler.postDelayed(() -> {
+                    if (splitChannelMode) {
+                        SingleCamera primary = cameras.get("front");
+                        if (primary != null) {
+                            for (String key : keys) {
+                                primary.removeSplitRecordTarget(key);
+                            }
+                        }
+                        return;
+                    }
                     for (String key : keys) {
                         try {
                             SingleCamera camera = cameras.get(key);
@@ -2174,6 +2559,10 @@ public class MultiCameraManager {
      * @param timestamp 统一的时间戳，用于所有摄像头的文件命名
      */
     public void takePicture(String timestamp) {
+        if (splitChannelMode) {
+            takeSplitPicture(timestamp);
+            return;
+        }
         List<String> keys = getActiveCameraKeys();
         if (keys.isEmpty()) {
             AppLog.e(TAG, "No active cameras for taking picture");
@@ -2197,6 +2586,65 @@ public class MultiCameraManager {
                     AppLog.w(TAG, "Camera " + key + " not available for taking picture");
                 }
             }, captureDelay);
+        }
+    }
+
+    /**
+     * 单通道分割模式拍照：按分割区域分别截图，分辨率与录制一致
+     */
+    private void takeSplitPicture(final String timestamp) {
+        final AppConfig appConfig = new AppConfig(context);
+        final SplitChannelConfig config = appConfig.getSplitChannelConfig();
+        final SingleCamera primary = cameras.get("front");
+        if (config == null || !config.isValid() || primary == null) {
+            AppLog.e(TAG, "Split picture: no valid split config");
+            return;
+        }
+        final Size previewSize = primary.getPreviewSize();
+        if (previewSize == null) {
+            AppLog.e(TAG, "Split picture: preview size not ready");
+            return;
+        }
+
+        mainHandler.post(() -> {
+            for (final SplitChannelConfig.Region region : config.regions) {
+                TextureView view = getSplitPreviewView(region.key);
+                if (view == null || !view.isAvailable()) {
+                    AppLog.w(TAG, "Split picture: view not available for " + region.key);
+                    continue;
+                }
+                int[] encode = region.encodePixels(previewSize.getWidth(), previewSize.getHeight());
+                try {
+                    android.graphics.Bitmap bitmap = view.getBitmap(encode[0], encode[1]);
+                    if (bitmap == null) {
+                        AppLog.e(TAG, "Split picture: getBitmap failed for " + region.key);
+                        continue;
+                    }
+                    AppLog.d(TAG, "Split picture captured " + region.key + " " +
+                            encode[0] + "x" + encode[1]);
+                    primary.saveSplitPictureBitmap(bitmap, timestamp, region.key);
+                } catch (Exception e) {
+                    AppLog.e(TAG, "Split picture error for " + region.key, e);
+                }
+            }
+        });
+    }
+
+    private TextureView getSplitPreviewView(String key) {
+        if (key == null) {
+            return null;
+        }
+        switch (key) {
+            case "front":
+                return splitFrontView;
+            case "back":
+                return splitBackView;
+            case "left":
+                return splitLeftView;
+            case "right":
+                return splitRightView;
+            default:
+                return null;
         }
     }
 
