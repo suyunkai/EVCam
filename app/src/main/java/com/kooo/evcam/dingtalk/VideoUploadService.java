@@ -42,11 +42,11 @@ public class VideoUploadService {
         new Thread(() -> {
             try {
                 if (videoFiles == null || videoFiles.isEmpty()) {
-                    callback.onError("没有视频文件可上传");
+                    callback.onError("No video files to upload");
                     return;
                 }
 
-                callback.onProgress("开始上传 " + videoFiles.size() + " 个视频文件...");
+                callback.onProgress("Starting upload: " + videoFiles.size() + " video files...");
 
                 List<String> uploadedFiles = new ArrayList<>();
 
@@ -58,7 +58,7 @@ public class VideoUploadService {
                         continue;
                     }
 
-                    callback.onProgress("正在处理 (" + (i + 1) + "/" + videoFiles.size() + "): " + videoFile.getName());
+                    callback.onProgress("Processing (" + (i + 1) + "/" + videoFiles.size() + "): " + videoFile.getName());
 
                     try {
                         // 1. 提取视频封面
@@ -68,7 +68,7 @@ public class VideoUploadService {
                         boolean thumbnailExtracted = VideoThumbnailExtractor.extractThumbnail(videoFile, thumbnailFile);
                         if (!thumbnailExtracted) {
                             AppLog.w(TAG, "封面提取失败，跳过视频: " + videoFile.getName());
-                            callback.onError("封面提取失败: " + videoFile.getName());
+                            callback.onError("Failed to extract thumbnail: " + videoFile.getName());
                             continue;
                         }
 
@@ -79,15 +79,15 @@ public class VideoUploadService {
                         }
 
                         // 3. 上传视频文件到钉钉
-                        callback.onProgress("正在上传视频 (" + (i + 1) + "/" + videoFiles.size() + ")...");
+                        callback.onProgress("Uploading video (" + (i + 1) + "/" + videoFiles.size() + ")...");
                         String videoMediaId = apiClient.uploadFile(videoFile);
 
                         // 4. 上传封面图到钉钉
-                        callback.onProgress("正在上传封面 (" + (i + 1) + "/" + videoFiles.size() + ")...");
+                        callback.onProgress("Uploading thumbnail (" + (i + 1) + "/" + videoFiles.size() + ")...");
                         String picMediaId = apiClient.uploadImage(thumbnailFile);
 
                         // 5. 发送视频消息
-                        callback.onProgress("正在发送视频消息 (" + (i + 1) + "/" + videoFiles.size() + ")...");
+                        callback.onProgress("Sending video message (" + (i + 1) + "/" + videoFiles.size() + ")...");
                         apiClient.sendVideoMessage(conversationId, conversationType, videoMediaId, picMediaId, duration, userId);
 
                         uploadedFiles.add(videoFile.getName());
@@ -100,7 +100,7 @@ public class VideoUploadService {
 
                         // 7. 延迟2秒后再上传下一个视频，减少网络和系统压力
                         if (i < videoFiles.size() - 1) {  // 不是最后一个视频
-                            callback.onProgress("等待2秒后上传下一个视频...");
+                            callback.onProgress("Waiting 2 seconds before uploading next video...");
                             Thread.sleep(2000);
                         }
 
@@ -111,9 +111,9 @@ public class VideoUploadService {
                 }
 
                 if (uploadedFiles.isEmpty()) {
-                    callback.onError("所有视频上传失败");
+                    callback.onError("All video uploads failed");
                 } else {
-                    String successMessage = "视频上传完成！共上传 " + uploadedFiles.size() + " 个文件";
+                    String successMessage = "Video upload complete! Total uploaded: " + uploadedFiles.size() + " files";
                     callback.onSuccess(successMessage);
 
                     // 等待5秒，确保视频消息被钉钉服务器处理完毕后再发送完成消息

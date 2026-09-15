@@ -49,14 +49,14 @@ public class PhotoViewerActivity extends AppCompatActivity {
         // 获取图片路径
         String photoPath = getIntent().getStringExtra("photo_path");
         if (photoPath == null || photoPath.isEmpty()) {
-            Toast.makeText(this, "无效的图片路径", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Invalid photo path", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
 
         File photoFile = new File(photoPath);
         if (!photoFile.exists()) {
-            Toast.makeText(this, "图片文件不存在", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Photo file does not exist", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
@@ -179,7 +179,7 @@ public class PhotoViewerActivity extends AppCompatActivity {
                     imageView.setImageMatrix(matrix);
                 });
             } else {
-                Toast.makeText(this, "无法加载图片", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Cannot load photo", Toast.LENGTH_SHORT).show();
                 finish();
             }
         } catch (Exception e) {

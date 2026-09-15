@@ -189,7 +189,7 @@ public class ExpandableVideoGroupAdapter extends RecyclerView.Adapter<RecyclerVi
         holder.dateText.setText(section.getFullDateDisplay());
         
         // 设置组数量
-        holder.itemCount.setText(section.getItemCount() + "组");
+        holder.itemCount.setText(section.getItemCount() + "groups");
         
         // 设置展开/收起图标
         int iconRes = section.isExpanded() ? R.drawable.ic_expand_less : R.drawable.ic_expand_more;
@@ -215,7 +215,7 @@ public class ExpandableVideoGroupAdapter extends RecyclerView.Adapter<RecyclerVi
 
         // 视频路数标签
         int count = group.getVideoCount();
-        holder.videoCountBadge.setText(count + "路");
+        holder.videoCountBadge.setText(count + "channels");
 
         // 加载四个位置的缩略图
         loadThumbnail(group.getFrontVideo(), holder.thumbFront);

@@ -113,10 +113,10 @@ public class StorageCleanupManager {
             CleanupResult videoResult = cleanupDirectory(
                 StorageHelper.getVideoDir(context),
                 videoLimitGb * GB_TO_BYTES,
-                "视频"
+                "Video"
             );
             if (videoResult.deletedCount > 0) {
-                showCleanupNotification(videoResult, "视频");
+                showCleanupNotification(videoResult, "Video");
             }
         }
         
@@ -125,10 +125,10 @@ public class StorageCleanupManager {
             CleanupResult photoResult = cleanupDirectory(
                 StorageHelper.getPhotoDir(context),
                 photoLimitGb * GB_TO_BYTES,
-                "图片"
+                "Photo"
             );
             if (photoResult.deletedCount > 0) {
-                showCleanupNotification(photoResult, "图片");
+                showCleanupNotification(photoResult, "Photo");
             }
         }
         
@@ -163,16 +163,16 @@ public class StorageCleanupManager {
         
         // 强制清理视频（删除20%的已用空间）
         File videoDir = StorageHelper.getVideoDir(context, false);
-        CleanupResult videoResult = cleanupByPercentage(videoDir, LOW_SPACE_CLEANUP_RATIO, "视频");
+        CleanupResult videoResult = cleanupByPercentage(videoDir, LOW_SPACE_CLEANUP_RATIO, "Video");
         if (videoResult.deletedCount > 0) {
-            showLowSpaceCleanupNotification(videoResult, "视频");
+            showLowSpaceCleanupNotification(videoResult, "Video");
         }
         
         // 强制清理图片（删除20%的已用空间）
         File photoDir = StorageHelper.getPhotoDir(context, false);
-        CleanupResult photoResult = cleanupByPercentage(photoDir, LOW_SPACE_CLEANUP_RATIO, "图片");
+        CleanupResult photoResult = cleanupByPercentage(photoDir, LOW_SPACE_CLEANUP_RATIO, "Photo");
         if (photoResult.deletedCount > 0) {
-            showLowSpaceCleanupNotification(photoResult, "图片");
+            showLowSpaceCleanupNotification(photoResult, "Photo");
         }
     }
     
@@ -212,7 +212,7 @@ public class StorageCleanupManager {
         long targetSize = totalSize - needToDelete;
         
         AppLog.d(TAG, typeName + "强制清理：当前占用 " + StorageHelper.formatSize(totalSize) + 
-                "，将删除 " + StorageHelper.formatSize(needToDelete) + " (20%)");
+                ", will delete " + StorageHelper.formatSize(needToDelete) + " (20%)");
         
         // 按修改时间排序（最旧的在前）
         List<File> sortedFiles = new ArrayList<>(Arrays.asList(files));
@@ -239,7 +239,7 @@ public class StorageCleanupManager {
         result.deletedCount = deletedCount;
         result.finalSize = totalSize - deletedSize;
         
-        AppLog.d(TAG, typeName + "强制清理完成：删除 " + deletedCount + " 个文件，释放 " + StorageHelper.formatSize(deletedSize));
+        AppLog.d(TAG, typeName + "强制清理完成：删除 " + deletedCount + " files, freed " + StorageHelper.formatSize(deletedSize));
         
         return result;
     }
@@ -249,8 +249,8 @@ public class StorageCleanupManager {
      */
     private void showLowSpaceCleanupNotification(CleanupResult result, String typeName) {
         mainHandler.post(() -> {
-            String message = "内部存储空间不足，已清理" + typeName + " " + 
-                    result.deletedCount + "个文件（" + StorageHelper.formatSize(result.deletedSize) + "）";
+            String message = "Low internal storage, cleaned " + typeName + " " + 
+                    result.deletedCount + " files (" + StorageHelper.formatSize(result.deletedSize) + "）";
             Toast.makeText(context, message, Toast.LENGTH_LONG).show();
         });
     }
@@ -287,7 +287,7 @@ public class StorageCleanupManager {
         result.originalSize = totalSize;
         
         AppLog.d(TAG, typeName + "当前占用: " + StorageHelper.formatSize(totalSize) + 
-                " / 限制: " + StorageHelper.formatSize(limitBytes));
+                " / Limit: " + StorageHelper.formatSize(limitBytes));
         
         // 如果未超过限制，无需清理
         if (totalSize <= limitBytes) {
@@ -300,7 +300,7 @@ public class StorageCleanupManager {
         long needToDelete = totalSize - targetSize;
         
         AppLog.d(TAG, typeName + "超过限制，需要删除: " + StorageHelper.formatSize(needToDelete) + 
-                "，目标大小: " + StorageHelper.formatSize(targetSize));
+                ", Target size: " + StorageHelper.formatSize(targetSize));
         
         // 按修改时间排序（最旧的在前）
         List<File> sortedFiles = new ArrayList<>(Arrays.asList(files));
@@ -331,8 +331,8 @@ public class StorageCleanupManager {
         result.deletedSize = deletedSize;
         result.finalSize = totalSize - deletedSize;
         
-        AppLog.d(TAG, typeName + "清理完成：删除 " + deletedCount + " 个文件，释放 " + 
-                StorageHelper.formatSize(deletedSize) + "，剩余 " + StorageHelper.formatSize(result.finalSize));
+        AppLog.d(TAG, typeName + "清理完成：删除 " + deletedCount + " files, freed " + 
+                StorageHelper.formatSize(deletedSize) + ", Remaining: " + StorageHelper.formatSize(result.finalSize));
         
         return result;
     }
@@ -342,7 +342,7 @@ public class StorageCleanupManager {
      */
     private void showCleanupNotification(CleanupResult result, String typeName) {
         mainHandler.post(() -> {
-            String message = "已清理" + typeName + "：删除 " + result.deletedCount + " 个文件，释放 " + 
+            String message = "Cleaned" + typeName + ": Deleted " + result.deletedCount + " files, freed " + 
                     StorageHelper.formatSize(result.deletedSize);
             Toast.makeText(context, message, Toast.LENGTH_LONG).show();
             AppLog.d(TAG, "清理通知: " + message);

@@ -33,7 +33,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="实验室（不建议使用）"
+            android:text="Lab Features (Experimental)"
             android:textColor="@color/text_primary"
             android:textSize="22sp"
             android:textStyle="bold" />
@@ -83,7 +83,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="开启主屏悬浮窗"
+                            android:text="Enable Main Screen Floating Window"
                             android:textColor="@color/text_primary"
                             android:textSize="18sp"
                             android:textStyle="bold" />
@@ -91,7 +91,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="在主屏幕显示可拖动的摄像头悬浮窗"
+                            android:text="Display draggable camera floating window on main screen"
                             android:textColor="@color/text_secondary"
                             android:textSize="14sp"
                             android:layout_marginTop="4dp" />
@@ -115,7 +115,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="悬浮窗摄像头"
+                        android:text="Floating Window Camera"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -151,7 +151,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="复用主屏悬浮窗"
+                            android:text="Reuse Main Screen Window"
                             android:textColor="@color/text_primary"
                             android:textSize="18sp"
                             android:textStyle="bold" />
@@ -159,7 +159,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="转向灯联动时复用主屏悬浮窗显示对应侧画面"
+                            android:text="Reuse main screen floating window to show side camera during turn signal"
                             android:textColor="@color/text_secondary"
                             android:textSize="14sp"
                             android:layout_marginTop="4dp" />
@@ -176,7 +176,7 @@
                     android:id="@+id/btn_setup_blind_spot_pos"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="设置独立补盲窗位置"
+                    android:text="Set Dedicated Blind-Spot Window Position"
                     android:layout_marginTop="12dp"
                     android:backgroundTint="@color/button_accent"
                     android:textColor="@color/white"
@@ -187,7 +187,7 @@
                 android:id="@+id/btn_save_apply"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="保存配置并应用"
+                android:text="Save &amp; Apply Config"
                 android:textSize="20sp"
                 android:minHeight="56dp"
                 android:backgroundTint="@color/button_background"

@@ -89,7 +89,7 @@ public class TelegramHandler extends RemoteCommandHandler {
         if (error.contains("413") || 
             error.toLowerCase().contains("too large") || 
             error.toLowerCase().contains("file is too big")) {
-            sendMessage(chatId, "提示：Telegram Bot API 限制上传文件不能超过50MB，该文件大小已超出。");
+            sendMessage(chatId, "Notice: Telegram Bot API upload limit is 50MB; file exceeds limit.");
         }
     }
     

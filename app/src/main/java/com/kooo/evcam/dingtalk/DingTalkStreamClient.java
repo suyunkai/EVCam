@@ -69,7 +69,7 @@ public class DingTalkStreamClient extends WebSocketListener {
     public void stop() {
         isRunning = false;
         if (webSocket != null) {
-            webSocket.close(1000, "客户端主动关闭");
+            webSocket.close(1000, "Client closed");
             webSocket = null;
         }
     }
@@ -95,7 +95,7 @@ public class DingTalkStreamClient extends WebSocketListener {
 
         } catch (Exception e) {
             AppLog.e(TAG, "连接失败", e);
-            callback.onError("连接失败: " + e.getMessage());
+            callback.onError("Connection failed: " + e.getMessage());
             scheduleReconnect();
         }
     }
@@ -253,7 +253,7 @@ public class DingTalkStreamClient extends WebSocketListener {
     @Override
     public void onFailure(WebSocket webSocket, Throwable t, Response response) {
         AppLog.e(TAG, "WebSocket 连接失败", t);
-        callback.onError("连接失败: " + t.getMessage());
+        callback.onError("Connection failed: " + t.getMessage());
         callback.onDisconnected();
 
         if (isRunning) {

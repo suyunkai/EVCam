@@ -662,7 +662,7 @@ public class BlindSpotFloatingWindowView extends FrameLayout {
         
         // 重置按钮
         Button resetBtn = new Button(ctx);
-        resetBtn.setText("重置");
+        resetBtn.setText("Reset");
         resetBtn.setTextColor(Color.WHITE);
         resetBtn.setBackgroundColor(0xFF666666);
         resetBtn.setOnClickListener(v -> {
@@ -672,7 +672,7 @@ public class BlindSpotFloatingWindowView extends FrameLayout {
         
         // 保存按钮
         Button saveBtn = new Button(ctx);
-        saveBtn.setText("保存");
+        saveBtn.setText("Save");
         saveBtn.setTextColor(Color.WHITE);
         saveBtn.setBackgroundColor(0xFF4CAF50);
         saveBtn.setOnClickListener(v -> {
@@ -702,12 +702,12 @@ public class BlindSpotFloatingWindowView extends FrameLayout {
                     ", w=" + savedW + ", h=" + savedH);
 
             hideSupervisionAdjustPanel();
-            Toast.makeText(ctx, "位置和大小已保存", Toast.LENGTH_SHORT).show();
+            Toast.makeText(ctx, "Position and size saved", Toast.LENGTH_SHORT).show();
         });
         
         // 关闭按钮
         Button closeBtn = new Button(ctx);
-        closeBtn.setText("关闭");
+        closeBtn.setText("Close");
         closeBtn.setTextColor(Color.WHITE);
         closeBtn.setBackgroundColor(0xFFF44336);
         closeBtn.setOnClickListener(v -> {
@@ -800,7 +800,7 @@ public class BlindSpotFloatingWindowView extends FrameLayout {
         }
 
         AppLog.i(TAG, "重置超视模式位置大小为默认值");
-        Toast.makeText(getContext(), "已重置为默认位置", Toast.LENGTH_SHORT).show();
+        Toast.makeText(getContext(), "Reset to default position", Toast.LENGTH_SHORT).show();
     }
 
     /**

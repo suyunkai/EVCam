@@ -53,6 +53,18 @@ public class StorageHelper {
     }
     
     /**
+     * 检查"仅在插入U盘时录制"策略是否阻止本次录制
+     * 由所有录制入口（前台手动录制、远程指令录制、悬浮窗录制）统一调用，
+     * 确保该设置对所有录制路径都生效
+     * @param context 上下文
+     * @param appConfig 应用配置
+     * @return true 如果该设置已启用但未检测到U盘（应阻止录制）
+     */
+    public static boolean isRecordingBlockedByUsbPolicy(Context context, AppConfig appConfig) {
+        return appConfig != null && appConfig.isRecordOnlyWhenUsbDetected() && !hasExternalSdCard(context);
+    }
+
+    /**
      * 检测是否有U盘（并且可以写入公共目录）
      * 使用内存缓存，5秒内不重复检测
      * @param context 上下文
@@ -140,7 +152,7 @@ public class StorageHelper {
                     if (index > 0) {
                         File sdRoot = new File(path.substring(0, index));
                         if (sdRoot.exists() && sdRoot.canRead()) {
-                            AppLog.d(TAG, "检测到U盘: " + sdRoot.getAbsolutePath());
+                            AppLog.d(TAG, "USB drive detected: " + sdRoot.getAbsolutePath());
                             return sdRoot;
                         }
                     }
@@ -416,7 +428,7 @@ public class StorageHelper {
             return sdRoot;
         }
         
-        AppLog.d(TAG, "未检测到U盘");
+        AppLog.d(TAG, "No USB drive detected");
         return null;
     }
     
@@ -500,9 +512,9 @@ public class StorageHelper {
         List<String> info = new ArrayList<>();
         
         // 0. 显示内部存储路径（用于对比）
-        info.add("=== 内部存储 ===");
+        info.add("=== Internal Storage ===");
         String internalPath = Environment.getExternalStorageDirectory().getAbsolutePath();
-        info.add("路径: " + internalPath);
+        info.add("Path: " + internalPath);
         info.add("");
         
         // 1. /proc/mounts 内容（最可靠的挂载信息）
@@ -519,9 +531,9 @@ public class StorageHelper {
                     if (mountPoint.startsWith("/storage/")) {
                         String marker = "";
                         if (mountPoint.contains("emulated")) {
-                            marker = " [内部]";
+                            marker = " [Internal]";
                         } else if (mountPoint.matches("/storage/[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}")) {
-                            marker = " [U盘]";
+                            marker = " [USB]";
                         }
                         info.add(mountPoint + marker);
                     }
@@ -541,14 +553,14 @@ public class StorageHelper {
                 for (int i = 0; i < externalDirs.length; i++) {
                     File dir = externalDirs[i];
                     if (dir != null) {
-                        String label = (i == 0) ? "[0] 内部" : "[" + i + "] 外部";
+                        String label = (i == 0) ? "[0] Internal" : "[" + i + "] External";
                         info.add(label + ": " + dir.getAbsolutePath());
                     } else {
                         info.add("[" + i + "] null");
                     }
                 }
             } else {
-                info.add("返回 null");
+                info.add("returns null");
             }
         } catch (Exception e) {
             info.add("错误: " + e.getMessage());
@@ -556,26 +568,26 @@ public class StorageHelper {
         
         // 3. 自定义路径
         info.add("");
-        info.add("=== 自定义路径 ===");
+        info.add("=== Custom Path ===");
         AppConfig config = new AppConfig(context);
         String customPath = config.getCustomSdCardPath();
         if (customPath != null && !customPath.isEmpty()) {
             File customDir = new File(customPath);
-            info.add("路径: " + customPath);
-            info.add("存在: " + customDir.exists() + ", 可读: " + customDir.canRead() + ", 可写: " + customDir.canWrite());
+            info.add("Path: " + customPath);
+            info.add("Exists: " + customDir.exists() + ", Readable: " + customDir.canRead() + ", Writable: " + customDir.canWrite());
         } else {
-            info.add("未设置");
+            info.add("Not set");
         }
         
         // 4. 检测结果
         info.add("");
-        info.add("=== 检测结果 ===");
+        info.add("=== Detection Results ===");
         File sdCard = getExternalSdCardRoot(context);
         if (sdCard != null) {
-            info.add("检测到U盘: " + sdCard.getAbsolutePath());
-            info.add("可写入: " + sdCard.canWrite());
+            info.add("USB drive detected: " + sdCard.getAbsolutePath());
+            info.add("Writable: " + sdCard.canWrite());
         } else {
-            info.add("未检测到U盘");
+            info.add("No USB drive detected");
         }
         
         return info;
@@ -626,7 +638,7 @@ public class StorageHelper {
      */
     public static String formatSize(long bytes) {
         if (bytes < 0) {
-            return "未知";
+            return "Unknown";
         }
         
         final long KB = 1024;
@@ -656,13 +668,13 @@ public class StorageHelper {
         
         if (useExternalSd) {
             storageDir = getExternalSdCardRoot(context);
-            storageName = "U盘";
+            storageName = "USB Drive";
             if (storageDir == null) {
-                return "U盘不可用";
+                return "USB drive unavailable";
             }
         } else {
             storageDir = Environment.getExternalStorageDirectory();
-            storageName = "内部存储";
+            storageName = "Internal Storage";
         }
         
         long available = getAvailableSpace(storageDir);
@@ -672,7 +684,7 @@ public class StorageHelper {
             return storageName;
         }
         
-        return String.format("%s（可用 %s / 共 %s）", 
+        return String.format("%s (Free %s / Total %s)", 
                 storageName, 
                 formatSize(available), 
                 formatSize(total));

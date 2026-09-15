@@ -231,7 +231,7 @@ public class HeartbeatFragment extends Fragment implements HeartbeatManager.Hear
             if (clipboard != null) {
                 ClipData clip = ClipData.newPlainText("vehicle_id", vehicleId);
                 clipboard.setPrimaryClip(clip);
-                Toast.makeText(requireContext(), "已复制: " + vehicleId, Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Copied: " + vehicleId, Toast.LENGTH_SHORT).show();
             }
         });
         
@@ -246,7 +246,7 @@ public class HeartbeatFragment extends Fragment implements HeartbeatManager.Hear
         // 启动服务
         btnStartService.setOnClickListener(v -> {
             if (!config.isConfigured()) {
-                Toast.makeText(requireContext(), "请先保存配置", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Please save configuration first", Toast.LENGTH_SHORT).show();
                 return;
             }
             
@@ -256,7 +256,7 @@ public class HeartbeatFragment extends Fragment implements HeartbeatManager.Hear
             }
             updateButtonStates();
             updateStatusDisplay();
-            Toast.makeText(requireContext(), "服务已启动", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Service started", Toast.LENGTH_SHORT).show();
         });
         
         // 停止服务
@@ -271,20 +271,20 @@ public class HeartbeatFragment extends Fragment implements HeartbeatManager.Hear
             }
             updateButtonStates();
             updateStatusDisplay();
-            Toast.makeText(requireContext(), "服务已停止", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Service stopped", Toast.LENGTH_SHORT).show();
         });
         
         // 立即测试
         btnTest.setOnClickListener(v -> {
             if (!config.isConfigured()) {
-                Toast.makeText(requireContext(), "请先保存配置", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Please save configuration first", Toast.LENGTH_SHORT).show();
                 return;
             }
             
             if (getActivity() instanceof MainActivity) {
                 HeartbeatManager manager = ((MainActivity) getActivity()).getHeartbeatManager();
                 if (manager != null) {
-                    Toast.makeText(requireContext(), "正在测试...", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(requireContext(), "Testing...", Toast.LENGTH_SHORT).show();
                     manager.executeOnce();
                 }
             }
@@ -294,7 +294,7 @@ public class HeartbeatFragment extends Fragment implements HeartbeatManager.Hear
         btnResetStats.setOnClickListener(v -> {
             config.resetStatistics();
             updateStatisticsDisplay();
-            Toast.makeText(requireContext(), "统计已重置", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Statistics reset", Toast.LENGTH_SHORT).show();
         });
     }
     
@@ -315,15 +315,15 @@ public class HeartbeatFragment extends Fragment implements HeartbeatManager.Hear
         
         // 验证
         if (serverUrl.isEmpty()) {
-            Toast.makeText(requireContext(), "请填写服务器地址", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Please enter server URL", Toast.LENGTH_SHORT).show();
             return;
         }
         if (!serverUrl.startsWith("http://") && !serverUrl.startsWith("https://")) {
-            Toast.makeText(requireContext(), "服务器地址必须以 http:// 或 https:// 开头", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Server URL must start with http:// or https://", Toast.LENGTH_SHORT).show();
             return;
         }
         if (secretKey.isEmpty()) {
-            Toast.makeText(requireContext(), "请填写通信密钥", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Please enter communication secret key", Toast.LENGTH_SHORT).show();
             return;
         }
         
@@ -336,7 +336,7 @@ public class HeartbeatFragment extends Fragment implements HeartbeatManager.Hear
         config.setScreenOffPushEnabled(switchScreenOffPush.isChecked());
         config.setAutoStartEnabled(switchAutoStart.isChecked());
         
-        Toast.makeText(requireContext(), "配置已保存", Toast.LENGTH_SHORT).show();
+        Toast.makeText(requireContext(), "Configuration saved", Toast.LENGTH_SHORT).show();
         
         // 更新按钮状态
         updateButtonStates();
@@ -381,27 +381,27 @@ public class HeartbeatFragment extends Fragment implements HeartbeatManager.Hear
             
             if (isRunning) {
                 // 服务正在运行
-                tvStatus.setText("运行中");
+                tvStatus.setText("Running");
                 tvStatus.setTextColor(0xFF00CC00);  // 深绿色
             } else if (!isConfigured) {
                 // 配置不完整
-                tvStatus.setText("未配置");
+                tvStatus.setText("Not Configured");
                 tvStatus.setTextColor(0xFFFF4444);  // 红色
             } else if (!isEnabled) {
                 // 用户未启用服务
-                tvStatus.setText("未启动");
+                tvStatus.setText("Not Started");
                 tvStatus.setTextColor(0xFF888888);  // 灰色
             } else {
                 // isEnabled=true 但 isRunning=false：配置已启用但服务未运行
                 // 这种情况通常是：用户之前启用了服务，但 app 重启后没有自动启动
                 if (!screenOnPush && !screenOffPush) {
-                    tvStatus.setText("服务未运行（推图模式均关闭）");
+                    tvStatus.setText("Service not running (all push modes disabled)");
                     tvStatus.setTextColor(0xFFFF9900);  // 橙色
                 } else if (screenOffPush && !screenOnPush) {
-                    tvStatus.setText("服务未运行（仅息屏推图）");
+                    tvStatus.setText("Service not running (screen-off push only)");
                     tvStatus.setTextColor(0xFFFF9900);  // 橙色
                 } else {
-                    tvStatus.setText("服务未运行");
+                    tvStatus.setText("Service not running");
                     tvStatus.setTextColor(0xFFFF9900);  // 橙色
                 }
             }
@@ -409,7 +409,7 @@ public class HeartbeatFragment extends Fragment implements HeartbeatManager.Hear
             // 摄像头数量（从 MainActivity 获取）
             int cameraCount = ((MainActivity) getActivity()).getConnectedCameraCount();
             int totalCameras = ((MainActivity) getActivity()).getTotalCameraCount();
-            tvCameraCount.setText("相机: " + cameraCount + "/" + totalCameras + " 已连接");
+            tvCameraCount.setText("Camera: " + cameraCount + "/" + totalCameras + " Connected");
         }
         
         updateButtonStates();
@@ -419,12 +419,12 @@ public class HeartbeatFragment extends Fragment implements HeartbeatManager.Hear
     private void updateStatisticsDisplay() {
         // 上次上传时间
         long lastUpload = config.getLastUploadTime();
-        tvLastUpload.setText("上次推图: " + HeartbeatManager.formatTimestamp(lastUpload));
+        tvLastUpload.setText("Last push: " + HeartbeatManager.formatTimestamp(lastUpload));
         
         // 成功/失败统计
         int success = config.getSuccessCount();
         int fail = config.getFailCount();
-        tvStatistics.setText("成功: " + success + " | 失败: " + fail);
+        tvStatistics.setText("Success: " + success + " | Failed: " + fail);
     }
     
     // ==================== HeartbeatListener 回调 ====================
@@ -432,7 +432,7 @@ public class HeartbeatFragment extends Fragment implements HeartbeatManager.Hear
     @Override
     public void onHeartbeatStarted() {
         if (isAdded()) {
-            tvStatus.setText("运行中");
+            tvStatus.setText("Running");
             tvStatus.setTextColor(0xFF00CC00);  // 深绿色
         }
     }
@@ -457,7 +457,7 @@ public class HeartbeatFragment extends Fragment implements HeartbeatManager.Hear
         if (isAdded()) {
             updateStatisticsDisplay();
             // 可选：显示错误提示
-            // Toast.makeText(requireContext(), "心跳失败: " + error, Toast.LENGTH_SHORT).show();
+            // Toast.makeText(requireContext(), "Heartbeat failed: " + error, Toast.LENGTH_SHORT).show();
         }
     }
 }

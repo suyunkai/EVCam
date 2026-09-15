@@ -21,7 +21,7 @@
             android:layout_height="wrap_content"
             android:scaleType="centerCrop"
             android:background="#000000"
-            android:contentDescription="照片缩略图" />
+            android:contentDescription="Photo Thumbnail" />
 
         <!-- 照片信息 -->
         <LinearLayout
@@ -68,7 +68,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginEnd="4dp"
-                    android:text="查看"
+                    android:text="View"
                     android:textSize="16sp"
                     android:padding="8dp"
                     android:minHeight="48dp"
@@ -81,7 +81,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginStart="4dp"
-                    android:text="删除"
+                    android:text="Delete"
                     android:textSize="16sp"
                     android:padding="8dp"
                     android:minHeight="48dp"

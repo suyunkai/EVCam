@@ -35,7 +35,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="补盲选项"
+            android:text="Blind-Spot Options"
             android:textColor="@color/text_primary"
             android:textSize="24sp"
             android:textStyle="bold" />
@@ -81,7 +81,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="补盲功能总开关"
+                        android:text="Blind-Spot Master Switch"
                         android:textColor="@color/text_primary"
                         android:textSize="20sp"
                         android:textStyle="bold" />
@@ -90,7 +90,7 @@
                         android:id="@+id/tv_blind_spot_global_hint"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="关闭后所有补盲子功能将不生效"
+                        android:text="When disabled, all blind-spot sub-features will be inactive"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:layout_marginTop="4dp" />
@@ -122,7 +122,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="实验室（不建议使用）"
+                    android:text="Lab Features (Experimental)"
                     android:textColor="@color/text_primary"
                     android:textSize="20sp"
                     android:textStyle="bold" />
@@ -130,7 +130,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="包含主屏悬浮窗、复用主屏等实验性选项"
+                    android:text="Includes experimental options like main screen overlay and display reuse"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:layout_marginTop="4dp" />
@@ -139,7 +139,7 @@
                     android:id="@+id/btn_open_lab"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="进入实验室"
+                    android:text="Enter Lab"
                     android:layout_marginTop="12dp"
                     android:backgroundTint="@color/button_accent"
                     android:textColor="@color/white" />
@@ -169,7 +169,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="补盲画面矫正"
+                            android:text="Blind-Spot Calibration"
                             android:textColor="@color/text_primary"
                             android:textSize="20sp"
                             android:textStyle="bold" />
@@ -177,7 +177,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="对补盲悬浮窗画面进行平移/缩放矫正 (Matrix)"
+                            android:text="Correct translation and scale for blind-spot floating window (Matrix)"
                             android:textColor="@color/text_secondary"
                             android:textSize="14sp"
                             android:layout_marginTop="4dp" />
@@ -194,7 +194,7 @@
                     android:id="@+id/btn_adjust_blind_spot_correction"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="调整矫正参数 (四路独立)"
+                    android:text="Adjust Calibration Parameters (4 Channels Independent)"
                     android:layout_marginTop="12dp"
                     android:backgroundTint="@color/button_accent"
                     android:textColor="@color/white" />
@@ -224,7 +224,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="主屏悬浮窗比例锁定"
+                            android:text="Lock Main Screen Aspect Ratio"
                             android:textColor="@color/text_primary"
                             android:textSize="20sp"
                             android:textStyle="bold" />
@@ -232,7 +232,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="勾选后悬浮窗只能等比例缩放，不可自由调整长宽比"
+                            android:text="When checked, floating window scales proportionally without altering aspect ratio"
                             android:textColor="@color/text_secondary"
                             android:textSize="14sp"
                             android:layout_marginTop="4dp" />
@@ -261,7 +261,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="长按拖动"
+                            android:text="Long Press to Drag"
                             android:textColor="@color/text_primary"
                             android:textSize="16sp"
                             android:textStyle="bold" />
@@ -269,7 +269,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="开启后需长按1秒才能拖动/缩放悬浮窗，防止误触"
+                            android:text="Requires 1-second long-press to move/resize floating window to prevent accidental touches"
                             android:textColor="@color/text_secondary"
                             android:textSize="13sp"
                             android:layout_marginTop="2dp" />
@@ -286,7 +286,7 @@
                     android:id="@+id/btn_reset_main_floating"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="重置主屏悬浮窗 (恢复默认位置和大小)"
+                    android:text="Reset Main Screen Floating Window (Restore default position and size)"
                     android:layout_marginTop="12dp"
                     android:backgroundTint="@color/button_accent"
                     android:textColor="@color/white" />
@@ -316,7 +316,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="转向灯联动 (左右补盲)"
+                            android:text="Turn Signal Trigger (Side Blind Spot)"
                             android:textColor="@color/text_primary"
                             android:textSize="20sp"
                             android:textStyle="bold" />
@@ -324,7 +324,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="开启转向灯时自动弹出对应侧摄像头画面"
+                            android:text="Auto-popup corresponding side camera view when turn signal is activated"
                             android:textColor="@color/text_secondary"
                             android:textSize="14sp"
                             android:layout_marginTop="4dp" />
@@ -354,7 +354,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="长视模式"
+                            android:text="Supervision Mode"
                             android:textColor="@color/text_primary"
                             android:textSize="16sp" />
 
@@ -362,7 +362,7 @@
                             android:id="@+id/tv_long_view_mode_desc"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="打转向灯时同时显示左右两侧补盲画面，停止转向灯时自动退出"
+                            android:text="Show both left and right blind-spot views simultaneously during turn signal, exit when signal stops"
                             android:textColor="@color/text_secondary"
                             android:textSize="14sp"
                             android:layout_marginTop="4dp" />
@@ -380,7 +380,7 @@
                     android:id="@+id/btn_long_view_adjust"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="调整位置和大小"
+                    android:text="Adjust Position &amp; Size"
                     android:textSize="14sp"
                     android:minHeight="40dp"
                     android:backgroundTint="@color/button_background"
@@ -405,14 +405,14 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="悬浮窗开启动效"
+                            android:text="Floating Window Entrance Animation"
                             android:textColor="@color/text_primary"
                             android:textSize="16sp" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="关闭后悬浮窗无动画直接显示，但仍等待画面就绪"
+                            android:text="When disabled, floating window displays without animation once ready"
                             android:textColor="@color/text_secondary"
                             android:textSize="14sp"
                             android:layout_marginTop="4dp" />
@@ -436,7 +436,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="状态栏动效样式"
+                        android:text="Status Bar Animation Style"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:layout_marginBottom="4dp" />
@@ -452,7 +452,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:minHeight="36dp"
-                            android:text="关闭（无状态栏）"
+                            android:text="Off (No Status Bar)"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:buttonTint="@color/colorPrimary" />
@@ -462,7 +462,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:minHeight="36dp"
-                            android:text="A. 序贯灯段（类奥迪动态转向灯）"
+                            android:text="A. Sequential Segments (Dynamic Indicator)"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:buttonTint="@color/colorPrimary" />
@@ -472,7 +472,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:minHeight="36dp"
-                            android:text="B. 流光彗尾（流星拖尾效果）"
+                            android:text="B. Comet Tail (Meteor Trail Effect)"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:buttonTint="@color/colorPrimary" />
@@ -482,7 +482,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:minHeight="36dp"
-                            android:text="C. 波纹扩散（水波纹横向传播）"
+                            android:text="C. Ripple Spread (Wave Effect)"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:buttonTint="@color/colorPrimary" />
@@ -492,7 +492,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:minHeight="36dp"
-                            android:text="D. 呼吸渐变填充（类充电动画）"
+                            android:text="D. Breathing Gradient (Pulse Effect)"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:buttonTint="@color/colorPrimary" />
@@ -502,7 +502,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:minHeight="36dp"
-                            android:text="E. 箭头涟漪（箭头从中心飞出）"
+                            android:text="E. Arrow Ripple (Expanding Arrows)"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:buttonTint="@color/colorPrimary" />
@@ -521,7 +521,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="动效颜色"
+                            android:text="Animation Color"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp" />
 
@@ -535,7 +535,7 @@
                             android:id="@+id/btn_pick_status_bar_color"
                             android:layout_width="wrap_content"
                             android:layout_height="36dp"
-                            android:text="选择颜色"
+                            android:text="Select Color"
                             android:textSize="13sp"
                             android:backgroundTint="@color/button_accent"
                             android:textColor="@color/white"
@@ -555,7 +555,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="底色透明度"
+                            android:text="Background Opacity"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp" />
 
@@ -590,7 +590,7 @@
                     <TextView
                         android:layout_width="100dp"
                         android:layout_height="wrap_content"
-                        android:text="消失延迟"
+                        android:text="Dismiss Delay"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -620,7 +620,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="补盲触发方案"
+                        android:text="Blind-Spot Trigger Mode"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:layout_marginBottom="8dp" />
@@ -636,7 +636,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:minHeight="40dp"
-                            android:text="银河E5/26款星舰7-API触发"
+                            android:text="Galaxy E5 / 26 Starship 7 (API Trigger)"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:buttonTint="@color/colorPrimary" />
@@ -646,7 +646,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:minHeight="40dp"
-                            android:text="26款星舰7-Logcat触发"
+                            android:text="26 Starship 7 (Logcat Trigger)"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:buttonTint="@color/colorPrimary" />
@@ -656,7 +656,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:minHeight="40dp"
-                            android:text="自定义Logcat触发"
+                            android:text="Custom Logcat Trigger"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:buttonTint="@color/colorPrimary" />
@@ -666,7 +666,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:minHeight="40dp"
-                            android:text="银河L6/L7（由抖音@AbuCoder适配）"
+                            android:text="Galaxy L6/L7 (Adapted by @AbuCoder)"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:buttonTint="@color/colorPrimary" />
@@ -676,7 +676,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:minHeight="40dp"
-                            android:text="博越L（涛仔求来的）"
+                            android:text="Boyue L"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:buttonTint="@color/colorPrimary" />
@@ -688,7 +688,7 @@
                         android:id="@+id/tv_car_api_status"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="CarAPI 服务状态: 检测中..."
+                        android:text="CarAPI Service Status: Checking..."
                         android:textSize="14sp"
                         android:paddingStart="32dp"
                         android:paddingTop="4dp"
@@ -707,7 +707,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="左转向灯触发log关键字"
+                        android:text="Left turn signal log keyword"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:layout_marginTop="12dp"
@@ -730,7 +730,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="右转向灯触发log关键字"
+                        android:text="Right turn signal log keyword"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:layout_marginTop="12dp"
@@ -773,14 +773,14 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="桌面悬浮模拟按钮"
+                                android:text="Desktop Floating Test Button"
                                 android:textColor="@color/text_primary"
                                 android:textSize="16sp" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="回到桌面点击左/右按钮，触发补盲 (3秒)"
+                                android:text="Return to home screen and tap Left/Right button to test blind spot (3s)"
                                 android:textColor="@color/text_secondary"
                                 android:textSize="14sp"
                                 android:layout_marginTop="4dp" />
@@ -810,14 +810,14 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="副屏补盲显示"
+                            android:text="Secondary Screen Blind-Spot Display"
                             android:textColor="@color/text_primary"
                             android:textSize="16sp" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="补盲激活时在副屏显示悬浮窗画面"
+                            android:text="Display floating window on secondary screen when blind-spot activates"
                             android:textColor="@color/text_secondary"
                             android:textSize="14sp"
                             android:layout_marginTop="4dp" />
@@ -834,7 +834,7 @@
                     android:id="@+id/btn_adjust_secondary_blind_spot_window"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="调整副屏悬浮窗位置"
+                    android:text="Adjust Secondary Screen Window Position"
                     android:layout_marginTop="12dp"
                     android:backgroundTint="@color/button_accent"
                     android:textColor="@color/white" />
@@ -843,7 +843,7 @@
                     android:id="@+id/btn_adjust_mjpeg_stream"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="MJPEG 视频流（投到 ESP32/浏览器）"
+                    android:text="MJPEG Video Stream (Cast to ESP32/Browser)"
                     android:layout_marginTop="12dp"
                     android:backgroundTint="@color/button_accent"
                     android:textColor="@color/white" />
@@ -875,7 +875,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="车门联动 (左右补盲)"
+                            android:text="Door Open Trigger (Side Blind Spot)"
                             android:textColor="@color/text_primary"
                             android:textSize="20sp"
                             android:textStyle="bold" />
@@ -883,7 +883,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="开启车门时自动弹出对应侧摄像头画面（复用转向联动的配置）"
+                            android:text="Auto-popup corresponding side camera view when car door opens (uses turn-signal trigger settings)"
                             android:textColor="@color/text_secondary"
                             android:textSize="14sp"
                             android:layout_marginTop="4dp" />
@@ -922,7 +922,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="全景影像避让"
+                            android:text="360 AVM Avoidance"
                             android:textColor="@color/text_primary"
                             android:textSize="20sp"
                             android:textStyle="bold" />
@@ -930,7 +930,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="EVCam本体和指定Activity在前台时自动隐藏主屏补盲窗口"
+                            android:text="Auto-hide main blind-spot window when EVCam or target Activity is foreground"
                             android:textColor="@color/text_secondary"
                             android:textSize="14sp"
                             android:layout_marginTop="4dp" />
@@ -954,7 +954,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="避让Activity完整类名"
+                        android:text="Avoidance Activity Full Class Name"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:layout_marginBottom="6dp" />
@@ -977,7 +977,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="填写 all 则在所有界面上主屏补盲都不显示，仅副屏正常工作"
+                        android:text="Enter 'all' to disable main screen overlay everywhere (secondary screen still works)"
                         android:textColor="@color/text_secondary"
                         android:textSize="12sp"
                         android:layout_marginTop="6dp" />
@@ -998,7 +998,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="调试工具"
+                    android:text="Debug Tools"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -1008,7 +1008,7 @@
                     android:id="@+id/et_log_filter"
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
-                    android:hint="输入日志过滤关键字"
+                    android:hint="Enter log filter keyword"
                     android:paddingStart="12dp"
                     android:paddingEnd="12dp"
                     android:background="@drawable/spinner_background"
@@ -1020,7 +1020,7 @@
                     android:id="@+id/btn_logcat_debug"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="打开 Logcat 实时调试"
+                    android:text="Open Real-time Logcat Debugger"
                     android:backgroundTint="@color/button_background"
                     android:textColor="@color/button_text" />
             </LinearLayout>
@@ -1037,7 +1037,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="补盲功能由抖音@星星舰见 贡献开发"
+                    android:text="Blind-spot feature contributed by @StarshipSeen"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:gravity="center"
@@ -1046,7 +1046,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="银河L6/L7、博越L车型API由抖音@阿卜IT老师 适配"
+                    android:text="Galaxy L6/L7 &amp; Boyue L API adapted by @AbuCoder"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:gravity="center"
@@ -1074,12 +1074,12 @@
                             android:layout_width="230dp"
                             android:layout_height="230dp"
                             android:scaleType="centerInside"
-                            android:contentDescription="抖音二维码" />
+                            android:contentDescription="Douyin QR Code" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="抖音@星星舰见"
+                            android:text="Douyin @StarshipSeen"
                             android:textColor="@color/text_secondary"
                             android:textSize="13sp"
                             android:layout_marginTop="4dp" />
@@ -1098,12 +1098,12 @@
                             android:layout_width="230dp"
                             android:layout_height="230dp"
                             android:scaleType="centerInside"
-                            android:contentDescription="抖音二维码2" />
+                            android:contentDescription="Douyin QR Code 2" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="抖音@阿卜IT老师"
+                            android:text="Douyin @AbuCoder"
                             android:textColor="@color/text_secondary"
                             android:textSize="13sp"
                             android:layout_marginTop="4dp" />

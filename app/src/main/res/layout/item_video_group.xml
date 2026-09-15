@@ -41,7 +41,7 @@
                         android:layout_weight="1"
                         android:scaleType="centerCrop"
                         android:background="#1A1A1A"
-                        android:contentDescription="前置" />
+                        android:contentDescription="Front" />
 
                     <View
                         android:layout_width="1dp"
@@ -55,7 +55,7 @@
                         android:layout_weight="1"
                         android:scaleType="centerCrop"
                         android:background="#1A1A1A"
-                        android:contentDescription="后置" />
+                        android:contentDescription="Rear" />
                 </LinearLayout>
 
                 <View
@@ -76,7 +76,7 @@
                         android:layout_weight="1"
                         android:scaleType="centerCrop"
                         android:background="#1A1A1A"
-                        android:contentDescription="左侧" />
+                        android:contentDescription="Left" />
 
                     <View
                         android:layout_width="1dp"
@@ -90,7 +90,7 @@
                         android:layout_weight="1"
                         android:scaleType="centerCrop"
                         android:background="#1A1A1A"
-                        android:contentDescription="右侧" />
+                        android:contentDescription="Right" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -105,7 +105,7 @@
                 android:paddingVertical="1dp"
                 android:textColor="#FFFFFF"
                 android:textSize="10sp"
-                android:text="4路" />
+                android:text="4-Channel" />
         </FrameLayout>
 
         <!-- 视频信息 -->
@@ -157,7 +157,7 @@
             android:focusable="false"
             android:checked="true"
             android:visibility="gone"
-            android:contentDescription="选中" />
+            android:contentDescription="Selected" />
     </LinearLayout>
 
 </androidx.cardview.widget.CardView>

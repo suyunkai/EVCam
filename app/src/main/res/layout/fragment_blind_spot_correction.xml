@@ -33,7 +33,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="补盲画面矫正"
+            android:text="Blind-Spot Calibration"
             android:textColor="@color/text_primary"
             android:textSize="22sp"
             android:textStyle="bold" />
@@ -71,7 +71,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="选择摄像头"
+                    android:text="Select Camera"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -87,7 +87,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="前"
+                        android:text="Front"
                         android:textSize="16sp"
                         android:backgroundTint="@color/button_accent"
                         android:textColor="@color/white" />
@@ -98,7 +98,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginStart="8dp"
-                        android:text="后"
+                        android:text="Rear"
                         android:textSize="16sp"
                         android:backgroundTint="@color/button_background"
                         android:textColor="@color/button_text" />
@@ -109,7 +109,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginStart="8dp"
-                        android:text="左"
+                        android:text="Left"
                         android:textSize="16sp"
                         android:backgroundTint="@color/button_background"
                         android:textColor="@color/button_text" />
@@ -120,7 +120,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginStart="8dp"
-                        android:text="右"
+                        android:text="Right"
                         android:textSize="16sp"
                         android:backgroundTint="@color/button_background"
                         android:textColor="@color/button_text" />
@@ -130,7 +130,7 @@
                     android:id="@+id/tv_preview_hint"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="进入本页后会自动弹出补盲悬浮窗实时预览"
+                    android:text="Opening this page automatically displays blind-spot window for live preview"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:layout_marginTop="10dp" />
@@ -147,7 +147,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="缩放 (Scale)"
+                    android:text="Scale"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -224,7 +224,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="平移 (Translate)"
+                    android:text="Translate"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -301,7 +301,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="旋转 (Rotation)"
+                    android:text="Rotation"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -316,7 +316,7 @@
                     <TextView
                         android:layout_width="72dp"
                         android:layout_height="wrap_content"
-                        android:text="角度"
+                        android:text="Angle"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -349,7 +349,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="镜像 (Mirror)"
+                    android:text="Mirror"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -366,7 +366,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="水平镜像"
+                        android:text="Horizontal Flip"
                         android:textSize="15sp"
                         android:backgroundTint="@color/button_background"
                         android:textColor="@color/button_text" />
@@ -377,7 +377,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginStart="12dp"
-                        android:text="垂直镜像"
+                        android:text="Vertical Flip"
                         android:textSize="15sp"
                         android:backgroundTint="@color/button_background"
                         android:textColor="@color/button_text" />
@@ -396,7 +396,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="恢复默认"
+                    android:text="Reset to Defaults"
                     android:backgroundTint="@color/button_background"
                     android:textColor="@color/button_text" />
 
@@ -406,7 +406,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginStart="12dp"
-                    android:text="保存并应用"
+                    android:text="Save &amp; Apply"
                     android:backgroundTint="@color/button_accent"
                     android:textColor="@color/white" />
             </LinearLayout>

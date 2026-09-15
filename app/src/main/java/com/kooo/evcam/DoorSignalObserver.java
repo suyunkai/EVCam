@@ -354,7 +354,7 @@ public class DoorSignalObserver {
             }
             
             // 副驾驶门（右侧摄像头）
-            checkDoorChange("副驾门", pass, lastDoorPassSts, (opened) -> {
+            checkDoorChange("Passenger Door", pass, lastDoorPassSts, (opened) -> {
                 isPassDoorOpen = opened;
                 if (opened) {
                     notifyDoorOpen("right");
@@ -368,7 +368,7 @@ public class DoorSignalObserver {
             lastDoorPassSts = pass;
             
             // 左后门（左侧摄像头）
-            checkDoorChange("左后门", leRe, lastDoorLeReSts, (opened) -> {
+            checkDoorChange("Rear Left Door", leRe, lastDoorLeReSts, (opened) -> {
                 isLeftRearDoorOpen = opened;
                 if (opened) {
                     notifyDoorOpen("left");
@@ -380,7 +380,7 @@ public class DoorSignalObserver {
             lastDoorLeReSts = leRe;
             
             // 右后门（右侧摄像头）
-            checkDoorChange("右后门", riRe, lastDoorRiReSts, (opened) -> {
+            checkDoorChange("Rear Right Door", riRe, lastDoorRiReSts, (opened) -> {
                 isRightRearDoorOpen = opened;
                 if (opened) {
                     notifyDoorOpen("right");
@@ -403,7 +403,7 @@ public class DoorSignalObserver {
      */
     private void checkDoorChange(String doorName, int currentState, int lastState, DoorChangeCallback callback) {
         if (currentState != lastState) {
-            String stateDesc = (currentState == 1) ? "打开" : "关闭";
+            String stateDesc = (currentState == 1) ? "Open" : "Closed";
             AppLog.i(TAG, "🚪 " + doorName + "状态变化: " + lastState + " → " + currentState + " (" + stateDesc + ")");
             
             if (currentState == 1 && lastState != 1) {

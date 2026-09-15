@@ -544,10 +544,10 @@ public class FullscreenPreviewDialog extends Dialog {
 
     private String getCameraLabel(String position) {
         switch (position) {
-            case "front": return "前";
-            case "back": return "后";
-            case "left": return "左";
-            case "right": return "右";
+            case "front": return "Front";
+            case "back": return "Rear";
+            case "left": return "Left";
+            case "right": return "Right";
             default: return position;
         }
     }

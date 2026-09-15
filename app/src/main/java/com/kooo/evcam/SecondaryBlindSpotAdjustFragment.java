@@ -94,7 +94,7 @@ public class SecondaryBlindSpotAdjustFragment extends Fragment {
         rotationAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         rotationSpinner.setAdapter(rotationAdapter);
 
-        String[] orientations = {"正常 (0°)", "顺时针90°", "倒置 (180°)", "逆时针90°"};
+        String[] orientations = {"Normal (0°)", "90° CW", "Inverted (180°)", "90° CCW"};
         ArrayAdapter<String> orientationAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, orientations);
         orientationAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         orientationSpinner.setAdapter(orientationAdapter);
@@ -108,13 +108,13 @@ public class SecondaryBlindSpotAdjustFragment extends Fragment {
         for (Display d : displays) {
             availableDisplays.add(d);
             availableDisplayIds.add(d.getDisplayId());
-            displayNames.add("Display " + d.getDisplayId() + (d.getDisplayId() == 0 ? " (主屏)" : ""));
+            displayNames.add("Display " + d.getDisplayId() + (d.getDisplayId() == 0 ? " (Main Screen)" : ""));
         }
         // 追加 EVCC 仪表投屏占位项：实际 displayId 在运行时由 EvccDashcastDisplayResolver
         // 从 EVCC ContentProvider 解析；保存到 SharedPreferences 的就是 PICK_ID(-100)。
         availableDisplays.add(null);
         availableDisplayIds.add(EvccDashcastDisplayResolver.PICK_ID);
-        displayNames.add("EVCC 仪表投屏");
+        displayNames.add("EVCC Instrument Cast");
         ArrayAdapter<String> displayAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, displayNames);
         displayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         displaySpinner.setAdapter(displayAdapter);
@@ -284,7 +284,7 @@ public class SecondaryBlindSpotAdjustFragment extends Fragment {
 
         saveButton.setOnClickListener(v -> {
             persistAllAndUpdate();
-            Toast.makeText(requireContext(), "配置已保存并应用", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Configuration saved and applied", Toast.LENGTH_SHORT).show();
         });
     }
 
@@ -302,14 +302,14 @@ public class SecondaryBlindSpotAdjustFragment extends Fragment {
     private void updateEvccPickInfo() {
         EvccDashcastDisplayResolver.Info info = EvccDashcastDisplayResolver.queryPrimary(requireContext());
         if (info != null) {
-            displayInfoText.setText(String.format("EVCC 仪表投屏当前: id=%d %d x %d", info.displayId, info.widthPx, info.heightPx));
+            displayInfoText.setText(String.format("EVCC Instrument Cast: id=%d %d x %d", info.displayId, info.widthPx, info.heightPx));
             // 用真实尺寸限制 SeekBar 上限，保持与普通屏一致的体验
             seekbarX.setMax(Math.max(info.widthPx, 1));
             seekbarY.setMax(Math.max(info.heightPx, 1));
             seekbarWidth.setMax(Math.max(info.widthPx, 1));
             seekbarHeight.setMax(Math.max(info.heightPx, 1));
         } else {
-            displayInfoText.setText("EVCC 仪表投屏未启动；副屏将在 EVCC 启动投屏后自动投到该屏");
+            displayInfoText.setText("EVCC Instrument Cast not running; display will cast automatically when EVCC starts");
         }
     }
 
@@ -339,7 +339,7 @@ public class SecondaryBlindSpotAdjustFragment extends Fragment {
     private void updateDisplayInfo(Display display) {
         android.util.DisplayMetrics metrics = new android.util.DisplayMetrics();
         display.getRealMetrics(metrics);
-        displayInfoText.setText(String.format("当前屏幕分辨率: %d x %d", metrics.widthPixels, metrics.heightPixels));
+        displayInfoText.setText(String.format("Current Screen Resolution: %d x %d", metrics.widthPixels, metrics.heightPixels));
 
         seekbarX.setMax(metrics.widthPixels);
         seekbarY.setMax(metrics.heightPixels);

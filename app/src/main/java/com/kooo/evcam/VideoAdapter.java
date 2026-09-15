@@ -125,23 +125,23 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
 
             holder.btnDelete.setOnClickListener(v -> {
                 new MaterialAlertDialogBuilder(context, R.style.Theme_Cam_MaterialAlertDialog)
-                        .setTitle("确认删除")
-                        .setMessage("确定要删除 " + videoFile.getName() + " 吗？")
-                        .setPositiveButton("删除", (dialog, which) -> {
+                        .setTitle("Confirm Delete")
+                        .setMessage("Are you sure you want to delete " + videoFile.getName() + "?")
+                        .setPositiveButton("Delete", (dialog, which) -> {
                             if (videoFile.delete()) {
                                 videoFiles.remove(position);
                                 notifyItemRemoved(position);
                                 notifyItemRangeChanged(position, videoFiles.size());
-                                Toast.makeText(context, "已删除", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show();
 
                                 if (deleteListener != null) {
                                     deleteListener.onVideoDeleted();
                                 }
                             } else {
-                                Toast.makeText(context, "删除失败", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(context, "Delete failed", Toast.LENGTH_SHORT).show();
                             }
                         })
-                        .setNegativeButton("取消", null)
+                        .setNegativeButton("Cancel", null)
                         .show();
             });
         }

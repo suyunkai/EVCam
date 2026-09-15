@@ -218,11 +218,11 @@ public class RecordingConfig {
     public static String getBitrateLevelDisplayName(String level) {
         switch (level) {
             case BITRATE_HIGH:
-                return "高";
+                return "High";
             case BITRATE_LOW:
-                return "低";
+                return "Low";
             default:
-                return "标准";
+                return "Standard";
         }
     }
 
@@ -253,7 +253,7 @@ public class RecordingConfig {
     }
 
     public static String getFramerateLevelDisplayName(String level) {
-        return FRAMERATE_LOW.equals(level) ? "低" : "标准";
+        return FRAMERATE_LOW.equals(level) ? "Low" : "Standard";
     }
 
     // ========== 编码缩放 ==========
@@ -269,10 +269,10 @@ public class RecordingConfig {
     }
 
     public static String getEncodeScaleDisplayName(float scale) {
-        if (scale >= 0.99f) return "原画（高码率）";
-        if (scale >= 0.74f && scale <= 0.76f) return "高画质（推荐）";
-        if (scale >= 0.49f && scale <= 0.51f) return "中画质";
-        if (scale >= 0.24f && scale <= 0.26f) return "低画质";
+        if (scale >= 0.99f) return "Original (High Bitrate)";
+        if (scale >= 0.74f && scale <= 0.76f) return "High Quality (Recommended)";
+        if (scale >= 0.49f && scale <= 0.51f) return "Medium Quality";
+        if (scale >= 0.24f && scale <= 0.26f) return "Low Quality";
         return String.format(Locale.getDefault(), "%.0f%%", scale * 100);
     }
 
@@ -428,17 +428,17 @@ public class RecordingConfig {
     public static String getWatermarkColorName(int color) {
         switch (color) {
             case WATERMARK_COLOR_RED:
-                return "红色";
+                return "Red";
             case WATERMARK_COLOR_GREEN:
-                return "绿色";
+                return "Green";
             case WATERMARK_COLOR_BLUE:
-                return "蓝色";
+                return "Blue";
             case WATERMARK_COLOR_YELLOW:
-                return "黄色";
+                return "Yellow";
             case WATERMARK_COLOR_CYAN:
-                return "青色";
+                return "Cyan";
             default:
-                return "白色";
+                return "White";
         }
     }
 
@@ -454,17 +454,17 @@ public class RecordingConfig {
     public static String getWatermarkStyleName(int style) {
         switch (style) {
             case WATERMARK_STYLE_CLASSIC:
-                return "经典";
+                return "Classic";
             case WATERMARK_STYLE_DASHCAM:
-                return "行车记录仪";
+                return "Dashcam";
             case WATERMARK_STYLE_CINEMA:
-                return "电影字幕";
+                return "Movie Subtitle";
             case WATERMARK_STYLE_HUD:
-                return "HUD 抬头";
+                return "HUD";
             case WATERMARK_STYLE_MINIMAL:
-                return "极简";
+                return "Minimal";
             default:
-                return "未知";
+                return "Unknown";
         }
     }
 

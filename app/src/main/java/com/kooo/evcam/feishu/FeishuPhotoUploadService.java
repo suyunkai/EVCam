@@ -39,11 +39,11 @@ public class FeishuPhotoUploadService {
         new Thread(() -> {
             try {
                 if (photoFiles == null || photoFiles.isEmpty()) {
-                    callback.onError("没有图片文件可上传");
+                    callback.onError("No photo files to upload");
                     return;
                 }
 
-                callback.onProgress("开始上传 " + photoFiles.size() + " 张照片...");
+                callback.onProgress("Starting upload: " + photoFiles.size() + " photos...");
 
                 List<String> uploadedFiles = new ArrayList<>();
                 List<String> failedFiles = new ArrayList<>();
@@ -53,11 +53,11 @@ public class FeishuPhotoUploadService {
 
                     if (!photoFile.exists()) {
                         AppLog.w(TAG, "图片文件不存在: " + photoFile.getPath());
-                        failedFiles.add(photoFile.getName() + " (文件不存在)");
+                        failedFiles.add(photoFile.getName() + " (File does not exist)");
                         continue;
                     }
 
-                    callback.onProgress("正在上传 (" + (i + 1) + "/" + photoFiles.size() + "): " + photoFile.getName());
+                    callback.onProgress("Uploading (" + (i + 1) + "/" + photoFiles.size() + "): " + photoFile.getName());
 
                     // 重试上传（最多2次）
                     boolean uploadSuccess = false;
@@ -68,7 +68,7 @@ public class FeishuPhotoUploadService {
                     while (!uploadSuccess && retryCount < maxRetries) {
                         try {
                             if (retryCount > 0) {
-                                callback.onProgress("重试第 " + retryCount + " 次: " + photoFile.getName());
+                                callback.onProgress("Retry #" + retryCount + ": " + photoFile.getName());
                                 Thread.sleep(1500);
                             }
 
@@ -88,7 +88,7 @@ public class FeishuPhotoUploadService {
                             AppLog.e(TAG, "上传图片失败 (尝试 " + retryCount + "/" + maxRetries + "): " + photoFile.getName(), e);
 
                             if (retryCount >= maxRetries) {
-                                failedFiles.add(photoFile.getName() + " (" + (lastError != null ? lastError : "未知错误") + ")");
+                                failedFiles.add(photoFile.getName() + " (" + (lastError != null ? lastError : "Unknown error") + ")");
                                 break;
                             }
                         }
@@ -102,19 +102,19 @@ public class FeishuPhotoUploadService {
 
                 // 统一处理上传结果
                 if (uploadedFiles.isEmpty()) {
-                    String errorMsg = "❌ 所有图片上传失败\n失败列表:\n" + String.join("\n", failedFiles);
+                    String errorMsg = "❌ All photos failed to upload\nFailure list:\n" + String.join("\n", failedFiles);
                     callback.onError(errorMsg);
                     apiClient.sendTextMessage("chat_id", chatId, errorMsg);
                 } else if (failedFiles.isEmpty()) {
-                    String successMessage = "✅ 图片上传完成！共上传 " + uploadedFiles.size() + " 张照片";
+                    String successMessage = "✅ Photo upload complete! Total uploaded: " + uploadedFiles.size() + " photos";
                     callback.onSuccess(successMessage);
                     Thread.sleep(2000);
                     apiClient.sendTextMessage("chat_id", chatId, successMessage);
                 } else {
-                    String mixedMessage = "⚠️ 上传完成（部分失败）\n" +
-                            "成功: " + uploadedFiles.size() + " 张\n" +
-                            "失败: " + failedFiles.size() + " 张\n\n" +
-                            "失败列表:\n" + String.join("\n", failedFiles);
+                    String mixedMessage = "⚠️ Upload finished (partial failure)\n" +
+                            "Success: " + uploadedFiles.size() + " photos\n" +
+                            "Failed: " + failedFiles.size() + " photos\n\n" +
+                            "Failure list:\n" + String.join("\n", failedFiles);
                     callback.onSuccess(mixedMessage);
                     Thread.sleep(2000);
                     apiClient.sendTextMessage("chat_id", chatId, mixedMessage);

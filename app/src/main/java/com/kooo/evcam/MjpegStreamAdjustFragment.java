@@ -107,7 +107,7 @@ public class MjpegStreamAdjustFragment extends Fragment {
     }
 
     private void initSpinners() {
-        String[] cameras = {"左 (left)", "右 (right)", "前 (front)", "后 (back)"};
+        String[] cameras = {"Left (left)", "Right (right)", "Front (front)", "Rear (back)"};
         String[] cameraValues = {"left", "right", "front", "back"};
         ArrayAdapter<String> camAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_item, cameras);
@@ -121,7 +121,7 @@ public class MjpegStreamAdjustFragment extends Fragment {
         rotAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         rotationSpinner.setAdapter(rotAdapter);
 
-        String[] modes = {"服务器模式", "客户端推流"};
+        String[] modes = {"Server Mode", "Client Stream"};
         String[] modeValues = {"SERVER", "CLIENT"};
         ArrayAdapter<String> modeAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_item, modes);
@@ -135,8 +135,8 @@ public class MjpegStreamAdjustFragment extends Fragment {
     private void setupProtocolOptions(String mode, String selectedProto) {
         boolean clientMode = "CLIENT".equalsIgnoreCase(mode);
         String[] labels = clientMode
-                ? new String[]{"TCP (主动连接)", "UDP (主动发送)", "RTP (JPEG 推送)"}
-                : new String[]{"HTTP (浏览器调试)", "TCP (裸 TCP, ESP32)", "UDP (分片, ESP32)"};
+                ? new String[]{"TCP (Active Connect)", "UDP (Active Send)", "RTP (JPEG Push)"}
+                : new String[]{"HTTP (Browser Debug)", "TCP (Raw TCP, ESP32)", "UDP (Fragmented, ESP32)"};
         String[] values = clientMode
                 ? new String[]{"TCP", "UDP", "RTP"}
                 : new String[]{"HTTP", "TCP", "UDP"};
@@ -212,7 +212,7 @@ public class MjpegStreamAdjustFragment extends Fragment {
         }
     }
 
-    /** 联动模式开启时隐藏"默认摄像头"选择；关闭时显示。 */
+    /** 联动模式开启时隐藏"Default Camera"选择；关闭时显示。 */
     private void updateDefaultCameraVisibility() {
         boolean linkage = linkageSwitch.isChecked();
         defaultCameraLayout.setVisibility(linkage ? View.GONE : View.VISIBLE);
@@ -294,7 +294,7 @@ public class MjpegStreamAdjustFragment extends Fragment {
                 appConfig.setMjpegStreamCamera(currentCameraPos());
                 loadFisheyeParams();  // 切摄像头后刷新鱼眼参数显示
                 if (manager != null && manager.isRunning()) {
-                    Toast.makeText(requireContext(), "摄像头变更需重启流生效", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(requireContext(), "Camera change requires stream restart to take effect", Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -311,7 +311,7 @@ public class MjpegStreamAdjustFragment extends Fragment {
                 setupProtocolOptions(mode, proto);
                 updateModeVisibility();
                 if (manager != null && manager.isRunning()) {
-                    Toast.makeText(requireContext(), "模式变更需重启流生效", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(requireContext(), "Mode change requires stream restart to take effect", Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -322,7 +322,7 @@ public class MjpegStreamAdjustFragment extends Fragment {
                 String[] vals = (String[]) protocolSpinner.getTag();
                 appConfig.setMjpegStreamProtocol(vals[pos]);
                 if (manager != null && manager.isRunning()) {
-                    Toast.makeText(requireContext(), "协议变更需重启流生效", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(requireContext(), "Protocol change requires stream restart to take effect", Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -381,19 +381,19 @@ public class MjpegStreamAdjustFragment extends Fragment {
             appConfig.setMjpegStreamHeight(h);
             if (manager != null && manager.isRunning()) {
                 manager.applyParams();
-                Toast.makeText(requireContext(), "分辨率已应用", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Resolution applied", Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(requireContext(), "已保存，启动后生效", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Saved, takes effect after start", Toast.LENGTH_SHORT).show();
             }
         } catch (NumberFormatException e) {
-            Toast.makeText(requireContext(), "分辨率输入无效", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Invalid resolution input", Toast.LENGTH_SHORT).show();
         }
     }
 
     private void saveAndApply() {
         saveConnectionSettings();
         applyLiveParams();
-        Toast.makeText(requireContext(), "已保存并应用", Toast.LENGTH_SHORT).show();
+        Toast.makeText(requireContext(), "Saved and applied", Toast.LENGTH_SHORT).show();
     }
 
     private void saveConnectionSettings() {
@@ -422,7 +422,7 @@ public class MjpegStreamAdjustFragment extends Fragment {
         saveConnectionSettings();
         MultiCameraManager cm = CameraManagerHolder.getInstance().getCameraManager();
         if (cm == null) {
-            Toast.makeText(requireContext(), "相机管理器未就绪，请先返回主界面", Toast.LENGTH_LONG).show();
+            Toast.makeText(requireContext(), "Camera manager not ready, please return to main screen first", Toast.LENGTH_LONG).show();
             enabledSwitch.setChecked(false);
             return;
         }
@@ -433,7 +433,7 @@ public class MjpegStreamAdjustFragment extends Fragment {
         manager.setClientListener(count -> uiHandler.post(() -> {
             if (count != lastClientCount) {
                 lastClientCount = count;
-                clientCountText.setText("客户端: " + count);
+                clientCountText.setText("Clients: " + count);
             }
             if (manager != null) {
                 accessUrlText.setText(formatAccessText(manager.getAccessUrl()));
@@ -442,7 +442,7 @@ public class MjpegStreamAdjustFragment extends Fragment {
         }));
         String url = manager.start(cm);
         if (url == null) {
-            Toast.makeText(requireContext(), "启动失败，请检查端口或相机", Toast.LENGTH_LONG).show();
+            Toast.makeText(requireContext(), "Start failed. Please check port or camera", Toast.LENGTH_LONG).show();
             enabledSwitch.setChecked(false);
             manager = null;
             return;
@@ -453,17 +453,17 @@ public class MjpegStreamAdjustFragment extends Fragment {
     private void stopStream() {
         MjpegStreamManager.stopInstance();
         manager = null;
-        accessUrlText.setText("未启动");
-        clientCountText.setText("客户端: 0");
+        accessUrlText.setText("Not Started");
+        clientCountText.setText("Clients: 0");
         lastClientCount = -1;
     }
 
     private String formatAccessText(String url) {
-        if (url == null || url.isEmpty()) return "未启动";
-        if (url.startsWith("discover://")) return "自动发现中: UDP 8444";
-        if (url.startsWith("client://not-configured")) return "客户端未配置";
-        if (url.startsWith("http://")) return "访问: " + url;
-        return "目标: " + url;
+        if (url == null || url.isEmpty()) return "Not Started";
+        if (url.startsWith("discover://")) return "Auto-discovering: UDP 8444";
+        if (url.startsWith("client://not-configured")) return "Client not configured";
+        if (url.startsWith("http://")) return "Access: " + url;
+        return "Target: " + url;
     }
 
     private void refreshClientFieldsFromConfig() {

@@ -16,7 +16,7 @@ import java.io.OutputStream;
  * 2. ecarx_str_policies.xml - Ecarx STR 白名单
  * 3. bgms_config.xml - BGMS 后台管理白名单
  * 
- * 通过 ADB TCP 协议（localhost:5555）执行，与"一键获取权限"使用相同的通道。
+ * 通过 ADB TCP 协议（localhost:5555）执行，与"One-Click Grant Permissions"使用相同的通道。
  */
 public class SystemWhitelistHelper {
 
@@ -49,15 +49,15 @@ public class SystemWhitelistHelper {
      */
     public void executeWhitelistSetup(Callback callback) {
         // 步骤 1：将脚本从 assets 复制到缓存目录
-        callback.onLog("[INFO] 正在准备脚本文件...");
+        callback.onLog("[INFO] Preparing script files...");
 
         File scriptFile = copyScriptFromAssets(SCRIPT_ASSET_NAME);
         if (scriptFile == null) {
-            callback.onLog("[ERROR] 无法准备脚本文件");
+            callback.onLog("[ERROR] Unable to prepare script files");
             callback.onComplete(false);
             return;
         }
-        callback.onLog("[OK] 脚本已准备: " + scriptFile.getAbsolutePath());
+        callback.onLog("[OK] Script ready: " + scriptFile.getAbsolutePath());
         callback.onLog("");
 
         // 步骤 2：通过 ADB 执行脚本
@@ -90,15 +90,15 @@ public class SystemWhitelistHelper {
      * 3. 实时输出脚本日志
      */
     public void executeWhitelistRestore(Callback callback) {
-        callback.onLog("[INFO] 正在准备恢复脚本...");
+        callback.onLog("[INFO] Preparing restore script...");
 
         File scriptFile = copyScriptFromAssets(RESTORE_SCRIPT_ASSET_NAME);
         if (scriptFile == null) {
-            callback.onLog("[ERROR] 无法准备恢复脚本");
+            callback.onLog("[ERROR] Unable to prepare restore script");
             callback.onComplete(false);
             return;
         }
-        callback.onLog("[OK] 脚本已准备: " + scriptFile.getAbsolutePath());
+        callback.onLog("[OK] Script ready: " + scriptFile.getAbsolutePath());
         callback.onLog("");
 
         if (adbHelper == null) {

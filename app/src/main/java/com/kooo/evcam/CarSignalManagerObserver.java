@@ -353,11 +353,11 @@ public class CarSignalManagerObserver {
      */
     private String getTurnSignalDesc(int status) {
         switch (status) {
-            case 0: return "关闭";
-            case 1: return "左转";
-            case 2: return "右转";
-            case 3: return "双闪";
-            default: return "未知(" + status + ")";
+            case 0: return "Off";
+            case 1: return "Left Turn";
+            case 2: return "Right Turn";
+            case 3: return "Hazard Lights";
+            default: return "Unknown(" + status + ")";
         }
     }
 }

@@ -71,7 +71,7 @@ public class FeishuApiClient {
             AppLog.d(TAG, "Access Token 响应: " + responseBody);
 
             if (!response.isSuccessful()) {
-                throw new IOException("获取 Access Token 失败: " + response.code() + " - " + responseBody);
+                throw new IOException("Failed to get Access Token: " + response.code() + " - " + responseBody);
             }
 
             JsonObject jsonResponse = gson.fromJson(responseBody, JsonObject.class);
@@ -80,7 +80,7 @@ public class FeishuApiClient {
             int code = jsonResponse.has("code") ? jsonResponse.get("code").getAsInt() : -1;
             if (code != 0) {
                 String msg = jsonResponse.has("msg") ? jsonResponse.get("msg").getAsString() : "Unknown error";
-                throw new IOException("获取 Access Token 失败: code=" + code + ", msg=" + msg);
+                throw new IOException("Failed to get Access Token: code=" + code + ", msg=" + msg);
             }
 
             if (jsonResponse.has("tenant_access_token")) {
@@ -94,14 +94,14 @@ public class FeishuApiClient {
                 AppLog.d(TAG, "Access Token 获取成功");
                 return accessToken;
             } else {
-                throw new IOException("响应中没有 tenant_access_token: " + responseBody);
+                throw new IOException("No tenant_access_token in response: " + responseBody);
             }
         }
     }
 
     /**
      * 获取 WebSocket 连接信息（用于长连接接收消息）
-     * 注意：需要在飞书开发者后台开启"长连接"模式
+     * 注意：需要在飞书开发者后台开启"Long Connection"模式
      * 
      * 根据飞书官方 SDK 实现，此接口需要直接传递 AppID 和 AppSecret，
      * 而不是使用 Bearer Token 认证。
@@ -132,7 +132,7 @@ public class FeishuApiClient {
             AppLog.d(TAG, "WebSocket 连接信息响应: " + responseBody);
 
             if (!response.isSuccessful()) {
-                throw new IOException("获取 WebSocket 连接失败: " + response.code() + " - " + responseBody);
+                throw new IOException("Failed to get WebSocket connection: " + response.code() + " - " + responseBody);
             }
 
             JsonObject jsonResponse = gson.fromJson(responseBody, JsonObject.class);
@@ -140,7 +140,7 @@ public class FeishuApiClient {
             int code = jsonResponse.has("code") ? jsonResponse.get("code").getAsInt() : -1;
             if (code != 0) {
                 String msg = jsonResponse.has("msg") ? jsonResponse.get("msg").getAsString() : "Unknown error";
-                throw new IOException("获取 WebSocket 连接失败: code=" + code + ", msg=" + msg);
+                throw new IOException("Failed to get WebSocket connection: code=" + code + ", msg=" + msg);
             }
 
             JsonObject data = jsonResponse.getAsJsonObject("data");
@@ -186,8 +186,8 @@ public class FeishuApiClient {
         try (Response response = httpClient.newCall(request).execute()) {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
-                AppLog.e(TAG, "发送消息失败: " + responseBody);
-                throw new IOException("发送消息失败: " + response.code() + ", " + responseBody);
+                AppLog.e(TAG, "Failed to send message: " + responseBody);
+                throw new IOException("Failed to send message: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "消息发送成功: " + responseBody);
         }
@@ -225,8 +225,8 @@ public class FeishuApiClient {
         try (Response response = httpClient.newCall(request).execute()) {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
-                AppLog.e(TAG, "回复消息失败: " + responseBody);
-                throw new IOException("回复消息失败: " + response.code() + ", " + responseBody);
+                AppLog.e(TAG, "Failed to reply message: " + responseBody);
+                throw new IOException("Failed to reply message: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "回复消息成功: " + responseBody);
         }
@@ -261,8 +261,8 @@ public class FeishuApiClient {
         try (Response response = httpClient.newCall(request).execute()) {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
-                AppLog.e(TAG, "上传图片失败: " + responseBody);
-                throw new IOException("上传图片失败: " + response.code() + ", " + responseBody);
+                AppLog.e(TAG, "Failed to upload photo: " + responseBody);
+                throw new IOException("Failed to upload photo: " + response.code() + ", " + responseBody);
             }
 
             JsonObject jsonResponse = gson.fromJson(responseBody, JsonObject.class);
@@ -305,8 +305,8 @@ public class FeishuApiClient {
         try (Response response = httpClient.newCall(request).execute()) {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
-                AppLog.e(TAG, "发送图片消息失败: " + responseBody);
-                throw new IOException("发送图片消息失败: " + response.code() + ", " + responseBody);
+                AppLog.e(TAG, "Failed to send photo message: " + responseBody);
+                throw new IOException("Failed to send photo message: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "图片消息发送成功: " + responseBody);
         }
@@ -361,8 +361,8 @@ public class FeishuApiClient {
         try (Response response = httpClient.newCall(request).execute()) {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
-                AppLog.e(TAG, "上传文件失败: " + responseBody);
-                throw new IOException("上传文件失败: " + response.code() + ", " + responseBody);
+                AppLog.e(TAG, "Failed to upload file: " + responseBody);
+                throw new IOException("Failed to upload file: " + response.code() + ", " + responseBody);
             }
 
             JsonObject jsonResponse = gson.fromJson(responseBody, JsonObject.class);
@@ -405,8 +405,8 @@ public class FeishuApiClient {
         try (Response response = httpClient.newCall(request).execute()) {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
-                AppLog.e(TAG, "发送文件消息失败: " + responseBody);
-                throw new IOException("发送文件消息失败: " + response.code() + ", " + responseBody);
+                AppLog.e(TAG, "Failed to send file message: " + responseBody);
+                throw new IOException("Failed to send file message: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "文件消息发送成功: " + responseBody);
         }
@@ -450,8 +450,8 @@ public class FeishuApiClient {
         try (Response response = httpClient.newCall(request).execute()) {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
-                AppLog.e(TAG, "发送视频消息失败: " + responseBody);
-                throw new IOException("发送视频消息失败: " + response.code() + ", " + responseBody);
+                AppLog.e(TAG, "Failed to send video message: " + responseBody);
+                throw new IOException("Failed to send video message: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "视频消息发送成功: " + responseBody);
         }

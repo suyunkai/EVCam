@@ -1107,7 +1107,7 @@
                             android:layout_height="wrap_content"
                             android:layout_gravity="center_horizontal"
                             android:layout_marginBottom="12dp"
-                            android:text="布局调节模式"
+                            android:text="Layout Adjustment Mode"
                             android:textColor="#FFFFFF"
                             android:textSize="20sp"
                             android:textStyle="bold" />
@@ -1118,7 +1118,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:layout_marginBottom="8dp"
-                            android:text="底部按钮调节："
+                            android:text="Bottom Button Adjustment:"
                             android:textColor="#AAAAAA"
                             android:textSize="14sp" />
 
@@ -1194,7 +1194,7 @@
                                 android:layout_width="90dp"
                                 android:layout_height="50dp"
                                 android:layout_margin="4dp"
-                                android:text="保存"
+                                android:text="Save"
                                 android:textSize="16sp"
                                 android:textColor="#FFFFFF"
                                 android:backgroundTint="#007AFF"
@@ -1207,7 +1207,7 @@
                                 android:layout_width="90dp"
                                 android:layout_height="50dp"
                                 android:layout_margin="4dp"
-                                android:text="重置"
+                                android:text="Reset"
                                 android:textSize="16sp"
                                 android:textColor="#FFFFFF"
                                 android:backgroundTint="#FF453A"
@@ -1220,7 +1220,7 @@
                                 android:layout_width="90dp"
                                 android:layout_height="50dp"
                                 android:layout_margin="4dp"
-                                android:text="重载"
+                                android:text="Reload"
                                 android:textSize="16sp"
                                 android:textColor="#FFFFFF"
                                 android:backgroundTint="#FF9800"
@@ -1234,7 +1234,7 @@
                             android:layout_height="wrap_content"
                             android:layout_gravity="center_horizontal"
                             android:layout_marginTop="12dp"
-                            android:text="直接拖动画面调整位置"
+                            android:text="Drag video feed directly to adjust position"
                             android:textColor="#888888"
                             android:textSize="12sp" />
 

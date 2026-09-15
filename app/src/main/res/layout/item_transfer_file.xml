@@ -42,7 +42,7 @@
         android:id="@+id/file_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="等待"
+        android:text="Waiting"
         android:textSize="12sp"
         android:textColor="#1976D2" />
 

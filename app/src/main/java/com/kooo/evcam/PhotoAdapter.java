@@ -123,23 +123,23 @@ public class PhotoAdapter extends RecyclerView.Adapter<PhotoAdapter.PhotoViewHol
 
             holder.btnDelete.setOnClickListener(v -> {
                 new MaterialAlertDialogBuilder(context, R.style.Theme_Cam_MaterialAlertDialog)
-                        .setTitle("确认删除")
-                        .setMessage("确定要删除 " + photoFile.getName() + " 吗？")
-                        .setPositiveButton("删除", (dialog, which) -> {
+                        .setTitle("Confirm Delete")
+                        .setMessage("Are you sure you want to delete " + photoFile.getName() + "?")
+                        .setPositiveButton("Delete", (dialog, which) -> {
                             if (photoFile.delete()) {
                                 photoFiles.remove(position);
                                 notifyItemRemoved(position);
                                 notifyItemRangeChanged(position, photoFiles.size());
-                                Toast.makeText(context, "已删除", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show();
 
                                 if (deleteListener != null) {
                                     deleteListener.onPhotoDeleted();
                                 }
                             } else {
-                                Toast.makeText(context, "删除失败", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(context, "Delete failed", Toast.LENGTH_SHORT).show();
                             }
                         })
-                        .setNegativeButton("取消", null)
+                        .setNegativeButton("Cancel", null)
                         .show();
             });
         }

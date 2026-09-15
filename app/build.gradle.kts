@@ -13,6 +13,8 @@ android {
             storePassword = "android"
             keyAlias = "apkeasytool"
             keyPassword = "android"
+            enableV1Signing = true
+            enableV2Signing = true
         }
     }
 
@@ -21,7 +23,7 @@ android {
         minSdk = 28
         targetSdk = 36
         versionCode = 77
-        versionName = "1.6.6-test-06220930"
+        versionName = "1.6.6-test-09151950"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

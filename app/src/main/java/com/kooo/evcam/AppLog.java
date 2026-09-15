@@ -234,9 +234,9 @@ public final class AppLog {
         String endTime = extractTimeFromLogLine(lastLine);
         
         if (startTime != null && endTime != null) {
-            return lineCount + " 条日志 (" + startTime + " ~ " + endTime + ")";
+            return lineCount + " log entries (" + startTime + " ~ " + endTime + ")";
         } else {
-            return lineCount + " 条日志";
+            return lineCount + " log entries";
         }
     }
     
@@ -356,7 +356,7 @@ public final class AppLog {
                 }
                 
                 if (snapshot.isEmpty()) {
-                    callback.onError(uploadPreviousSession ? "上次运行日志为空" : "日志为空");
+                    callback.onError(uploadPreviousSession ? "Previous session log is empty" : "Log is empty");
                     return;
                 }
                 
@@ -372,23 +372,23 @@ public final class AppLog {
                 }
                 
                 // 构建日志内容
-                String logType = uploadPreviousSession ? "上次运行日志" : "本次运行日志";
+                String logType = uploadPreviousSession ? "Previous Session Log" : "Current Session Log";
                 StringBuilder logContent = new StringBuilder();
-                logContent.append("=== EVCam 日志上传 (").append(logType).append(") ===\n");
-                logContent.append("用户标识: ").append(deviceNickname != null ? deviceNickname : "未知").append("\n");
-                logContent.append("设备型号: ").append(Build.MODEL).append("\n");
-                logContent.append("系统版本: Android ").append(Build.VERSION.RELEASE)
+                logContent.append("=== EVDashcam Log Upload (").append(logType).append(") ===\n");
+                logContent.append("User ID: ").append(deviceNickname != null ? deviceNickname : "Unknown").append("\n");
+                logContent.append("Device Model: ").append(Build.MODEL).append("\n");
+                logContent.append("OS Version: Android ").append(Build.VERSION.RELEASE)
                          .append(" (API ").append(Build.VERSION.SDK_INT).append(")\n");
-                logContent.append("应用版本: ").append(versionName)
+                logContent.append("App Version: ").append(versionName)
                          .append(" (").append(versionCode).append(")\n");
-                logContent.append("上传时间: ").append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.CHINA).format(new Date())).append("\n");
-                logContent.append("日志类型: ").append(logType).append("\n");
-                logContent.append("日志条数: ").append(snapshot.size()).append("\n");
+                logContent.append("Upload Time: ").append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date())).append("\n");
+                logContent.append("Log Type: ").append(logType).append("\n");
+                logContent.append("Log Entries: ").append(snapshot.size()).append("\n");
                 logContent.append("========================\n\n");
                 
                 // 添加问题描述
-                logContent.append("【问题描述】\n");
-                logContent.append(problemDescription != null ? problemDescription : "（无）").append("\n\n");
+                logContent.append("[Problem Description]\n");
+                logContent.append(problemDescription != null ? problemDescription : "(None)").append("\n\n");
                 logContent.append("========================\n\n");
                 
                 for (String line : snapshot) {

@@ -16,7 +16,7 @@
             android:id="@+id/btn_clear_log"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="清空"
+            android:text="Clear"
             android:backgroundTint="#444444"
             android:textColor="#FFFFFF" />
 
@@ -24,7 +24,7 @@
             android:id="@+id/btn_save_log"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="保存日志"
+            android:text="Save Log"
             android:backgroundTint="#2E7D32"
             android:textColor="#FFFFFF"
             android:layout_marginStart="8dp" />
@@ -38,7 +38,7 @@
             android:id="@+id/btn_close_log"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="关闭"
+            android:text="Close"
             android:backgroundTint="#D32F2F"
             android:textColor="#FFFFFF" />
     </LinearLayout>

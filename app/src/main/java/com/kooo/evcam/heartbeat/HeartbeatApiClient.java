@@ -53,11 +53,11 @@ public class HeartbeatApiClient {
                                           byte[] imageBytes, int imageWidth, int imageHeight,
                                           int cameraCount, String appStatus) {
         if (serverUrl == null || serverUrl.isEmpty()) {
-            return new HeartbeatResult(false, "服务器地址未配置");
+            return new HeartbeatResult(false, "Server URL not configured");
         }
         
         if (imageBytes == null || imageBytes.length == 0) {
-            return new HeartbeatResult(false, "图片数据为空");
+            return new HeartbeatResult(false, "Photo data is empty");
         }
         
         try {
@@ -67,7 +67,7 @@ public class HeartbeatApiClient {
             String signature = generateSignature(vehicleId, timestamp, nonce, secretKey);
             
             if (signature == null) {
-                return new HeartbeatResult(false, "签名生成失败");
+                return new HeartbeatResult(false, "Signature generation failed");
             }
             
             // 构建 JSON 请求体
@@ -95,7 +95,7 @@ public class HeartbeatApiClient {
                 
                 if (response.isSuccessful()) {
                     AppLog.d(TAG, "心跳请求成功: " + code);
-                    return new HeartbeatResult(true, "成功", code, responseBody);
+                    return new HeartbeatResult(true, "Success", code, responseBody);
                 } else {
                     AppLog.w(TAG, "心跳请求失败: " + code + ", " + responseBody);
                     return new HeartbeatResult(false, "HTTP " + code + ": " + responseBody, code, responseBody);

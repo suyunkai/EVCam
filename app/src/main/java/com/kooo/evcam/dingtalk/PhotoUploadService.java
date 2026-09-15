@@ -42,11 +42,11 @@ public class PhotoUploadService {
         new Thread(() -> {
             try {
                 if (photoFiles == null || photoFiles.isEmpty()) {
-                    callback.onError("没有图片文件可上传");
+                    callback.onError("No photo files to upload");
                     return;
                 }
 
-                callback.onProgress("开始上传 " + photoFiles.size() + " 张照片...");
+                callback.onProgress("Starting upload: " + photoFiles.size() + " photos...");
 
                 List<String> uploadedFiles = new ArrayList<>();
 
@@ -58,16 +58,16 @@ public class PhotoUploadService {
                         continue;
                     }
 
-                    callback.onProgress("正在上传 (" + (i + 1) + "/" + photoFiles.size() + "): " + photoFile.getName());
+                    callback.onProgress("Uploading (" + (i + 1) + "/" + photoFiles.size() + "): " + photoFile.getName());
 
                     try {
                         // 1. 上传图片到钉钉（使用 image 类型）
-                        callback.onProgress("正在上传图片 (" + (i + 1) + "/" + photoFiles.size() + ")...");
+                        callback.onProgress("Uploading photo (" + (i + 1) + "/" + photoFiles.size() + ")...");
                         String mediaId = apiClient.uploadImage(photoFile);
                         AppLog.d(TAG, "图片上传成功，mediaId: " + mediaId);
 
                         // 2. 尝试使用 mediaId 发送图片消息
-                        callback.onProgress("正在发送图片消息 (" + (i + 1) + "/" + photoFiles.size() + ")...");
+                        callback.onProgress("Sending photo message (" + (i + 1) + "/" + photoFiles.size() + ")...");
                         try {
                             // 尝试直接使用 mediaId 作为 photoURL (可能钉钉会自动处理)
                             apiClient.sendImageMessage(conversationId, conversationType, mediaId, userId);
@@ -83,7 +83,7 @@ public class PhotoUploadService {
 
                         // 3. 延迟2秒后再上传下一张照片，减少网络和系统压力
                         if (i < photoFiles.size() - 1) {  // 不是最后一张照片
-                            callback.onProgress("等待2秒后上传下一张照片...");
+                            callback.onProgress("Waiting 2 seconds before uploading next photo...");
                             Thread.sleep(2000);
                         }
 
@@ -94,13 +94,13 @@ public class PhotoUploadService {
                 }
 
                 if (uploadedFiles.isEmpty()) {
-                    callback.onError("所有图片上传失败");
+                    callback.onError("All photo uploads failed");
                 } else {
-                    String successMessage = "图片上传完成！共上传 " + uploadedFiles.size() + " 张照片";
+                    String successMessage = "Photo upload complete! Total uploaded: " + uploadedFiles.size() + " photos";
                     callback.onSuccess(successMessage);
 
                     // 等待3秒，确保图片消息被钉钉服务器处理完毕后再发送完成消息
-                    // 避免"上传完成"消息比图片先到达用户端
+                    // 避免"Upload complete"消息比图片先到达用户端
                     try {
                         Thread.sleep(3000);
                     } catch (InterruptedException ignored) {}

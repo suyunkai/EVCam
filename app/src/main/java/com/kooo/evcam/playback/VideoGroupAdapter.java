@@ -105,7 +105,7 @@ public class VideoGroupAdapter extends RecyclerView.Adapter<VideoGroupAdapter.Vi
 
         // 视频路数标签
         int count = group.getVideoCount();
-        holder.videoCountBadge.setText(count + "路");
+        holder.videoCountBadge.setText(count + " channels");
 
         // 加载四个位置的缩略图
         loadThumbnail(group.getFrontVideo(), holder.thumbFront);

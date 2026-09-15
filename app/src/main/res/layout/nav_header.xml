@@ -47,7 +47,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="电车记录仪"
+                android:text="EVDashcam"
                 android:textColor="@color/nav_header_text_secondary"
                 android:textSize="14sp" />
 
@@ -71,7 +71,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:text="作者：@greenteacher46（四十六）"
+            android:text="Author: @greenteacher46"
             android:textColor="@color/nav_header_text_secondary"
             android:textSize="12sp" />
     </LinearLayout>
@@ -94,7 +94,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:text="版本：v1.0.0"
+            android:text="Version: v1.6.6"
             android:textColor="@color/nav_header_text_secondary"
             android:textSize="12sp" />
     </LinearLayout>

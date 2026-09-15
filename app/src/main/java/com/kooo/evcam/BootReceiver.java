@@ -59,8 +59,8 @@ public class BootReceiver extends BroadcastReceiver {
             // 直接启动前台服务，不检查任何配置
             // 这是保活应用的关键做法：无条件启动
             Intent serviceIntent = new Intent(context, CameraForegroundService.class);
-            serviceIntent.putExtra("title", "EVCam 开机启动");
-            serviceIntent.putExtra("content", "服务正在运行");
+            serviceIntent.putExtra("title", "EVDashcam Boot Startup");
+            serviceIntent.putExtra("content", "Service is running");
             
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(serviceIntent);

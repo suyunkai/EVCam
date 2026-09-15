@@ -68,7 +68,7 @@ public class DingTalkApiClient {
             AppLog.d(TAG, "Access Token 响应: " + responseBody);
 
             if (!response.isSuccessful()) {
-                throw new IOException("获取 Access Token 失败: " + response.code() + " - " + responseBody);
+                throw new IOException("Failed to get Access Token: " + response.code() + " - " + responseBody);
             }
 
             JsonObject jsonResponse = gson.fromJson(responseBody, JsonObject.class);
@@ -78,7 +78,7 @@ public class DingTalkApiClient {
                 int errcode = jsonResponse.get("errcode").getAsInt();
                 if (errcode != 0) {
                     String errmsg = jsonResponse.has("errmsg") ? jsonResponse.get("errmsg").getAsString() : "Unknown error";
-                    throw new IOException("获取 Access Token 失败: errcode=" + errcode + ", errmsg=" + errmsg);
+                    throw new IOException("Failed to get Access Token: errcode=" + errcode + ", errmsg=" + errmsg);
                 }
             }
 
@@ -93,7 +93,7 @@ public class DingTalkApiClient {
                 AppLog.d(TAG, "Access Token 获取成功");
                 return accessToken;
             } else {
-                throw new IOException("响应中没有 access_token: " + responseBody);
+                throw new IOException("No access_token in response: " + responseBody);
             }
         }
     }
@@ -103,7 +103,7 @@ public class DingTalkApiClient {
      */
     public void sendMessageViaWebhook(String webhookUrl, String text) throws IOException {
         if (webhookUrl == null || webhookUrl.isEmpty()) {
-            throw new IOException("Webhook URL 为空");
+            throw new IOException("Webhook URL is empty");
         }
 
         // 构建消息体 - 按照自定义机器人的格式
@@ -129,7 +129,7 @@ public class DingTalkApiClient {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 AppLog.e(TAG, "Webhook 发送消息失败，响应: " + responseBody);
-                throw new IOException("Webhook 发送消息失败: " + response.code() + ", " + responseBody);
+                throw new IOException("Webhook failed to send message: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "Webhook 消息发送成功，响应: " + responseBody);
         }
@@ -173,7 +173,7 @@ public class DingTalkApiClient {
         } else {
             // 单聊：使用单聊 API
             if (userId == null || userId.isEmpty()) {
-                throw new IOException("发送单聊文本消息需要提供 userId");
+                throw new IOException("Sending single text message requires userId");
             }
             sendTextMessageToUser(userId, text);
         }
@@ -212,7 +212,7 @@ public class DingTalkApiClient {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 AppLog.e(TAG, "发送群聊文本消息失败，响应: " + responseBody);
-                throw new IOException("发送群聊文本消息失败: " + response.code() + ", " + responseBody);
+                throw new IOException("Failed to send group text message: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "群聊文本消息发送成功，响应: " + responseBody);
         }
@@ -255,7 +255,7 @@ public class DingTalkApiClient {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 AppLog.e(TAG, "发送单聊文本消息失败，响应: " + responseBody);
-                throw new IOException("发送单聊文本消息失败: " + response.code() + ", " + responseBody);
+                throw new IOException("Failed to send single text message: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "单聊文本消息发送成功，响应: " + responseBody);
         }
@@ -301,7 +301,7 @@ public class DingTalkApiClient {
 
         try (Response response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) {
-                throw new IOException("上传媒体文件失败: " + response.code());
+                throw new IOException("Failed to upload media file: " + response.code());
             }
 
             String responseBody = response.body().string();
@@ -312,7 +312,7 @@ public class DingTalkApiClient {
                 AppLog.d(TAG, type + " 上传成功，media_id: " + mediaId);
                 return mediaId;
             } else {
-                throw new IOException("响应中没有 media_id: " + responseBody);
+                throw new IOException("No media_id in response: " + responseBody);
             }
         }
     }
@@ -332,7 +332,7 @@ public class DingTalkApiClient {
         } else {
             // 单聊：使用单聊 API
             if (userId == null || userId.isEmpty()) {
-                throw new IOException("发送单聊文件消息需要提供 userId");
+                throw new IOException("Sending single file message requires userId");
             }
             sendFileMessageToUser(userId, mediaId, fileName);
         }
@@ -373,7 +373,7 @@ public class DingTalkApiClient {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 AppLog.e(TAG, "发送群聊文件消息失败，响应: " + responseBody);
-                throw new IOException("发送群聊文件消息失败: " + response.code() + ", " + responseBody);
+                throw new IOException("Failed to send group file message: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "群聊文件消息发送成功，响应: " + responseBody);
         }
@@ -397,7 +397,7 @@ public class DingTalkApiClient {
         if (userId != null && !userId.isEmpty()) {
             userIds.add(userId);
         } else {
-            throw new IOException("发送单聊文件消息需要提供 userId");
+            throw new IOException("Sending single file message requires userId");
         }
 
         JsonObject body = new JsonObject();
@@ -422,7 +422,7 @@ public class DingTalkApiClient {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 AppLog.e(TAG, "发送单聊文件消息失败，响应: " + responseBody);
-                throw new IOException("发送单聊文件消息失败: " + response.code() + ", " + responseBody);
+                throw new IOException("Failed to send single file message: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "单聊文件消息发送成功，响应: " + responseBody);
         }
@@ -445,7 +445,7 @@ public class DingTalkApiClient {
         } else {
             // 单聊：使用单聊 API
             if (userId == null || userId.isEmpty()) {
-                throw new IOException("发送单聊视频消息需要提供 userId");
+                throw new IOException("Sending single video message requires userId");
             }
             sendVideoMessageToUser(userId, videoMediaId, picMediaId, duration);
         }
@@ -489,7 +489,7 @@ public class DingTalkApiClient {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 AppLog.e(TAG, "发送群聊视频消息失败，响应: " + responseBody);
-                throw new IOException("发送群聊视频消息失败: " + response.code() + ", " + responseBody);
+                throw new IOException("Failed to send group video message: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "群聊视频消息发送成功，响应: " + responseBody);
         }
@@ -537,7 +537,7 @@ public class DingTalkApiClient {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 AppLog.e(TAG, "发送单聊视频消息失败，响应: " + responseBody);
-                throw new IOException("发送单聊视频消息失败: " + response.code() + ", " + responseBody);
+                throw new IOException("Failed to send single video message: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "单聊视频消息发送成功，响应: " + responseBody);
         }
@@ -557,7 +557,7 @@ public class DingTalkApiClient {
         } else {
             // 单聊：使用单聊 API
             if (userId == null || userId.isEmpty()) {
-                throw new IOException("发送单聊图片消息需要提供 userId");
+                throw new IOException("Sending single photo message requires userId");
             }
             sendImageMessageToUser(userId, photoURL);
         }
@@ -596,7 +596,7 @@ public class DingTalkApiClient {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 AppLog.e(TAG, "发送群聊图片消息失败，响应: " + responseBody);
-                throw new IOException("发送群聊图片消息失败: " + response.code() + ", " + responseBody);
+                throw new IOException("Failed to send group photo message: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "群聊图片消息发送成功，响应: " + responseBody);
         }
@@ -639,7 +639,7 @@ public class DingTalkApiClient {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 AppLog.e(TAG, "发送单聊图片消息失败，响应: " + responseBody);
-                throw new IOException("发送单聊图片消息失败: " + response.code() + ", " + responseBody);
+                throw new IOException("Failed to send single photo message: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "单聊图片消息发送成功，响应: " + responseBody);
         }
@@ -660,7 +660,7 @@ public class DingTalkApiClient {
         } else {
             // 单聊：使用单聊 API
             if (userId == null || userId.isEmpty()) {
-                throw new IOException("发送单聊Markdown消息需要提供 userId");
+                throw new IOException("Sending single Markdown message requires userId");
             }
             sendMarkdownMessageToUser(userId, title, text);
         }
@@ -700,7 +700,7 @@ public class DingTalkApiClient {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 AppLog.e(TAG, "发送群聊Markdown消息失败，响应: " + responseBody);
-                throw new IOException("发送群聊Markdown消息失败: " + response.code() + ", " + responseBody);
+                throw new IOException("Failed to send group Markdown message: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "群聊Markdown消息发送成功，响应: " + responseBody);
         }
@@ -744,7 +744,7 @@ public class DingTalkApiClient {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 AppLog.e(TAG, "发送单聊Markdown消息失败，响应: " + responseBody);
-                throw new IOException("发送单聊Markdown消息失败: " + response.code() + ", " + responseBody);
+                throw new IOException("Failed to send single Markdown message: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "单聊Markdown消息发送成功，响应: " + responseBody);
         }
@@ -806,7 +806,7 @@ public class DingTalkApiClient {
             AppLog.d(TAG, "Stream 响应: " + responseBody);
 
             if (!response.isSuccessful()) {
-                throw new IOException("获取 Stream 连接信息失败: " + response.code() + " - " + responseBody);
+                throw new IOException("Failed to get Stream connection info: " + response.code() + " - " + responseBody);
             }
 
             JsonObject jsonResponse = gson.fromJson(responseBody, JsonObject.class);
@@ -817,7 +817,7 @@ public class DingTalkApiClient {
                 AppLog.d(TAG, "Stream 连接信息获取成功: " + endpoint);
                 return new StreamConnection(endpoint, ticket);
             } else {
-                throw new IOException("响应中缺少 endpoint 或 ticket: " + responseBody);
+                throw new IOException("Response missing endpoint or ticket: " + responseBody);
             }
         }
     }

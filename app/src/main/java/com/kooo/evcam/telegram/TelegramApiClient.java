@@ -62,12 +62,12 @@ public class TelegramApiClient {
             AppLog.d(TAG, "getMe 响应: " + responseBody);
 
             if (!response.isSuccessful()) {
-                throw new IOException("getMe 失败: " + response.code() + ", " + responseBody);
+                throw new IOException("getMe failed: " + response.code() + ", " + responseBody);
             }
 
             JsonObject jsonResponse = gson.fromJson(responseBody, JsonObject.class);
             if (!jsonResponse.get("ok").getAsBoolean()) {
-                throw new IOException("getMe 失败: " + responseBody);
+                throw new IOException("getMe failed: " + responseBody);
             }
 
             return jsonResponse.getAsJsonObject("result");
@@ -101,12 +101,12 @@ public class TelegramApiClient {
             String responseBody = response.body() != null ? response.body().string() : "";
 
             if (!response.isSuccessful()) {
-                throw new IOException("getUpdates 失败: " + response.code() + ", " + responseBody);
+                throw new IOException("getUpdates failed: " + response.code() + ", " + responseBody);
             }
 
             JsonObject jsonResponse = gson.fromJson(responseBody, JsonObject.class);
             if (!jsonResponse.get("ok").getAsBoolean()) {
-                throw new IOException("getUpdates 失败: " + responseBody);
+                throw new IOException("getUpdates failed: " + responseBody);
             }
 
             return jsonResponse.getAsJsonArray("result");
@@ -139,7 +139,7 @@ public class TelegramApiClient {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 AppLog.e(TAG, "发送消息失败，响应: " + responseBody);
-                throw new IOException("发送消息失败: " + response.code() + ", " + responseBody);
+                throw new IOException("Failed to send message: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "消息发送成功");
         }
@@ -181,7 +181,7 @@ public class TelegramApiClient {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 AppLog.e(TAG, "发送图片失败，响应: " + responseBody);
-                throw new IOException("发送图片失败: " + response.code() + ", " + responseBody);
+                throw new IOException("Failed to send photo: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "图片发送成功: " + photoFile.getName());
         }
@@ -233,7 +233,7 @@ public class TelegramApiClient {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 AppLog.e(TAG, "发送视频失败，响应: " + responseBody);
-                throw new IOException("发送视频失败: " + response.code() + ", " + responseBody);
+                throw new IOException("Failed to send video: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "视频发送成功: " + videoFile.getName());
         }
@@ -275,14 +275,14 @@ public class TelegramApiClient {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 AppLog.e(TAG, "发送文件失败，响应: " + responseBody);
-                throw new IOException("发送文件失败: " + response.code() + ", " + responseBody);
+                throw new IOException("Failed to send file: " + response.code() + ", " + responseBody);
             }
             AppLog.d(TAG, "文件发送成功: " + file.getName());
         }
     }
 
     /**
-     * 发送聊天操作（如"正在输入..."、"正在上传视频..."）
+     * 发送聊天操作（如"typing..."、"uploading video..."）
      * @param action typing, upload_photo, upload_video, upload_document 等
      */
     public void sendChatAction(long chatId, String action) {

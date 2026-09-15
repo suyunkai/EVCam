@@ -245,7 +245,7 @@ public class FileTransferManager {
      * 获取传输统计信息
      */
     public String getStats() {
-        return String.format("已传输: %d 个文件 (%s), 失败: %d, 队列: %d, 临时文件: %d",
+        return String.format("Transferred: %d files (%s), Failed: %d, Queue: %d, Temp: %d",
                 totalTransferred, formatSize(totalBytesTransferred), 
                 totalFailed, getQueueSize(), getPendingFileCount());
     }

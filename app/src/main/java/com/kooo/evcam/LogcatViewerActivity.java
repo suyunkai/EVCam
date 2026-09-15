@@ -50,7 +50,7 @@ public class LogcatViewerActivity extends Activity {
         filterKeyword = getIntent().getStringExtra("filter_keyword");
         if (filterKeyword == null) filterKeyword = "";
         
-        setTitle("Logcat 调试: " + (filterKeyword.isEmpty() ? "全部" : filterKeyword));
+        setTitle("Logcat Debug: " + (filterKeyword.isEmpty() ? "All" : filterKeyword));
         
         btnClear.setOnClickListener(v -> logTextView.setText(""));
         btnSave.setOnClickListener(v -> saveLogToFile());
@@ -62,7 +62,7 @@ public class LogcatViewerActivity extends Activity {
     private void saveLogToFile() {
         String logContent = logTextView.getText().toString();
         if (logContent.isEmpty()) {
-            Toast.makeText(this, "日志内容为空，无需保存", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Log is empty, nothing to save", Toast.LENGTH_SHORT).show();
             return;
         }
         
@@ -83,7 +83,7 @@ public class LogcatViewerActivity extends Activity {
                 writer.write(logContent);
             }
             
-            Toast.makeText(this, "日志已保存: " + logFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Log saved: " + logFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             Toast.makeText(this, "保存失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }

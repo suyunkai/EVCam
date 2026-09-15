@@ -189,7 +189,7 @@ public class ExpandablePhotoGroupAdapter extends RecyclerView.Adapter<RecyclerVi
         holder.dateText.setText(section.getFullDateDisplay());
         
         // 设置组数量
-        holder.itemCount.setText(section.getItemCount() + "组");
+        holder.itemCount.setText(section.getItemCount() + "groups");
         
         // 设置展开/收起图标
         int iconRes = section.isExpanded() ? R.drawable.ic_expand_less : R.drawable.ic_expand_more;
@@ -215,7 +215,7 @@ public class ExpandablePhotoGroupAdapter extends RecyclerView.Adapter<RecyclerVi
 
         // 图片数量标签
         int count = group.getPhotoCount();
-        holder.videoCountBadge.setText(count + "张");
+        holder.videoCountBadge.setText(count + "photos");
 
         // 加载四个位置的缩略图
         loadThumbnail(group.getFrontPhoto(), holder.thumbFront);

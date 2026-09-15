@@ -10,7 +10,7 @@
         android:id="@+id/tv_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="视图设置"
+        android:text="View Settings"
         android:textSize="18sp"
         android:textColor="#FFFFFF"
         android:textStyle="bold"
@@ -31,7 +31,7 @@
             android:layout_height="56dp"
             android:layout_weight="1"
             android:layout_marginEnd="8dp"
-            android:text="重置"
+            android:text="Reset"
             android:textColor="#FFFFFF"
             android:backgroundTint="#666666" />
 
@@ -41,7 +41,7 @@
             android:layout_height="56dp"
             android:layout_weight="1"
             android:layout_marginStart="8dp"
-            android:text="保存"
+            android:text="Save"
             android:textColor="#FFFFFF"
             android:backgroundTint="#007AFF" />
     </LinearLayout>
@@ -50,7 +50,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="左视图"
+        android:text="Left View"
         android:textSize="16sp"
         android:textColor="#FFFFFF"
         android:textStyle="bold"
@@ -67,7 +67,7 @@
         <TextView
             android:layout_width="60dp"
             android:layout_height="wrap_content"
-            android:text="宽度:"
+            android:text="Width:"
             android:textColor="#FFFFFF"
             android:textSize="14sp" />
 
@@ -101,7 +101,7 @@
         <TextView
             android:layout_width="60dp"
             android:layout_height="wrap_content"
-            android:text="高度:"
+            android:text="Height:"
             android:textColor="#FFFFFF"
             android:textSize="14sp" />
 
@@ -135,7 +135,7 @@
         <TextView
             android:layout_width="60dp"
             android:layout_height="wrap_content"
-            android:text="X位置:"
+            android:text="X Position:"
             android:textColor="#FFFFFF"
             android:textSize="14sp" />
 
@@ -169,7 +169,7 @@
         <TextView
             android:layout_width="60dp"
             android:layout_height="wrap_content"
-            android:text="Y位置:"
+            android:text="Y Position:"
             android:textColor="#FFFFFF"
             android:textSize="14sp" />
 
@@ -203,7 +203,7 @@
         <TextView
             android:layout_width="60dp"
             android:layout_height="wrap_content"
-            android:text="旋转:"
+            android:text="Rotation:"
             android:textColor="#FFFFFF"
             android:textSize="14sp" />
 
@@ -230,7 +230,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="右视图"
+        android:text="Right View"
         android:textSize="16sp"
         android:textColor="#FFFFFF"
         android:textStyle="bold"
@@ -247,7 +247,7 @@
         <TextView
             android:layout_width="60dp"
             android:layout_height="wrap_content"
-            android:text="宽度:"
+            android:text="Width:"
             android:textColor="#FFFFFF"
             android:textSize="14sp" />
 
@@ -281,7 +281,7 @@
         <TextView
             android:layout_width="60dp"
             android:layout_height="wrap_content"
-            android:text="高度:"
+            android:text="Height:"
             android:textColor="#FFFFFF"
             android:textSize="14sp" />
 
@@ -315,7 +315,7 @@
         <TextView
             android:layout_width="60dp"
             android:layout_height="wrap_content"
-            android:text="X位置:"
+            android:text="X Position:"
             android:textColor="#FFFFFF"
             android:textSize="14sp" />
 
@@ -349,7 +349,7 @@
         <TextView
             android:layout_width="60dp"
             android:layout_height="wrap_content"
-            android:text="Y位置:"
+            android:text="Y Position:"
             android:textColor="#FFFFFF"
             android:textSize="14sp" />
 
@@ -383,7 +383,7 @@
         <TextView
             android:layout_width="60dp"
             android:layout_height="wrap_content"
-            android:text="旋转:"
+            android:text="Rotation:"
             android:textColor="#FFFFFF"
             android:textSize="14sp" />
 

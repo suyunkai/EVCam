@@ -120,8 +120,8 @@ public class BlindSpotDisclaimerDialogFragment extends DialogFragment {
 
                 if (secondsLeft <= 0) {
                     btnAccept.setEnabled(true);
-                    btnAccept.setText("我已知情并同意");
-                    tvCountdown.setText("已阅读完毕，可点击同意继续");
+                    btnAccept.setText("I understand and agree");
+                    tvCountdown.setText("Reading complete; tap agree to continue");
                     return;
                 }
 
@@ -141,8 +141,8 @@ public class BlindSpotDisclaimerDialogFragment extends DialogFragment {
     }
 
     private void updateCountdownViews(TextView tvCountdown, Button btnAccept) {
-        tvCountdown.setText("请阅读后等待 " + secondsLeft + " 秒");
-        btnAccept.setText("我已知情并同意（" + secondsLeft + "s）");
+        tvCountdown.setText("Please read and wait " + secondsLeft + " seconds");
+        btnAccept.setText("I understand and agree (" + secondsLeft + "s)");
     }
 
     private String readRawText(int resId) {
@@ -164,9 +164,9 @@ public class BlindSpotDisclaimerDialogFragment extends DialogFragment {
         SpannableString ss = new SpannableString(text);
 
         String[] highlightLines = new String[]{
-                "严重安全警告 - 请仔细阅读",
-                "可能导致死亡或严重伤害！！！",
-                "严禁用于实际驾驶决策"
+                "CRITICAL SAFETY WARNING - PLEASE READ CAREFULLY",
+                "MAY CAUSE DEATH OR SERIOUS INJURY!",
+                "STRICTLY FORBIDDEN to use this software for driving decisions"
         };
 
         for (String needle : highlightLines) {

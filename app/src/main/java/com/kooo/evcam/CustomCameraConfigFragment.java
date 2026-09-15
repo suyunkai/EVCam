@@ -37,10 +37,10 @@ public class CustomCameraConfigFragment extends Fragment {
     
     // 摄像头数量选择
     private Spinner cameraCountSpinner;
-    private static final String[] CAMERA_COUNT_OPTIONS = {"4 个摄像头", "2 个摄像头", "1 个摄像头"};
+    private static final String[] CAMERA_COUNT_OPTIONS = {"4 Cameras", "2 Cameras", "1 Camera"};
 
     // 按钮样式选项
-    private static final String[] BUTTON_STYLE_OPTIONS = {"标准按钮", "多按钮"};
+    private static final String[] BUTTON_STYLE_OPTIONS = {"Standard Buttons", "Multi Buttons"};
     private static final String[] BUTTON_STYLE_VALUES = {AppConfig.BUTTON_STYLE_STANDARD, AppConfig.BUTTON_STYLE_MULTI};
 
     // 摄像头配置区域
@@ -203,7 +203,7 @@ public class CustomCameraConfigFragment extends Fragment {
             }
             
             AppLog.d(TAG, "检测到 " + cameraIds.length + " 个摄像头ID，其中 " + 
-                    availableCameraIds.size() + " 个有效: " + availableCameraIds);
+                    availableCameraIds.size() + " valid: " + availableCameraIds);
             
         } catch (CameraAccessException e) {
             AppLog.e(TAG, "检测摄像头失败", e);
@@ -310,7 +310,7 @@ public class CustomCameraConfigFragment extends Fragment {
                 editLayoutData.setText(layoutData);
             } else {
                 editLayoutData.setText("");
-                editLayoutData.setHint("无布局数据");
+                editLayoutData.setHint("No layout data");
             }
         }
     }
@@ -328,9 +328,9 @@ public class CustomCameraConfigFragment extends Fragment {
                         ClipboardManager clipboard = (ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
                         ClipData clip = ClipData.newPlainText("layout_data", text);
                         clipboard.setPrimaryClip(clip);
-                        Toast.makeText(getContext(), "布局数据已复制", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), "Layout data copied", Toast.LENGTH_SHORT).show();
                     } else {
-                        Toast.makeText(getContext(), "无数据可复制", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), "No data to copy", Toast.LENGTH_SHORT).show();
                     }
                 }
             });
@@ -345,14 +345,14 @@ public class CustomCameraConfigFragment extends Fragment {
                         // 简单验证 JSON 格式
                         if (text.startsWith("{") && text.endsWith("}")) {
                             appConfig.setCustomLayoutData(text);
-                            Toast.makeText(getContext(), "布局数据已保存，重载后生效", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(getContext(), "Layout data saved, takes effect after reload", Toast.LENGTH_SHORT).show();
                         } else {
-                            Toast.makeText(getContext(), "无效的 JSON 格式", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(getContext(), "Invalid JSON format", Toast.LENGTH_SHORT).show();
                         }
                     } else {
                         // 清空布局数据
                         appConfig.clearCustomLayoutData();
-                        Toast.makeText(getContext(), "布局数据已清空", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), "Layout data cleared", Toast.LENGTH_SHORT).show();
                     }
                 }
             });
@@ -589,10 +589,10 @@ public class CustomCameraConfigFragment extends Fragment {
         appConfig.setCameraId("back", "1");
         appConfig.setCameraId("left", "2");
         appConfig.setCameraId("right", "3");
-        appConfig.setCameraName("front", "前");
-        appConfig.setCameraName("back", "后");
-        appConfig.setCameraName("left", "左");
-        appConfig.setCameraName("right", "右");
+        appConfig.setCameraName("front", "Front");
+        appConfig.setCameraName("back", "Rear");
+        appConfig.setCameraName("left", "Left");
+        appConfig.setCameraName("right", "Right");
         
         // 重置摄像头旋转和镜像
         appConfig.setCameraRotation("front", 0);
@@ -634,7 +634,7 @@ public class CustomCameraConfigFragment extends Fragment {
         
         // 提示用户
         if (getContext() != null) {
-            android.widget.Toast.makeText(getContext(), "配置已重置，请重启应用生效", android.widget.Toast.LENGTH_LONG).show();
+            android.widget.Toast.makeText(getContext(), "Configuration reset, please restart app", android.widget.Toast.LENGTH_LONG).show();
         }
     }
     
@@ -644,7 +644,7 @@ public class CustomCameraConfigFragment extends Fragment {
     private void restartApp() {
         if (getActivity() == null) return;
 
-        android.widget.Toast.makeText(getContext(), "正在重载界面...", android.widget.Toast.LENGTH_SHORT).show();
+        android.widget.Toast.makeText(getContext(), "Reloading UI...", android.widget.Toast.LENGTH_SHORT).show();
         com.kooo.evcam.camera.CameraManagerHolder.getInstance().setCameraManager(null);
         getActivity().recreate();
     }

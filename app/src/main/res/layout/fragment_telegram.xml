@@ -34,7 +34,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Telegram Bot 配置"
+            android:text="Telegram Bot Settings"
             android:textColor="@color/text_primary"
             android:textSize="24sp"
             android:textStyle="bold" />
@@ -83,7 +83,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:hint="请输入 Bot Token（从 @BotFather 获取）"
+                android:hint="Enter Bot Token (obtained from @BotFather)"
                 android:textColor="@color/text_primary"
                 android:textColorHint="@color/text_secondary"
                 android:textSize="16sp"
@@ -98,7 +98,7 @@
                 android:layout_height="48dp"
                 android:src="@drawable/ic_visibility"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="切换密码可见性"
+                android:contentDescription="Toggle Password Visibility"
                 android:tint="@color/text_primary"
                 android:layout_marginEnd="8dp" />
         </LinearLayout>
@@ -107,7 +107,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="允许的 Chat ID（可选）"
+            android:text="Allowed Chat IDs (Optional)"
             android:textColor="@color/text_secondary"
             android:textSize="18sp"
             android:layout_marginBottom="8dp" />
@@ -116,7 +116,7 @@
             android:id="@+id/et_allowed_chat_ids"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="限制可使用的 Chat ID（逗号分隔，留空则允许所有）"
+            android:hint="Restrict allowed Chat IDs (comma-separated, empty allows all)"
             android:textColor="@color/text_primary"
             android:textColorHint="@color/text_secondary"
             android:textSize="16sp"
@@ -129,7 +129,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="API 反向代理地址（可选）"
+            android:text="API Reverse Proxy URL (Optional)"
             android:textColor="@color/text_secondary"
             android:textSize="18sp"
             android:layout_marginBottom="8dp" />
@@ -138,7 +138,7 @@
             android:id="@+id/et_api_host"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="国内可访问的方向代理地址（留空默认官方Api）"
+            android:hint="Reverse proxy URL (leave empty for official API)"
             android:textColor="@color/text_primary"
             android:textColorHint="@color/text_secondary"
             android:textSize="16sp"
@@ -153,7 +153,7 @@
             android:id="@+id/btn_save_config"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="保存配置"
+            android:text="Save Config"
             android:textSize="20sp"
             android:minHeight="56dp"
             android:layout_marginBottom="16dp"
@@ -179,7 +179,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="自动启动服务"
+                    android:text="Auto-Start Service"
                     android:textColor="@color/text_primary"
                     android:textSize="20sp"
                     android:textStyle="bold" />
@@ -187,7 +187,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="应用启动时自动连接 Telegram Bot"
+                    android:text="Auto-connect Telegram Bot on app launch"
                     android:textColor="@color/text_secondary"
                     android:textSize="16sp"
                     android:layout_marginTop="4dp" />
@@ -211,7 +211,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="连接状态："
+                android:text="Connection Status:"
                 android:textColor="@color/text_secondary"
                 android:textSize="18sp" />
 
@@ -220,7 +220,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="未连接"
+                android:text="Not Connected"
                 android:textColor="#FF6666"
                 android:textSize="18sp"
                 android:layout_marginStart="8dp" />
@@ -237,7 +237,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="启动服务"
+                android:text="Start Service"
                 android:textSize="20sp"
                 android:minHeight="56dp"
                 android:layout_marginEnd="8dp"
@@ -249,7 +249,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="停止服务"
+                android:text="Stop Service"
                 android:textSize="20sp"
                 android:minHeight="56dp"
                 android:enabled="false"
@@ -262,7 +262,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="使用说明"
+            android:text="Instructions"
             android:textColor="@color/text_primary"
             android:textSize="20sp"
             android:textStyle="bold"
@@ -273,7 +273,16 @@
             android:id="@+id/tv_help_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="1. 在 Telegram 中找到 @BotFather\n2. 发送 /newbot 创建新机器人\n3. 获取 Bot Token 并填入上方\n4. 保存配置并启动服务\n5. 向机器人发送指令：\n   • /record 或 录制 - 录制60秒视频\n   • /record 30 - 录制30秒视频\n   • /photo 或 拍照 - 拍摄照片\n   • /help - 查看帮助\n6. 设备将自动执行并上传到 Telegram"
+            android:text="1. Find @BotFather in Telegram
+2. Send /newbot to create a new bot
+3. Get the Bot Token and paste it above
+4. Save configuration and start service
+5. Send commands to bot:
+   • /record - Record 60s video
+   • /record 30 - Record 30s video
+   • /photo - Take a photo
+   • /help - View help
+6. Device will execute and upload to Telegram"
             android:textColor="@color/text_secondary"
             android:textSize="16sp"
             android:lineSpacingExtra="6dp" />

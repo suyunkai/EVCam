@@ -23,6 +23,7 @@ import com.kooo.evcam.AppLog;
 import com.kooo.evcam.CameraForegroundService;
 import com.kooo.evcam.MainActivity;
 import com.kooo.evcam.R;
+import com.kooo.evcam.StorageHelper;
 import com.kooo.evcam.camera.CameraManagerHolder;
 import com.kooo.evcam.camera.MultiCameraManager;
 import com.kooo.evcam.config.BlindSpotConfig;
@@ -201,8 +202,8 @@ public class CameraRecordingService extends Service {
                 MultiCameraManager cameraManager = holder.getOrInit(this);
 
                 if (cameraManager == null) {
-                    AppLog.e(TAG, "CameraManager 未初始化");
-                    recordingController.onError(1, "CameraManager 未初始化");
+                    AppLog.e(TAG, "CameraManager not initialized");
+                    recordingController.onError(1, "CameraManager not initialized");
                     return;
                 }
 
@@ -210,8 +211,15 @@ public class CameraRecordingService extends Service {
                 // 注意：Android 系统限制，后台服务不能直接打开摄像头
                 // 摄像头必须在 MainActivity 前台运行时打开
                 if (cameraManager.isReleased()) {
-                    AppLog.e(TAG, "摄像头未初始化，请先打开应用界面");
-                    recordingController.onError(3, "摄像头未初始化，请先打开应用界面");
+                    AppLog.e(TAG, "Cameras not initialized, please open app first");
+                    recordingController.onError(3, "Cameras not initialized, please open app first");
+                    return;
+                }
+
+                // 检查"仅在插入U盘时录制"设置
+                if (StorageHelper.isRecordingBlockedByUsbPolicy(this, appConfig)) {
+                    AppLog.w(TAG, "Recording blocked: Record Only With USB is enabled and no USB drive is detected");
+                    recordingController.onError(4, "USB drive not detected. Recording disabled by 'Record Only With USB' setting.");
                     return;
                 }
 
@@ -227,8 +235,8 @@ public class CameraRecordingService extends Service {
                     startForeground(NOTIFICATION_ID, createNotification());
                     AppLog.d(TAG, "录制已开始, isRecording=" + isRecording);
                 } else {
-                    AppLog.e(TAG, "启动录制失败");
-                    recordingController.onError(2, "启动录制失败");
+                    AppLog.e(TAG, "Failed to start recording");
+                    recordingController.onError(2, "Failed to start recording");
                 }
             } catch (Exception e) {
                 AppLog.e(TAG, "开始录制失败", e);
@@ -446,8 +454,8 @@ public class CameraRecordingService extends Service {
                 this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("EVCam 录制中")
-                .setContentText("正在录制行车视频")
+                .setContentTitle("EVDashcam Recording")
+                .setContentText("Recording dashcam video")
                 .setSmallIcon(R.drawable.ic_nav_recording)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
@@ -458,9 +466,9 @@ public class CameraRecordingService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "录制服务",
+                    "Recording Service",
                     NotificationManager.IMPORTANCE_LOW);
-            channel.setDescription("保持录制服务在后台运行");
+            channel.setDescription("Keeps recording service active in background");
 
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {

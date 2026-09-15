@@ -657,7 +657,7 @@ public class HeartbeatManager {
             
             if (cameras == null || cameras.isEmpty()) {
                 AppLog.w(TAG, "相机列表为空，跳过本次心跳");
-                notifyFailed("相机未就绪");
+                notifyFailed("Camera not ready");
                 return;
             }
             
@@ -667,7 +667,7 @@ public class HeartbeatManager {
             
             if (cameras.isEmpty()) {
                 AppLog.w(TAG, "没有已连接的相机，跳过本次心跳");
-                notifyFailed("相机未连接");
+                notifyFailed("Camera not connected");
                 return;
             }
             
@@ -695,7 +695,7 @@ public class HeartbeatManager {
                         mergedHolder.wait(5000); // 最多等待5秒
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
-                        notifyFailed("捕获被中断");
+                        notifyFailed("Capture interrupted");
                         return;
                     }
                 }
@@ -703,8 +703,8 @@ public class HeartbeatManager {
             
             Bitmap merged = mergedHolder[0];
             if (merged == null) {
-                AppLog.w(TAG, "图片捕获失败");
-                notifyFailed("图片捕获失败");
+                AppLog.w(TAG, "Photo capture failed");
+                notifyFailed("Photo capture failed");
                 return;
             }
             
@@ -717,8 +717,8 @@ public class HeartbeatManager {
             merged.recycle();
             
             if (imageBytes == null || imageBytes.length == 0) {
-                AppLog.w(TAG, "图片压缩失败");
-                notifyFailed("图片压缩失败");
+                AppLog.w(TAG, "Photo compression failed");
+                notifyFailed("Photo compression failed");
                 return;
             }
             

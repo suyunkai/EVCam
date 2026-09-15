@@ -158,6 +158,11 @@ public class AppConfig {
 
     // 补盲悬浮窗动效
     private static final String KEY_FLOATING_WINDOW_ANIMATION_ENABLED = "floating_window_animation_enabled"; // 悬浮窗开启/关闭动效
+
+    // 存储与自启动增强配置
+    private static final String KEY_AUTO_MOVE_LOCAL_TO_USB = "auto_move_local_to_usb";               // 插入U盘后自动转移机身录像
+    private static final String KEY_RECORD_ONLY_WHEN_USB_DETECTED = "record_only_when_usb_detected"; // 仅在插入U盘时录制
+    private static final String KEY_AUTOSTART_IN_BACKGROUND = "autostart_in_background";             // 开机自启动静默在后台运行
     private static final String KEY_BLIND_SPOT_STATUS_BAR_STYLE = "blind_spot_status_bar_style";             // 状态栏动效样式 (0=关, 1-5=五种动效)
     private static final String KEY_BLIND_SPOT_STATUS_BAR_COLOR = "blind_spot_status_bar_color";             // 状态栏动效颜色 (ARGB int)
     private static final String KEY_BLIND_SPOT_STATUS_BAR_BG_OPACITY = "blind_spot_status_bar_bg_opacity";   // 状态栏底色不透明度 0-100
@@ -696,12 +701,12 @@ public class AppConfig {
     public static String getBitrateLevelDisplayName(String level) {
         switch (level) {
             case BITRATE_LOW:
-                return "低";
+                return "Low";
             case BITRATE_HIGH:
-                return "高";
+                return "High";
             case BITRATE_MEDIUM:
             default:
-                return "标准";
+                return "Standard";
         }
     }
     
@@ -789,9 +794,9 @@ public class AppConfig {
      */
     public static String getFramerateLevelDisplayName(String level) {
         if (FRAMERATE_LOW.equals(level)) {
-            return "低";
+            return "Low";
         }
-        return "标准";
+        return "Standard";
     }
     
     // ==================== 车型配置相关方法 ====================
@@ -1010,7 +1015,7 @@ public class AppConfig {
                 key = KEY_CAMERA_RIGHT_NAME;
                 break;
             default:
-                return "未知";
+                return "Unknown";
         }
         return prefs.getString(key, defaultValue);
     }
@@ -1025,15 +1030,15 @@ public class AppConfig {
         // 默认名称（适用于大多数预设车型）
         switch (position) {
             case "front":
-                return "前";
+                return "Front";
             case "back":
-                return "后";
+                return "Rear";
             case "left":
-                return "左";
+                return "Left";
             case "right":
-                return "右";
+                return "Right";
             default:
-                return "未知";
+                return "Unknown";
         }
     }
 
@@ -2709,7 +2714,7 @@ public class AppConfig {
     
     /**
      * 获取用于显示的摄像头名称（用于录制摄像头选择等设置界面）
-     * 使用配置中的名称，如果为空则返回"位置N"
+     * 使用配置中的名称，如果为空则返回"Camera N"
      * @param position 位置（front/back/left/right）
      * @param index 位置索引（1-4）
      * @return 显示名称
@@ -2718,7 +2723,7 @@ public class AppConfig {
         String name = getCameraName(position);
         // 如果名称为空或仅为空白，使用位置名称
         if (name == null || name.trim().isEmpty()) {
-            return "位置" + index;
+            return "Camera " + index;
         }
         return name;
     }
@@ -2882,16 +2887,16 @@ public class AppConfig {
      */
     public static String getAwbModeDisplayName(int mode) {
         switch (mode) {
-            case AWB_MODE_DEFAULT: return "默认";
-            case AWB_MODE_AUTO: return "自动";
-            case AWB_MODE_INCANDESCENT: return "白炽灯";
-            case AWB_MODE_FLUORESCENT: return "荧光灯";
-            case AWB_MODE_WARM_FLUORESCENT: return "暖荧光灯";
-            case AWB_MODE_DAYLIGHT: return "日光";
-            case AWB_MODE_CLOUDY_DAYLIGHT: return "阴天";
-            case AWB_MODE_TWILIGHT: return "黄昏";
-            case AWB_MODE_SHADE: return "阴影";
-            default: return "未知";
+            case AWB_MODE_DEFAULT: return "Default";
+            case AWB_MODE_AUTO: return "Auto";
+            case AWB_MODE_INCANDESCENT: return "Incandescent";
+            case AWB_MODE_FLUORESCENT: return "Fluorescent";
+            case AWB_MODE_WARM_FLUORESCENT: return "Warm Fluorescent";
+            case AWB_MODE_DAYLIGHT: return "Daylight";
+            case AWB_MODE_CLOUDY_DAYLIGHT: return "Cloudy";
+            case AWB_MODE_TWILIGHT: return "Twilight";
+            case AWB_MODE_SHADE: return "Shade";
+            default: return "Unknown";
         }
     }
     
@@ -2900,11 +2905,11 @@ public class AppConfig {
      */
     public static String getTonemapModeDisplayName(int mode) {
         switch (mode) {
-            case TONEMAP_MODE_DEFAULT: return "默认";
-            case TONEMAP_MODE_CONTRAST_CURVE: return "对比度曲线";
-            case TONEMAP_MODE_FAST: return "快速";
-            case TONEMAP_MODE_HIGH_QUALITY: return "高质量";
-            default: return "未知";
+            case TONEMAP_MODE_DEFAULT: return "Default";
+            case TONEMAP_MODE_CONTRAST_CURVE: return "Contrast Curve";
+            case TONEMAP_MODE_FAST: return "Fast";
+            case TONEMAP_MODE_HIGH_QUALITY: return "High Quality";
+            default: return "Unknown";
         }
     }
     
@@ -2913,11 +2918,11 @@ public class AppConfig {
      */
     public static String getEdgeModeDisplayName(int mode) {
         switch (mode) {
-            case EDGE_MODE_DEFAULT: return "默认";
-            case EDGE_MODE_OFF: return "关闭";
-            case EDGE_MODE_FAST: return "快速";
-            case EDGE_MODE_HIGH_QUALITY: return "高质量";
-            default: return "未知";
+            case EDGE_MODE_DEFAULT: return "Default";
+            case EDGE_MODE_OFF: return "Off";
+            case EDGE_MODE_FAST: return "Fast";
+            case EDGE_MODE_HIGH_QUALITY: return "High Quality";
+            default: return "Unknown";
         }
     }
     
@@ -2926,11 +2931,11 @@ public class AppConfig {
      */
     public static String getNoiseReductionModeDisplayName(int mode) {
         switch (mode) {
-            case NOISE_REDUCTION_DEFAULT: return "默认";
-            case NOISE_REDUCTION_OFF: return "关闭";
-            case NOISE_REDUCTION_FAST: return "快速";
-            case NOISE_REDUCTION_HIGH_QUALITY: return "高质量";
-            default: return "未知";
+            case NOISE_REDUCTION_DEFAULT: return "Default";
+            case NOISE_REDUCTION_OFF: return "Off";
+            case NOISE_REDUCTION_FAST: return "Fast";
+            case NOISE_REDUCTION_HIGH_QUALITY: return "High Quality";
+            default: return "Unknown";
         }
     }
     
@@ -2939,14 +2944,14 @@ public class AppConfig {
      */
     public static String getEffectModeDisplayName(int mode) {
         switch (mode) {
-            case EFFECT_MODE_DEFAULT: return "默认";
-            case EFFECT_MODE_OFF: return "关闭";
-            case EFFECT_MODE_MONO: return "黑白";
-            case EFFECT_MODE_NEGATIVE: return "负片";
-            case EFFECT_MODE_SOLARIZE: return "曝光过度";
-            case EFFECT_MODE_SEPIA: return "怀旧";
-            case EFFECT_MODE_AQUA: return "水蓝";
-            default: return "未知";
+            case EFFECT_MODE_DEFAULT: return "Default";
+            case EFFECT_MODE_OFF: return "Off";
+            case EFFECT_MODE_MONO: return "Mono";
+            case EFFECT_MODE_NEGATIVE: return "Negative";
+            case EFFECT_MODE_SOLARIZE: return "Solarize";
+            case EFFECT_MODE_SEPIA: return "Sepia";
+            case EFFECT_MODE_AQUA: return "Aqua";
+            default: return "Unknown";
         }
     }
     
@@ -3056,9 +3061,9 @@ public class AppConfig {
      */
     public static String getButtonStyleDisplayName(String style) {
         if (BUTTON_STYLE_MULTI.equals(style)) {
-            return "多按钮";
+            return "Multi Buttons";
         }
-        return "标准";
+        return "Standard";
     }
     
     /**
@@ -3066,9 +3071,9 @@ public class AppConfig {
      */
     public static String getButtonOrientationDisplayName(String orientation) {
         if (BUTTON_ORIENTATION_VERTICAL.equals(orientation)) {
-            return "竖版";
+            return "Vertical";
         }
-        return "横版";
+        return "Horizontal";
     }
     
     // ==================== 版本更新配置相关方法 ====================
@@ -3776,5 +3781,34 @@ public class AppConfig {
 
     public void setMjpegStreamAutoDiscover(boolean enabled) {
         prefs.edit().putBoolean(KEY_MJPEG_STREAM_AUTO_DISCOVER, enabled).apply();
+    }
+
+    // ==================== Storage & Autostart Enhancements ====================
+
+    public boolean isAutoMoveLocalToUsbEnabled() {
+        return prefs.getBoolean(KEY_AUTO_MOVE_LOCAL_TO_USB, true);
+    }
+
+    public void setAutoMoveLocalToUsbEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_AUTO_MOVE_LOCAL_TO_USB, enabled).apply();
+        AppLog.d(TAG, "Auto move local footage to USB: " + enabled);
+    }
+
+    public boolean isRecordOnlyWhenUsbDetected() {
+        return prefs.getBoolean(KEY_RECORD_ONLY_WHEN_USB_DETECTED, false);
+    }
+
+    public void setRecordOnlyWhenUsbDetected(boolean enabled) {
+        prefs.edit().putBoolean(KEY_RECORD_ONLY_WHEN_USB_DETECTED, enabled).apply();
+        AppLog.d(TAG, "Record only when USB detected: " + enabled);
+    }
+
+    public boolean isAutostartInBackgroundEnabled() {
+        return prefs.getBoolean(KEY_AUTOSTART_IN_BACKGROUND, true);
+    }
+
+    public void setAutostartInBackgroundEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_AUTOSTART_IN_BACKGROUND, enabled).apply();
+        AppLog.d(TAG, "Autostart in background: " + enabled);
     }
 }

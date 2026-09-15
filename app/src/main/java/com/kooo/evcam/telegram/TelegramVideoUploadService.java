@@ -40,13 +40,13 @@ public class TelegramVideoUploadService {
         new Thread(() -> {
             try {
                 if (videoFiles == null || videoFiles.isEmpty()) {
-                    callback.onError("没有视频文件可上传");
+                    callback.onError("No video files to upload");
                     return;
                 }
 
-                callback.onProgress("开始上传 " + videoFiles.size() + " 个视频文件...");
+                callback.onProgress("Starting upload: " + videoFiles.size() + " video files...");
 
-                // 发送 "正在上传视频" 状态
+                // 发送 "Uploading video" 状态
                 apiClient.sendChatAction(chatId, "upload_video");
 
                 List<String> uploadedFiles = new ArrayList<>();
@@ -59,7 +59,7 @@ public class TelegramVideoUploadService {
                         continue;
                     }
 
-                    callback.onProgress("正在处理 (" + (i + 1) + "/" + videoFiles.size() + "): " + videoFile.getName());
+                    callback.onProgress("Processing (" + (i + 1) + "/" + videoFiles.size() + "): " + videoFile.getName());
 
                     try {
                         // 1. 提取视频封面
@@ -78,13 +78,13 @@ public class TelegramVideoUploadService {
                             duration = 60; // 默认 60 秒
                         }
 
-                        // 3. 发送 "正在上传视频" 状态
+                        // 3. 发送 "Uploading video" 状态
                         apiClient.sendChatAction(chatId, "upload_video");
 
                         // 4. 直接上传并发送视频（Telegram API 合并了这两步）
-                        callback.onProgress("正在上传视频 (" + (i + 1) + "/" + videoFiles.size() + ")...");
+                        callback.onProgress("Uploading video (" + (i + 1) + "/" + videoFiles.size() + ")...");
 
-                        String caption = "视频 " + (i + 1) + "/" + videoFiles.size();
+                        String caption = "Video " + (i + 1) + "/" + videoFiles.size();
                         apiClient.sendVideo(chatId, videoFile, thumbnailFile, duration, caption);
 
                         uploadedFiles.add(videoFile.getName());
@@ -97,7 +97,7 @@ public class TelegramVideoUploadService {
 
                         // 6. 延迟2秒后再上传下一个视频
                         if (i < videoFiles.size() - 1) {
-                            callback.onProgress("等待2秒后上传下一个视频...");
+                            callback.onProgress("Waiting 2 seconds before uploading next video...");
                             Thread.sleep(2000);
                         }
 
@@ -108,9 +108,9 @@ public class TelegramVideoUploadService {
                 }
 
                 if (uploadedFiles.isEmpty()) {
-                    callback.onError("所有视频上传失败");
+                    callback.onError("All video uploads failed");
                 } else {
-                    String successMessage = "✅ 视频上传完成！共上传 " + uploadedFiles.size() + " 个文件";
+                    String successMessage = "✅ Video upload complete! Total uploaded: " + uploadedFiles.size() + " files";
                     callback.onSuccess(successMessage);
 
                     // 等待3秒，确保视频消息投递完成后再发送完成消息

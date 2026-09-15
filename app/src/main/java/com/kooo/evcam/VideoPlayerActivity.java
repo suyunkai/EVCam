@@ -55,14 +55,14 @@ public class VideoPlayerActivity extends AppCompatActivity {
         // 获取视频路径
         String videoPath = getIntent().getStringExtra("video_path");
         if (videoPath == null || videoPath.isEmpty()) {
-            Toast.makeText(this, "无效的视频路径", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Invalid video path", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
 
         File videoFile = new File(videoPath);
         if (!videoFile.exists()) {
-            Toast.makeText(this, "视频文件不存在", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Video file does not exist", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
@@ -154,7 +154,7 @@ public class VideoPlayerActivity extends AppCompatActivity {
                 @Override
                 public void onCompletion(MediaPlayer mp) {
                     isPlaying = false;
-                    btnPlayPause.setText("播放");
+                    btnPlayPause.setText("Play");
                     seekBar.setProgress(0);
                     currentTimeText.setText(formatTime(0));
                 }
@@ -164,7 +164,7 @@ public class VideoPlayerActivity extends AppCompatActivity {
             videoView.setOnErrorListener(new MediaPlayer.OnErrorListener() {
                 @Override
                 public boolean onError(MediaPlayer mp, int what, int extra) {
-                    Toast.makeText(VideoPlayerActivity.this, "播放出错", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(VideoPlayerActivity.this, "Playback error", Toast.LENGTH_SHORT).show();
                     return true;
                 }
             });
@@ -181,7 +181,7 @@ public class VideoPlayerActivity extends AppCompatActivity {
     private void playVideo() {
         videoView.start();
         isPlaying = true;
-        btnPlayPause.setText("暂停");
+        btnPlayPause.setText("Pause");
     }
 
     /**
@@ -190,7 +190,7 @@ public class VideoPlayerActivity extends AppCompatActivity {
     private void pauseVideo() {
         videoView.pause();
         isPlaying = false;
-        btnPlayPause.setText("播放");
+        btnPlayPause.setText("Play");
     }
 
     /**

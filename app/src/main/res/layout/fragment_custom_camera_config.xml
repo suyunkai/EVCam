@@ -34,7 +34,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="自定义界面配置"
+            android:text="Custom Layout Config"
             android:textColor="@color/text_primary"
             android:textSize="24sp"
             android:textStyle="bold" />
@@ -65,7 +65,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="⚠️ 配置修改后需重启应用生效！"
+                    android:text="⚠️ Changes take effect after app restart!"
                     android:textColor="#FF5722"
                     android:textSize="16sp"
                     android:textStyle="bold"
@@ -75,7 +75,7 @@
                     android:id="@+id/btn_restart_app"
                     android:layout_width="wrap_content"
                     android:layout_height="40dp"
-                    android:text="重载"
+                    android:text="Reload"
                     android:textSize="14sp"
                     android:textColor="#FFFFFF"
                     android:backgroundTint="#FF5722"
@@ -90,7 +90,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="💡 布局配置有时可能会失效，可尝试保存后多次调整！"
+                android:text="💡 Layout config may occasionally need re-saving after adjustment!"
                 android:textColor="#2196F3"
                 android:textSize="14sp"
                 android:padding="12dp"
@@ -109,7 +109,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="自由操控布局"
+                    android:text="Freeform Layout"
                     android:textColor="@color/text_primary"
                     android:textSize="20sp"
                     android:textStyle="bold" />
@@ -117,7 +117,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="开启后可自由拖动、缩放、隐藏摄像头和按钮"
+                    android:text="When enabled, freely drag, scale, or hide camera feeds and buttons"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:layout_marginTop="4dp"
@@ -135,7 +135,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="启用自由操控"
+                        android:text="Enable Freeform Layout"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -155,7 +155,7 @@
                     <TextView
                         android:layout_width="100dp"
                         android:layout_height="wrap_content"
-                        android:text="按钮样式："
+                        android:text="Button Style:"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp" />
 
@@ -183,7 +183,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="摄像头数量"
+                    android:text="Number of Cameras"
                     android:textColor="@color/text_primary"
                     android:textSize="20sp"
                     android:textStyle="bold" />
@@ -191,7 +191,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="选择设备上的摄像头数量"
+                    android:text="Select number of cameras connected to device"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:layout_marginTop="4dp"
@@ -219,7 +219,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="布局数据"
+                    android:text="Layout Data"
                     android:textColor="@color/text_primary"
                     android:textSize="20sp"
                     android:textStyle="bold" />
@@ -227,7 +227,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="手动编辑布局 JSON 数据（也可使用车友们的布局哦）"
+                    android:text="Manually edit layout JSON data (or import community layouts)"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:layout_marginTop="4dp"
@@ -246,7 +246,7 @@
                     android:gravity="top|start"
                     android:inputType="textMultiLine"
                     android:scrollbars="vertical"
-                    android:hint="无布局数据" />
+                    android:hint="No Layout Data" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -259,7 +259,7 @@
                         android:id="@+id/btn_copy_layout"
                         android:layout_width="wrap_content"
                         android:layout_height="40dp"
-                        android:text="复制"
+                        android:text="Copy"
                         android:textSize="14sp"
                         android:textColor="#FFFFFF"
                         android:backgroundTint="#2196F3"
@@ -274,7 +274,7 @@
                         android:id="@+id/btn_save_layout"
                         android:layout_width="wrap_content"
                         android:layout_height="40dp"
-                        android:text="保存"
+                        android:text="Save"
                         android:textSize="14sp"
                         android:textColor="#FFFFFF"
                         android:backgroundTint="#4CAF50"
@@ -290,7 +290,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="摄像头编号映射"
+                android:text="Camera ID Mapping"
                 android:textColor="@color/text_primary"
                 android:textSize="20sp"
                 android:textStyle="bold"
@@ -299,7 +299,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="请设置每个位置对应的摄像头编号（0, 1, 2, 3...），名称可自由修改，若留空则会隐藏名称框"
+                android:text="Set the camera ID (0, 1, 2, 3...) for each position. Names can be edited or left blank to hide label box."
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp"
                 android:layout_marginBottom="16dp" />
@@ -317,7 +317,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="位置 1"
+                    android:text="Camera 1"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -333,7 +333,7 @@
                     <TextView
                         android:layout_width="80dp"
                         android:layout_height="wrap_content"
-                        android:text="名称："
+                        android:text="Name:"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp" />
 
@@ -342,7 +342,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="前"
+                        android:text="Front"
                         android:textColor="@color/text_primary"
                         android:textSize="14sp"
                         android:inputType="text"
@@ -360,7 +360,7 @@
                     <TextView
                         android:layout_width="80dp"
                         android:layout_height="wrap_content"
-                        android:text="编号："
+                        android:text="ID:"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp" />
 
@@ -389,7 +389,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="位置 2"
+                    android:text="Camera 2"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -405,7 +405,7 @@
                     <TextView
                         android:layout_width="80dp"
                         android:layout_height="wrap_content"
-                        android:text="名称："
+                        android:text="Name:"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp" />
 
@@ -414,7 +414,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="后"
+                        android:text="Rear"
                         android:textColor="@color/text_primary"
                         android:textSize="14sp"
                         android:inputType="text"
@@ -432,7 +432,7 @@
                     <TextView
                         android:layout_width="80dp"
                         android:layout_height="wrap_content"
-                        android:text="编号："
+                        android:text="ID:"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp" />
 
@@ -461,7 +461,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="位置 3"
+                    android:text="Camera 3"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -477,7 +477,7 @@
                     <TextView
                         android:layout_width="80dp"
                         android:layout_height="wrap_content"
-                        android:text="名称："
+                        android:text="Name:"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp" />
 
@@ -486,7 +486,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="左"
+                        android:text="Left"
                         android:textColor="@color/text_primary"
                         android:textSize="14sp"
                         android:inputType="text"
@@ -504,7 +504,7 @@
                     <TextView
                         android:layout_width="80dp"
                         android:layout_height="wrap_content"
-                        android:text="编号："
+                        android:text="ID:"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp" />
 
@@ -533,7 +533,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="位置 4"
+                    android:text="Camera 4"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -549,7 +549,7 @@
                     <TextView
                         android:layout_width="80dp"
                         android:layout_height="wrap_content"
-                        android:text="名称："
+                        android:text="Name:"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp" />
 
@@ -558,7 +558,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="右"
+                        android:text="Right"
                         android:textColor="@color/text_primary"
                         android:textSize="14sp"
                         android:inputType="text"
@@ -576,7 +576,7 @@
                     <TextView
                         android:layout_width="80dp"
                         android:layout_height="wrap_content"
-                        android:text="编号："
+                        android:text="ID:"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp" />
 
@@ -603,7 +603,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="使用说明"
+                    android:text="Instructions"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -612,7 +612,15 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="• 摄像头数量：选择您设备实际连接的摄像头数量\n\n• 摄像头编号：每个摄像头在系统中的唯一标识（通常为 0、1、2、3），可以在系统日志中查看\n\n• 位置名称：用于标识摄像头的显示名称，会显示在预览画面和文件名中\n\n• 前/后轮视角调整：在主界面长按「前轮」或「后轮」按钮，可打开参数调节面板，实时调整画面的位置、大小和旋转角度\n\n• 所有更改会自动保存，重启应用后生效"
+                    android:text="• Camera Count: Number of cameras physically connected
+
+• Camera ID: Unique ID in system (usually 0, 1, 2, 3), check system logs if needed
+
+• Label: Display name shown on preview and filename
+
+• Wheel View Adjust: Long-press 'Front Wheels' or 'Rear Wheels' on main screen to adjust position, size, and rotation in real-time
+
+• All changes save automatically and take effect upon app restart"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:lineSpacingExtra="4dp" />
@@ -630,7 +638,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="重置配置"
+                    android:text="Reset Configuration"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -639,7 +647,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="如果配置出现问题，可以重置所有自定义配置到默认值"
+                    android:text="If issues occur, reset all custom settings to defaults"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:layout_marginBottom="12dp" />
@@ -648,7 +656,7 @@
                     android:id="@+id/btn_reset_all_config"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="重置所有自定义配置"
+                    android:text="Reset All Custom Configurations"
                     android:textSize="16sp"
                     android:minHeight="48dp"
                     android:backgroundTint="#D32F2F"

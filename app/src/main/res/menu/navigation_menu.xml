@@ -1,66 +1,66 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- 主要功能区 -->
+    <!-- Primary Features -->
     <group android:checkableBehavior="single">
         <item
             android:id="@+id/nav_recording"
             android:icon="@drawable/ic_nav_recording"
-            android:title="录制界面" />
+            android:title="Recording" />
         <item
             android:id="@+id/nav_playback"
             android:icon="@drawable/ic_nav_playback"
-            android:title="视频回看" />
+            android:title="Videos" />
         <item
             android:id="@+id/nav_photo_playback"
             android:icon="@drawable/ic_nav_photo"
-            android:title="图片回看" />
+            android:title="Photos" />
     </group>
 
-    <!-- 远程查看功能区 -->
-    <item android:title="远程查看">
+    <!-- Remote Monitoring -->
+    <item android:title="Remote Monitoring">
         <menu>
             <item
                 android:id="@+id/nav_remote_view"
                 android:icon="@drawable/ic_nav_dingtalk"
                 android:checkable="true"
-                android:title="钉钉远程" />
+                android:title="DingTalk" />
             <item
                 android:id="@+id/nav_telegram"
                 android:icon="@drawable/ic_nav_telegram"
                 android:checkable="true"
-                android:title="电报远程" />
+                android:title="Telegram" />
             <item
                 android:id="@+id/nav_feishu"
                 android:icon="@drawable/ic_nav_feishu"
                 android:checkable="true"
-                android:title="飞书远程" />
+                android:title="Feishu" />
             <item
                 android:id="@+id/nav_heartbeat"
                 android:icon="@drawable/ic_nav_heartbeat"
                 android:checkable="true"
-                android:title="心跳推图" />
+                android:title="Heartbeat" />
         </menu>
     </item>
 
-    <!-- 设置区 -->
-    <item android:title="系统">
+    <!-- Settings Section -->
+    <item android:title="System">
         <menu>
             <item
                 android:id="@+id/nav_secondary_display"
                 android:icon="@drawable/ic_nav_remote"
                 android:checkable="true"
-                android:title="补盲选项" />
+                android:title="Blind Spot" />
             <item
                 android:id="@+id/nav_supervision_mode"
                 android:icon="@drawable/ic_nav_remote"
                 android:checkable="true"
-                android:title="超视模式" />
+                android:title="Supervision Mode" />
             <item
                 android:id="@+id/nav_settings"
                 android:icon="@drawable/ic_nav_settings"
                 android:checkable="true"
-                android:title="软件设置" />
+                android:title="Settings" />
         </menu>
     </item>
 

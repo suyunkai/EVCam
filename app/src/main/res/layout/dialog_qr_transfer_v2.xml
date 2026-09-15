@@ -9,7 +9,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="扫码互传"
+        android:text="QR Code File Transfer"
         android:textSize="20sp"
         android:textStyle="bold"
         android:textColor="#1A1A1A"
@@ -20,7 +20,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="选择网络地址："
+        android:text="Select Network IP:"
         android:textSize="14sp"
         android:textColor="#666666"
         android:layout_marginBottom="4dp" />
@@ -46,7 +46,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="fitCenter"
-            android:contentDescription="二维码" />
+            android:contentDescription="QR Code" />
 
         <ProgressBar
             android:id="@+id/qr_loading"
@@ -90,7 +90,7 @@
             android:id="@+id/btn_copy_url"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
-            android:text="复制"
+            android:text="Copy"
             android:textSize="12sp"
             android:layout_marginStart="8dp" />
     </LinearLayout>
@@ -100,7 +100,7 @@
         android:id="@+id/server_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="正在启动服务器..."
+        android:text="Starting server..."
         android:textSize="12sp"
         android:textColor="#666666"
         android:layout_gravity="center_horizontal"
@@ -110,7 +110,7 @@
         android:id="@+id/transfer_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="等待连接..."
+        android:text="Waiting for connection..."
         android:textSize="14sp"
         android:textColor="#1976D2"
         android:layout_gravity="center_horizontal"
@@ -121,7 +121,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="待传输文件："
+        android:text="Pending Files:"
         android:textSize="14sp"
         android:textColor="#666666"
         android:layout_marginBottom="4dp" />
@@ -147,7 +147,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="刷新"
+            android:text="Refresh"
             android:textSize="14sp"
             android:layout_marginEnd="8dp" />
 
@@ -156,7 +156,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="停止"
+            android:text="Stop"
             android:textSize="14sp"
             android:backgroundTint="#D32F2F"
             android:textColor="#FFFFFF" />

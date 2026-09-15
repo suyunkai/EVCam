@@ -33,7 +33,7 @@ public class DingTalkHandler extends RemoteCommandHandler {
     
     @Override
     protected String getPlatformName() {
-        return "钉钉";
+        return "DingTalk";
     }
     
     @Override

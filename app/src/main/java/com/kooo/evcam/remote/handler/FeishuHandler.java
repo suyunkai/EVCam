@@ -36,7 +36,7 @@ public class FeishuHandler extends RemoteCommandHandler {
     
     @Override
     protected String getPlatformName() {
-        return "飞书";
+        return "Feishu";
     }
     
     @Override
@@ -89,7 +89,7 @@ public class FeishuHandler extends RemoteCommandHandler {
         if (error.contains("413") || 
             error.contains("99991663") || 
             error.contains("file size")) {
-            sendMessage(chatId, "提示：飞书限制上传文件不能超过30MB，该文件大小已超出。");
+            sendMessage(chatId, "Notice: Feishu upload limit is 30MB; file exceeds limit.");
         }
     }
     

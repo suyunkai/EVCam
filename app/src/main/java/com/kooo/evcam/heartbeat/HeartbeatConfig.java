@@ -92,7 +92,7 @@ public class HeartbeatConfig {
      */
     public void setIntervalSeconds(int seconds) {
         prefs.edit().putInt(KEY_INTERVAL_SECONDS, seconds).apply();
-        AppLog.d(TAG, "推送间隔设置: " + seconds + "秒");
+        AppLog.d(TAG, "推送间隔设置: " + seconds + "s");
     }
     
     /**
@@ -243,13 +243,13 @@ public class HeartbeatConfig {
     public static String getTargetSizeDisplayName(int sizeKB) {
         switch (sizeKB) {
             case TARGET_SIZE_100KB:
-                return "100KB（省流量）";
+                return "100KB (Data Saving)";
             case TARGET_SIZE_500KB:
                 return "500KB";
             case TARGET_SIZE_1MB:
                 return "1MB";
             case TARGET_SIZE_NO_COMPRESS:
-                return "不压缩（原图质量）";
+                return "Uncompressed (Original Quality)";
             default:
                 return sizeKB + "KB";
         }
@@ -391,12 +391,12 @@ public class HeartbeatConfig {
      */
     public String getConfigStatus() {
         if (!hasServerUrl()) {
-            return "请配置服务器地址";
+            return "Please configure server address";
         }
         if (!hasSecretKey()) {
-            return "请配置通信密钥";
+            return "Please configure secret key";
         }
-        return "配置完成";
+        return "Configuration complete";
     }
     
     // ==================== 间隔显示名称 ====================
@@ -407,15 +407,15 @@ public class HeartbeatConfig {
     public static String getIntervalDisplayName(int seconds) {
         switch (seconds) {
             case INTERVAL_30_SECONDS:
-                return "30秒";
+                return "30s";
             case INTERVAL_60_SECONDS:
-                return "1分钟（推荐）";
+                return "1m (Recommended)";
             case INTERVAL_120_SECONDS:
-                return "2分钟";
+                return "2m";
             case INTERVAL_300_SECONDS:
-                return "5分钟";
+                return "5m";
             default:
-                return seconds + "秒";
+                return seconds + "s";
         }
     }
 }

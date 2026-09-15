@@ -11,7 +11,7 @@
         android:id="@+id/dialog_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="分享视频"
+        android:text="Share Video"
         android:textSize="22sp"
         android:textStyle="bold"
         android:textColor="#1A1A1A"
@@ -21,7 +21,7 @@
         android:id="@+id/dialog_message"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="共 0 个视频文件"
+        android:text="0 Video Files Total"
         android:textSize="16sp"
         android:textColor="#666666"
         android:layout_marginBottom="24dp" />
@@ -54,7 +54,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="二维码"
+                android:text="QR Code"
                 android:textSize="14sp"
                 android:textColor="#1976D2" />
         </LinearLayout>
@@ -80,7 +80,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="分享"
+                android:text="Share"
                 android:textSize="14sp"
                 android:textColor="#1976D2" />
         </LinearLayout>
@@ -106,7 +106,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="关闭"
+                android:text="Close"
                 android:textSize="14sp"
                 android:textColor="#D32F2F" />
         </LinearLayout>

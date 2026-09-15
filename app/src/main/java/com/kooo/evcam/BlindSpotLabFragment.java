@@ -48,7 +48,7 @@ public class BlindSpotLabFragment extends Fragment {
         setupBlindSpotPosButton = view.findViewById(R.id.btn_setup_blind_spot_pos);
         saveButton = view.findViewById(R.id.btn_save_apply);
 
-        String[] cameraNames = {"前摄像头", "后摄像头", "左摄像头", "右摄像头"};
+        String[] cameraNames = {"Front Camera", "Rear Camera", "Left Camera", "Right Camera"};
         ArrayAdapter<String> cameraAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, cameraNames);
         cameraAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         mainFloatingCameraSpinner.setAdapter(cameraAdapter);
@@ -76,7 +76,7 @@ public class BlindSpotLabFragment extends Fragment {
         mainFloatingSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked && !WakeUpHelper.hasOverlayPermission(requireContext())) {
                 mainFloatingSwitch.setChecked(false);
-                Toast.makeText(requireContext(), "请先授予悬浮窗权限", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Please grant Floating Window permission first", Toast.LENGTH_SHORT).show();
                 WakeUpHelper.requestOverlayPermission(requireContext());
                 return;
             }
@@ -109,7 +109,7 @@ public class BlindSpotLabFragment extends Fragment {
 
         setupBlindSpotPosButton.setOnClickListener(v -> {
             if (!WakeUpHelper.hasOverlayPermission(requireContext())) {
-                Toast.makeText(requireContext(), "请先授予悬浮窗权限", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Please grant Floating Window permission first", Toast.LENGTH_SHORT).show();
                 WakeUpHelper.requestOverlayPermission(requireContext());
                 return;
             }
@@ -119,7 +119,7 @@ public class BlindSpotLabFragment extends Fragment {
         });
 
         saveButton.setOnClickListener(v -> {
-            Toast.makeText(requireContext(), "配置已保存并应用", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Configuration saved and applied", Toast.LENGTH_SHORT).show();
             BlindSpotService.update(requireContext());
         });
     }

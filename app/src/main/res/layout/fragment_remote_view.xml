@@ -35,7 +35,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="钉钉远程查看配置"
+            android:text="DingTalk Remote Settings"
             android:textColor="@color/text_primary"
             android:textSize="24sp"
             android:textStyle="bold" />
@@ -76,7 +76,7 @@
                 android:id="@+id/et_client_id"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="请输入钉钉应用的 ClientId"
+                android:hint="Enter DingTalk application ClientId"
                 android:textColor="@color/text_primary"
                 android:textColorHint="@color/text_secondary"
                 android:textSize="16sp"
@@ -107,7 +107,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:hint="请输入钉钉应用的 ClientSecret"
+                    android:hint="Enter DingTalk application ClientSecret"
                     android:textColor="@color/text_primary"
                     android:textColorHint="@color/text_secondary"
                     android:textSize="16sp"
@@ -122,7 +122,7 @@
                     android:layout_height="48dp"
                     android:src="@drawable/ic_visibility"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="切换密码可见性"
+                    android:contentDescription="Toggle Password Visibility"
                     android:tint="@color/text_primary"
                     android:layout_marginEnd="8dp" />
             </LinearLayout>
@@ -139,7 +139,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="保存配置"
+                    android:text="Save Config"
                     android:textSize="20sp"
                     android:minHeight="56dp"
                     android:layout_marginEnd="8dp"
@@ -151,7 +151,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="测试连接"
+                    android:text="Test Connection"
                     android:textSize="20sp"
                     android:minHeight="56dp"
                     android:layout_marginStart="8dp"
@@ -178,7 +178,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="自动启动服务"
+                        android:text="Auto-Start Service"
                         android:textColor="@color/text_primary"
                         android:textSize="20sp"
                         android:textStyle="bold" />
@@ -186,7 +186,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="应用启动时自动连接远程查看服务，并在断线时自动重连"
+                        android:text="Auto-connect remote monitoring service on app launch with auto-reconnect"
                         android:textColor="@color/text_secondary"
                         android:textSize="16sp"
                         android:layout_marginTop="4dp" />
@@ -210,7 +210,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="连接状态："
+                    android:text="Connection Status:"
                     android:textColor="@color/text_secondary"
                     android:textSize="18sp" />
 
@@ -219,7 +219,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="未连接"
+                    android:text="Not Connected"
                     android:textColor="#FF6666"
                     android:textSize="18sp"
                     android:layout_marginStart="8dp" />
@@ -236,7 +236,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="启动服务"
+                    android:text="Start Service"
                     android:textSize="20sp"
                     android:minHeight="56dp"
                     android:layout_marginEnd="8dp"
@@ -248,7 +248,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="停止服务"
+                    android:text="Stop Service"
                     android:textSize="20sp"
                     android:minHeight="56dp"
                     android:enabled="false"
@@ -261,7 +261,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="使用说明"
+                android:text="Instructions"
                 android:textColor="@color/text_primary"
                 android:textSize="20sp"
                 android:textStyle="bold"
@@ -271,7 +271,12 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="1. 在钉钉开放平台创建企业内部应用\n2. 开启机器人能力并配置 Stream 模式\n3. 将应用的 ClientId 和 ClientSecret 填入上方\n4. 保存配置并启动服务\n5. 在钉钉群聊中 @机器人 发送「录制」指令\n6. 设备将自动录制 1 分钟视频并上传到钉钉群"
+                android:text="1. Create an internal app in DingTalk Open Platform
+2. Enable Bot capability and configure Stream mode
+3. Enter ClientId and ClientSecret above
+4. Save config and start service
+5. In DingTalk group chat, @Bot and send 'record' command
+6. Device will record 1 min video and upload to group"
                 android:textColor="@color/text_secondary"
                 android:textSize="16sp"
                 android:lineSpacingExtra="6dp" />

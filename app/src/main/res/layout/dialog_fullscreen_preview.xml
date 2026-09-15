@@ -42,7 +42,7 @@
             android:paddingTop="8dp"
             android:paddingEnd="20dp"
             android:paddingBottom="8dp"
-            android:text="前"
+            android:text="Front"
             android:textColor="#FFFFFF"
             android:textSize="16sp"
             android:textStyle="bold"
@@ -56,7 +56,7 @@
             android:layout_marginTop="4dp"
             android:layout_marginEnd="4dp"
             android:background="@drawable/circle_button_bg"
-            android:contentDescription="关闭"
+            android:contentDescription="Close"
             android:elevation="10dp"
             android:padding="8dp"
             android:scaleType="fitCenter"
@@ -74,7 +74,7 @@
             android:paddingTop="10dp"
             android:paddingEnd="20dp"
             android:paddingBottom="10dp"
-            android:text="长按画面可调整参数"
+            android:text="Long press video feed to adjust parameters"
             android:textColor="#CCFFFFFF"
             android:textSize="14sp"
             android:elevation="10dp" />
@@ -111,7 +111,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="画面调整"
+                    android:text="Screen Adjustment"
                     android:textColor="#FFFFFF"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -121,7 +121,7 @@
                     android:layout_width="32dp"
                     android:layout_height="32dp"
                     android:background="@drawable/circle_button_bg_small"
-                    android:contentDescription="隐藏"
+                    android:contentDescription="Hide"
                     android:padding="6dp"
                     android:scaleType="fitCenter"
                     android:src="@android:drawable/arrow_down_float"
@@ -138,7 +138,7 @@
                 <TextView
                     android:layout_width="60dp"
                     android:layout_height="wrap_content"
-                    android:text="水平位置"
+                    android:text="Horizontal Position"
                     android:textColor="#CCCCCC"
                     android:textSize="13sp" />
 
@@ -170,7 +170,7 @@
                 <TextView
                     android:layout_width="60dp"
                     android:layout_height="wrap_content"
-                    android:text="垂直位置"
+                    android:text="Vertical Position"
                     android:textColor="#CCCCCC"
                     android:textSize="13sp" />
 
@@ -202,7 +202,7 @@
                 <TextView
                     android:layout_width="60dp"
                     android:layout_height="wrap_content"
-                    android:text="宽度"
+                    android:text="Width"
                     android:textColor="#CCCCCC"
                     android:textSize="13sp" />
 
@@ -234,7 +234,7 @@
                 <TextView
                     android:layout_width="60dp"
                     android:layout_height="wrap_content"
-                    android:text="高度"
+                    android:text="Height"
                     android:textColor="#CCCCCC"
                     android:textSize="13sp" />
 
@@ -273,7 +273,7 @@
                 <TextView
                     android:layout_width="60dp"
                     android:layout_height="wrap_content"
-                    android:text="缩放"
+                    android:text="Zoom / Scale"
                     android:textColor="#CCCCCC"
                     android:textSize="13sp" />
 
@@ -305,7 +305,7 @@
                 <TextView
                     android:layout_width="60dp"
                     android:layout_height="wrap_content"
-                    android:text="旋转"
+                    android:text="Rotation"
                     android:textColor="#CCCCCC"
                     android:textSize="13sp" />
 
@@ -337,7 +337,7 @@
                 <TextView
                     android:layout_width="60dp"
                     android:layout_height="wrap_content"
-                    android:text="中心X"
+                    android:text="Center X"
                     android:textColor="#CCCCCC"
                     android:textSize="13sp" />
 
@@ -369,7 +369,7 @@
                 <TextView
                     android:layout_width="60dp"
                     android:layout_height="wrap_content"
-                    android:text="中心Y"
+                    android:text="Center Y"
                     android:textColor="#CCCCCC"
                     android:textSize="13sp" />
 
@@ -408,7 +408,7 @@
                 <TextView
                     android:layout_width="60dp"
                     android:layout_height="wrap_content"
-                    android:text="K1 强度"
+                    android:text="K1 Strength"
                     android:textColor="#CCCCCC"
                     android:textSize="13sp" />
 
@@ -440,7 +440,7 @@
                 <TextView
                     android:layout_width="60dp"
                     android:layout_height="wrap_content"
-                    android:text="K2 细调"
+                    android:text="K2 Fine-tune"
                     android:textColor="#CCCCCC"
                     android:textSize="13sp" />
 
@@ -476,7 +476,7 @@
                     android:layout_marginEnd="8dp"
                     android:layout_weight="1"
                     android:backgroundTint="#FF453A"
-                    android:text="重置"
+                    android:text="Reset"
                     android:textColor="#FFFFFF"
                     android:textSize="14sp" />
 
@@ -486,7 +486,7 @@
                     android:layout_height="40dp"
                     android:layout_weight="1"
                     android:backgroundTint="#007AFF"
-                    android:text="保存"
+                    android:text="Save"
                     android:textColor="#FFFFFF"
                     android:textSize="14sp" />
             </LinearLayout>

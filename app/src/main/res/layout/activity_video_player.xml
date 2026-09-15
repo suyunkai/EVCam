@@ -68,7 +68,7 @@
                 android:id="@+id/btn_close"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="关闭"
+                android:text="Close"
                 android:textSize="18sp"
                 android:minWidth="80dp"
                 android:minHeight="48dp" />
@@ -80,7 +80,7 @@
                 android:layout_weight="1"
                 android:layout_marginStart="16dp"
                 android:layout_marginEnd="16dp"
-                android:text="视频"
+                android:text="Videos"
                 android:textColor="#FFFFFF"
                 android:textSize="18sp"
                 android:singleLine="true"
@@ -90,7 +90,7 @@
                 android:id="@+id/btn_play_pause"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="播放"
+                android:text="Play"
                 android:textSize="18sp"
                 android:minWidth="80dp"
                 android:minHeight="48dp" />

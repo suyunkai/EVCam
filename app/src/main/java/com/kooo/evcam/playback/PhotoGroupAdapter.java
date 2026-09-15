@@ -98,7 +98,7 @@ public class PhotoGroupAdapter extends RecyclerView.Adapter<PhotoGroupAdapter.Vi
         holder.videoSize.setText(group.getFormattedSize());
 
         int count = group.getPhotoCount();
-        holder.videoCountBadge.setText(count + "张");
+        holder.videoCountBadge.setText(count + " photos");
 
         loadThumbnail(group.getFrontPhoto(), holder.thumbFront);
         loadThumbnail(group.getBackPhoto(), holder.thumbBack);

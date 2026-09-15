@@ -103,7 +103,7 @@ public class DateSection<T> {
     
     /**
      * 获取格式化的日期显示字符串
-     * 今天显示"今天"，昨天显示"昨天"，其他显示日期
+     * 今天显示"Today"，昨天显示"Yesterday"，其他显示日期
      */
     public String getFormattedDateDisplay() {
         Calendar today = Calendar.getInstance();
@@ -124,18 +124,18 @@ public class DateSection<T> {
         long diffInDays = (today.getTimeInMillis() - targetDate.getTimeInMillis()) / (24 * 60 * 60 * 1000);
         
         if (diffInDays == 0) {
-            return "今天";
+            return "Today";
         } else if (diffInDays == 1) {
-            return "昨天";
+            return "Yesterday";
         } else if (diffInDays == 2) {
-            return "前天";
+            return "Earlier";
         } else {
             // 判断是否是同一年
             if (today.get(Calendar.YEAR) == targetDate.get(Calendar.YEAR)) {
-                SimpleDateFormat sdf = new SimpleDateFormat("MM月dd日", Locale.CHINESE);
+                SimpleDateFormat sdf = new SimpleDateFormat("MMM dd", Locale.CHINESE);
                 return sdf.format(date);
             } else {
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy年MM月dd日", Locale.CHINESE);
+                SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy", Locale.CHINESE);
                 return sdf.format(date);
             }
         }
@@ -157,7 +157,7 @@ public class DateSection<T> {
         String dayOfWeek = getDayOfWeek();
         
         // 今天、昨天、前天显示时带上星期
-        if ("今天".equals(dateDisplay) || "昨天".equals(dateDisplay) || "前天".equals(dateDisplay)) {
+        if ("Today".equals(dateDisplay) || "Yesterday".equals(dateDisplay) || "Earlier".equals(dateDisplay)) {
             return dateDisplay + " · " + dayOfWeek;
         }
         

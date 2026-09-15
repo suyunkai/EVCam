@@ -200,7 +200,7 @@ public class PlaybackFragment extends Fragment {
     }
 
     private void updateSelectedCount() {
-        selectedCount.setText("已选择 " + selectedPositions.size() + " 项");
+        selectedCount.setText("Selected " + selectedPositions.size() + " items");
     }
 
     private void deleteSelected() {
@@ -209,9 +209,9 @@ public class PlaybackFragment extends Fragment {
         }
 
         new MaterialAlertDialogBuilder(getContext(), R.style.Theme_Cam_MaterialAlertDialog)
-                .setTitle("确认删除")
-                .setMessage("确定要删除选中的 " + selectedPositions.size() + " 个视频吗？")
-                .setPositiveButton("删除", (dialog, which) -> {
+                .setTitle("Confirm Delete")
+                .setMessage("Are you sure you want to delete selected " + selectedPositions.size() + " videos?")
+                .setPositiveButton("Delete", (dialog, which) -> {
                     int deletedCount = 0;
                     List<Integer> positionsToDelete = new ArrayList<>(selectedPositions);
                     Collections.sort(positionsToDelete, Collections.reverseOrder());
@@ -236,7 +236,7 @@ public class PlaybackFragment extends Fragment {
 
                     if (getContext() != null) {
                         android.widget.Toast.makeText(getContext(), 
-                                "已删除 " + deletedCount + " 个视频", 
+                                "Deleted " + deletedCount + " videos", 
                                 android.widget.Toast.LENGTH_SHORT).show();
                     }
 
@@ -244,7 +244,7 @@ public class PlaybackFragment extends Fragment {
                         exitMultiSelectMode();
                     }
                 })
-                .setNegativeButton("取消", null)
+                .setNegativeButton("Cancel", null)
                 .show();
     }
 }

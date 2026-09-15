@@ -692,7 +692,7 @@ public class BlindSpotService extends Service {
         }
 
         // --- 2. 异步启动前台服务和初始化相机（与 UI 布局并行） ---
-        CameraForegroundService.start(this, "补盲运行中", "正在显示补盲画面");
+        CameraForegroundService.start(this, "Blind spot active", "Displaying blind spot view");
         com.kooo.evcam.camera.CameraManagerHolder.getInstance().getOrInit(this);
 
         // --- 3. 提前打开相机（与 Surface 创建并行，节省 ~20-60ms） ---
@@ -829,7 +829,7 @@ public class BlindSpotService extends Service {
         // --- 2. 异步启动前台服务和初始化相机（与 UI 布局并行） ---
         // 前台服务是后台访问摄像头的前提条件，但 addView 不需要它
         // 冷启动时 CameraForegroundService 可能还未启动，导致摄像头被系统 CAMERA_DISABLED 拦截
-        CameraForegroundService.start(this, "补盲运行中", "正在显示补盲画面");
+        CameraForegroundService.start(this, "Blind spot active", "Displaying blind spot view");
 
         // 确保摄像头已初始化（通过全局 Holder，不依赖 MainActivity）
         com.kooo.evcam.camera.CameraManagerHolder.getInstance().getOrInit(this);
@@ -934,7 +934,7 @@ public class BlindSpotService extends Service {
         }
         
         // 启动前台服务
-        CameraForegroundService.start(this, "长视模式运行中", "正在显示左右补盲画面");
+        CameraForegroundService.start(this, "Dual-view mode active", "Displaying blind spot views");
         
         // 确保摄像头已初始化
         com.kooo.evcam.camera.CameraManagerHolder.getInstance().getOrInit(this);
@@ -1302,7 +1302,7 @@ public class BlindSpotService extends Service {
         
         // --- 2. 异步启动前台服务和初始化相机（与 UI 布局并行） ---
         AppLog.d(TAG, "🚪 启动前台服务");
-        CameraForegroundService.start(this, "补盲运行中", "正在显示补盲画面");
+        CameraForegroundService.start(this, "Blind spot active", "Displaying blind spot view");
         AppLog.d(TAG, "🚪 初始化摄像头管理器");
         com.kooo.evcam.camera.CameraManagerHolder.getInstance().getOrInit(this);
         
@@ -1621,7 +1621,7 @@ public class BlindSpotService extends Service {
     private void updateWindows() {
         // 如果超视模式激活，保持运行
         if (isSupervisionModeActive) {
-            CameraForegroundService.start(this, "超视模式运行中", "正在显示左右补盲画面");
+            CameraForegroundService.start(this, "Dual-view mode active", "Displaying blind spot views");
             return;
         }
         
@@ -1660,7 +1660,7 @@ public class BlindSpotService extends Service {
                 || appConfig.isCustomKeyWakeupEnabled() // 定制键唤醒
                 || currentSignalCamera != null // 加入转向灯联动检查
                 || previewCameraPos != null) {
-            CameraForegroundService.start(this, "补盲运行中", "正在显示补盲画面");
+            CameraForegroundService.start(this, "Blind spot active", "Displaying blind spot view");
         }
         
         // 如果两个功能都关闭了，可以考虑停止服务
@@ -2299,8 +2299,8 @@ public class BlindSpotService extends Service {
         if (!appConfig.isCustomKeyWakeupEnabled()) return;
 
         AppLog.d(TAG, "启动定制键唤醒，速度属性=" + appConfig.getCustomKeySpeedPropId()
-                + "，按钮属性=" + appConfig.getCustomKeyButtonPropId()
-                + "，速度阈值=" + appConfig.getCustomKeySpeedThreshold());
+                + ", Button Prop=" + appConfig.getCustomKeyButtonPropId()
+                + ", Speed Threshold=" + appConfig.getCustomKeySpeedThreshold());
 
         // 如果信号观察者还未创建，先创建一个
         if (vhalSignalObserver == null) {

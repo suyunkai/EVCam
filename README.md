@@ -1,13 +1,14 @@
-﻿<div align="center">
-  <img src="assets/logo.png" alt="EVCam Logo" width="200"/>
+<div align="center">
+  <img src="assets/logo.png" alt="EVDashcam Logo" width="200"/>
   
-  # EVCam - 电车记录仪
-  
+  # EVDashcam
+
   <p>
-    <strong>针对吉利银河系列车型定制开发的车内环视摄像头行车记录仪应用，兼顾随时远程监看的千里眼功能</strong>
+    <strong>A customized surround-view dashcam & remote surveillance application designed for electric vehicle infotainment systems (Geely Galaxy series & DragonEagle-1 platforms), featuring multi-camera recording, blind-spot monitoring, remote bot control, and HTTP/RTP live streaming.</strong>
   </p>
   
   <p>
+    <img src="https://img.shields.io/badge/Version-1.6.6-blue?style=flat-square" alt="Version"/>
     <img src="https://img.shields.io/badge/Android-9.0+-green?style=flat-square&logo=android" alt="Android"/>
     <img src="https://img.shields.io/badge/API-28+-brightgreen?style=flat-square" alt="API"/>
     <img src="https://img.shields.io/badge/License-GPLv3-blue?style=flat-square" alt="License"/>
@@ -17,541 +18,170 @@
 
 ---
 
-## 📱 项目简介
+## 📱 Project Overview
 
-该应用支持吉利银河系列车型（银河E5、银河L6/L7等），理论上其它龙鹰一号无高阶智驾车型也可通用，同时支持手机端预览。支持同时从最多 **4 个摄像头**进行视频录制与拍照，支持通过**钉钉机器人**远程发送录制、拍照、实时预览指令进行远程监看。
+**EVDashcam** is an open-source vehicle dashcam application tailored for Geely Galaxy series models (Galaxy E5, L6, L7, etc.) and other DragonEagle-1 head units without high-level factory driving assistance. It also runs on Android phones and tablets.
 
-### ✨ 核心特性
+The app supports simultaneous video recording and snapshot capture across up to **4 cameras** (Front, Rear, Left, Right), provides **blind-spot turn assistance**, supports **local HTTP MJPEG / RTP streaming**, and features remote control via **Telegram**, **Feishu**, and **DingTalk** bots.
 
-- 🎨 **仿FlymeAuto官方UI** - 仿照FlymeAuto官方界面设计，沉浸式状态栏，美观且符合车机使用习惯
-- 🎥 **视频录制与照片抓拍** - 支持多摄像头同步录制和实时拍照，可选择参与录制的摄像头
-- 👁️ **千里眼远程监看** - 支持钉钉机器人远程查看摄像头画面
--  **不受车速限制** - 随时可开启录制功能，突破官方30km/h车速限制
-- 🔄 **自启动与后台保活** - 开机自启动 + 前台服务 + WorkManager + 无障碍服务多重保活机制
-- 💾 **多存储位置支持** - 支持内部存储和U盘存储，自动清理超出限制的旧文件
-- 🎬 **分段录制** - 支持1/3/5分钟自动分段，方便管理和回放
-- ⏱️ **时间戳水印** - 可选在视频和照片上添加时间角标
-- 🖼️ **悬浮窗快捷入口** - 可配置大小和透明度的悬浮按钮，实时显示录制状态
-- 🌙 **息屏录制（锁车录制）** - 支持熄屏后继续录制，实现锁车监控
-- 🔧 **多车型适配** - 支持银河E5、E5-多按钮、银河L6/L7、L7-多按钮、手机及自定义车型
+### ✨ Key Features
 
----
-
-## 🛠️ 技术栈
-
-- **开发语言**: Java
-- **最低版本**: Android 9.0 (API 28)
-- **目标版本**: Android 14+ (API 36)
-- **摄像头API**: Camera2 API
-- **视频编码**: MediaRecorder（硬编码）/ OpenGL + MediaCodec（软编码）
-- **构建工具**: Gradle 8.x (Kotlin DSL)
-- **UI组件**: Material Design Components
-- **图片加载**: Glide 4.16.0
-- **网络库**: OkHttp 4.12.0
-- **钉钉集成**: DingTalk Stream SDK 1.3.12
-- **后台任务**: WorkManager 2.9.0
-
-### 🚗 支持车型
-
-| 车型 | 摄像头数量 | 录制模式 | 备注 |
-|------|-----------|---------|------|
-| 银河E5 | 4 | MediaRecorder | 默认车型 |
-| 银河E5-多按钮 | 4 | MediaRecorder | 简化操作界面 |
-| 银河L6/L7 | 4 | OpenGL+MediaCodec | 自动适配编码模式 |
-| 银河L7-多按钮 | 4 | OpenGL+MediaCodec | 简化操作界面 |
-| 手机 | 2 | MediaRecorder | 前后摄像头 |
-| 自定义车型 | 1/2/4 | 可选 | 完全自定义配置 |
+- 🎨 **FlymeAuto-Inspired UI** - Immersive, modern dark vehicle interface with intuitive controls tailored for automotive touchscreens.
+- 🎥 **Multi-Camera Synchronous Recording & Snapshots** - Record from 1, 2, or 4 cameras simultaneously, with selectable active camera feeds.
+- 👁️ **Remote Surveillance & Bots** - Remote control via Telegram, Feishu, and DingTalk bots: trigger photo capture, recording, and receive status reports on your phone.
+- 🚀 **No Vehicle Speed Limit** - Start and continue recording at any speed, bypassing factory 30 km/h camera restrictions.
+- 🪞 **Blind Spot Assistance & Dual-View** - Automatically display camera overlay feeds when turn signals are engaged, with customizable window bounds and secondary display support.
+- 📡 **HTTP MJPEG & RTP Camera Streaming** - Stream camera feeds directly to browsers, local network clients, or ESP32 displays over TCP/UDP/RTP.
+- 📲 **Local Web & QR File Transfer** - Built-in lightweight HTTP server to download videos and photos directly to smartphones via Wi-Fi hotspot or local network without unplugging the USB drive.
+- 🔄 **Auto-Move Local Footage to USB** - Automatically detects USB insertion and migrates footage stored on internal display memory to USB, with disk sync verification before deletion.
+- ⚡ **Silent / Headless Background Autostart** - Begins recording automatically on boot without popping up over vehicle navigation or dashboard apps.
+- 🔒 **Record Only With USB Detected** - Optional guard that restricts dashcam recording strictly to external USB drives, protecting internal flash memory.
+- 🔄 **Auto-Start & Multi-Layer Keep-Alive** - Boot autostart + Foreground Service + Accessibility Service + WorkManager to prevent OS task killing.
+- 💾 **Dual Storage & Smart Cleanup** - Supports internal storage and USB drives (FAT32/exFAT) with automatic disk-space cleanup when thresholds are reached.
+- 🎬 **Segmented Loop Recording** - Automatically segments video into 1, 3, or 5-minute files for seamless loop management.
+- ⏱️ **Timestamp Watermarks** - Customizable on-screen date, time, and custom vehicle label watermarks on recordings.
+- 🖼️ **Configurable Floating Record Button** - Minimalist floating widget showing live recording status (Idle / Recording) with draggable position.
+- 🌙 **Screen-Off Recording (Sentry Mode)** - Continues recording when the vehicle screen sleeps or locks for parked security monitoring.
+- 🔧 **Broad Vehicle Model Support** - Presets for Galaxy E5, E5 (Multi-button), Galaxy L6/L7, L7 (Multi-button), Android smartphones, and fully custom camera configurations.
 
 ---
 
-## 📦 快速开始
+## 🛠️ Technology Stack
 
-### 环境要求
+- **Language**: Java 17+
+- **Minimum SDK**: Android 9.0 (API 28)
+- **Target SDK**: Android 14+ (API 36)
+- **Camera API**: Android Camera2 API
+- **Video Encoders**: MediaRecorder (Hardware) / OpenGL ES + MediaCodec (Software / Pipeline)
+- **Build System**: Gradle 8.x (Kotlin DSL)
+- **UI Architecture**: Material Design Components, Custom Surface Views
+- **Image Loading**: Glide 4.16.0
+- **Networking**: OkHttp 4.12.0
+- **Remote Bot Integrations**:
+  - Telegram Bot API
+  - Feishu WebSocket Long Connection
+  - DingTalk Stream SDK 1.3.12
+- **Background Orchestration**: AndroidX WorkManager 2.9.0
 
-- **JDK**: 17 或更高版本（推荐 JDK 25）
-- **Android Studio**: Hedgehog (2023.1.1) 或更高版本
+### 🚗 Vehicle Model Compatibility
+
+| Vehicle Model | Camera Count | Default Encoding Mode | Notes |
+|---|---|---|---|
+| **Galaxy E5** | 4 | MediaRecorder | Default preset |
+| **Galaxy E5 (Multi-button)** | 4 | MediaRecorder | Simplified button UI |
+| **Galaxy L6 / L7** | 4 | OpenGL + MediaCodec | Auto-adapted pipeline |
+| **Galaxy L7 (Multi-button)** | 4 | OpenGL + MediaCodec | Simplified button UI |
+| **Smartphones / Tablets** | 2 | MediaRecorder | Front + Rear cameras |
+| **Custom Configuration** | 1 / 2 / 4 | Configurable | Custom camera IDs and mappings |
+
+---
+
+## 📦 Getting Started
+
+### Prerequisites
+
+- **JDK**: JDK 17 or higher (JDK 25 supported)
+- **Android SDK**: Build Tools 36.0.0, Platform API 36
 - **Gradle**: 8.0+
-- **测试设备**: Android 9.0+ 的真机（建议具有多个摄像头）
+- **Test Device**: Android 9.0+ head unit or smartphone with camera access
 
-### 克隆项目
+### Cloning the Repository
 
 ```bash
-git clone https://github.com/your-username/EVCam.git
+git clone https://github.com/BradTiming/EVCam.git
 cd EVCam
 ```
 
-### 配置 JDK（Windows）
+### Build Environment Setup (Windows)
 
-项目提供了便捷的批处理脚本用于配置 JDK 25：
-
-```batch
-# 使用提供的脚本构建（自动设置 JAVA_HOME）
-build-with-jdk25.bat
+Configure your `local.properties` with your Android SDK location:
+```properties
+sdk.dir=C\:\\Users\\<username>\\AppData\\Local\\Android\\Sdk
 ```
-
-或者手动配置环境变量：
-
-```batch
-set JAVA_HOME=C:\Program Files\Java\jdk-25.0.2
-set PATH=%JAVA_HOME%\bin;%PATH%
-```
-
-### 钉钉机器人配置
-
-如需使用远程控制功能，需要配置钉钉机器人：
-
-1. 创建钉钉企业内部应用（Stream模式）
-2. 获取 `Client ID`（原 AppKey/SuiteKey）和 `Client Secret`（原 AppSecret/SuiteSecret）
-3. 创建 `app/src/main/java/com/kooo/evcam/dingtalk/DingTalkConfig.java`：
-
-```java
-package com.kooo.evcam.dingtalk;
-
-public class DingTalkConfig {
-    // 钉钉应用凭证（新版参数）
-    public static final String CLIENT_ID = "你的Client ID";
-    public static final String CLIENT_SECRET = "你的Client Secret";
-    
-    // 上传模式配置
-    public static final boolean ENABLE_UPLOAD = true; // 是否启用上传
-}
-```
-
-**注意**: 
-- 钉钉已将旧版的 AppKey/AppSecret 更名为 Client ID/Client Secret
-- 如果不需要钉钉功能，可以在 `MainActivity.java` 中注释掉相关代码
 
 ---
 
-## 🔨 构建与安装
+## 🔨 Building and Installation
 
-### 构建 Debug 版本
+### Build Debug APK
 
 ```bash
 # Windows
-gradlew.bat assembleDebug
+.\gradlew.bat assembleDebug
 
-# Linux/macOS
+# Linux / macOS
 ./gradlew assembleDebug
 ```
 
-输出位置: `app\build\outputs\apk\debug\app-debug.apk`
+Output: `app/build/outputs/apk/debug/app-debug.apk`
 
-### 构建 Release 版本
+### Build Release APK
 
-项目已配置 AOSP 公共测试签名，可直接构建：
+The project includes an AOSP public test key for easy testing:
 
 ```bash
 # Windows
-gradlew.bat assembleRelease
+.\gradlew.bat assembleRelease
 
-# Linux/macOS
+# Linux / macOS
 ./gradlew assembleRelease
 ```
 
-输出位置: `app\build\outputs\apk\release\app-release.apk`
+Output: `app/build/outputs/apk/release/app-release.apk`
 
-### 安装到设备
-
-```bash
-# 安装 Debug 版本
-gradlew.bat installDebug
-
-# 或使用 adb 手动安装
-adb install app\build\outputs\apk\debug\app-debug.apk
-```
-
----
-
-## 📖 使用指南
-
-### 首次启动
-
-1. **选择车型** - 首次启动会弹出引导界面，选择您的车型（银河E5/L6/L7/手机/自定义）
-
-2. **授予权限** - 请务必使用"应用管家"或其它权限管理软件，授予EVCam所有需要的权限
-
-3. **摄像头预览** - 权限授予后，应用会自动初始化摄像头并显示预览
-
-4. **检查日志** - 点击底部"显示日志"按钮，查看摄像头初始化状态
-
-### 录制视频
-
-1. 点击 **"开始录制"** 按钮（或点击悬浮窗）
-2. 所有选中的摄像头同步开始录制
-3. 录制自动按设定时长分段（默认1分钟）
-4. 录制过程中可以拍照（点击"拍照"按钮）
-5. 点击 **"停止录制"** 结束录制
-
-**视频存储位置**: `/sdcard/DCIM/EVCam_Video/`（或 U盘）  
-**文件命名格式**: `yyyyMMdd_HHmmss_{position}.mp4`（例如：`20260125_153045_front.mp4`）
-
-### 拍摄照片
-
-- 在预览或录制状态下，点击 **"拍照"** 按钮
-- 照片同时从所有活动摄像头抓拍
-- 可选择是否添加时间戳水印
-
-**照片存储位置**: `/sdcard/DCIM/EVCam_Photo/`（或 U盘）  
-**文件命名格式**: `yyyyMMdd_HHmmss_{position}.jpg`
-
-### 查看录制内容
-
-应用内置了回放和相册功能：
-
-1. 点击左上角菜单图标（☰）
-2. 选择 **"视频回放"** 或 **"照片回放"**
-3. 点击缩略图可全屏查看/播放
-4. 支持多选删除功能
-
-### 悬浮窗功能
-
-启用悬浮窗后，应用切到后台也能方便地控制录制：
-
-- **红色圆点** - 未录制状态
-- **绿色闪烁** - 录制中
-- **点击** - 打开应用主界面
-- **拖动** - 移动悬浮窗位置
-
-在设置中可调整悬浮窗大小（10档可选）和透明度。
-
-### 息屏录制（锁车录制）
-
-开启息屏录制功能后：
-- 熄灭屏幕时自动开始录制
-- 点亮屏幕时自动停止录制
-- 适合锁车后的安全监控场景
-
-### 钉钉远程控制
-
-配置钉钉机器人后，可通过钉钉发送命令：
-
-- `拍照` - 远程拍照并上传
-- `录制 <时长>` - 开始录制指定时长（秒）
-- `状态` - 查询应用运行状态
-- `预览` - 获取当前摄像头预览截图
-
-### 软件设置
-
-点击菜单 → "软件设置"，可配置：
-
-| 设置项 | 说明 |
-|--------|------|
-| 车型选择 | 选择车型或自定义摄像头配置 |
-| 录制模式 | 自动/MediaRecorder/OpenGL+MediaCodec |
-| 分段时长 | 1分钟/3分钟/5分钟 |
-| 存储位置 | 内部存储/U盘 |
-| 存储限制 | 视频和照片的最大存储空间（GB） |
-| 录制摄像头 | 选择哪些摄像头参与录制 |
-| 悬浮窗 | 开关、大小、透明度 |
-| 时间角标 | 是否在视频/照片上添加时间戳 |
-| 开机自启 | 开机后自动启动应用 |
-| 启动自动录制 | 启动应用后自动开始录制 |
-| 息屏录制 | 熄屏时自动录制 |
-| 保活服务 | 防止应用被系统杀死 |
-| 防止休眠 | 保持设备唤醒状态 |
-
-### 分辨率/码率设置
-
-点击菜单 → "分辨率设置"，可精细调整：
-
-- **分辨率** - 选择摄像头支持的分辨率
-- **码率** - 低/标准/高（影响视频质量和文件大小）
-- **帧率** - 标准/低（降低帧率可减少文件大小）
-
-### 色彩/降噪调节
-
-点击主界面的调节按钮，可实时调整：
-
-- 曝光补偿
-- 白平衡模式
-- 色调映射
-- 边缘增强
-- 降噪模式
-- 特效模式
-
----
-
-## 🏗️ 架构说明
-
-### 核心组件
-
-```
-EVCam/
-├── MainActivity.java              # 主界面，UI控制器
-├── AppConfig.java                 # 应用配置管理
-├── camera/                        # 摄像头管理模块
-│   ├── MultiCameraManager.java   # 多摄像头编排器
-│   ├── SingleCamera.java          # 单摄像头封装（Camera2 API）
-│   ├── VideoRecorder.java         # 视频录制器（MediaRecorder）
-│   ├── CodecVideoRecorder.java    # 视频录制器（OpenGL+MediaCodec）
-│   ├── EglSurfaceEncoder.java     # EGL Surface 编码器
-│   ├── ImageAdjustManager.java    # 图像调节管理器
-│   ├── CameraCallback.java        # 摄像头事件回调接口
-│   └── RecordCallback.java        # 录制事件回调接口
-├── dingtalk/                      # 钉钉集成模块
-│   ├── DingTalkStreamManager.java # Stream客户端管理
-│   ├── DingTalkCommandReceiver.java # 命令解析与执行
-│   ├── PhotoUploadService.java    # 照片上传服务
-│   └── VideoUploadService.java    # 视频上传服务
-├── FloatingWindowService.java     # 悬浮窗服务
-├── StorageHelper.java             # 存储路径管理（含U盘检测）
-├── StorageCleanupManager.java     # 存储自动清理
-├── KeepAliveManager.java          # 保活管理器
-├── CameraForegroundService.java   # 前台服务
-├── SettingsFragment.java          # 软件设置界面
-├── ResolutionSettingsFragment.java # 分辨率设置界面
-├── CustomCameraConfigFragment.java # 自定义摄像头配置
-├── PlaybackFragment.java          # 视频回放界面
-└── PhotoPlaybackFragment.java     # 照片浏览界面
-```
-
-### 摄像头初始化流程
-
-```
-1. 权限检查 → 请求相机、音频、存储权限
-2. TextureView 就绪 → 等待 TextureView 完成初始化
-3. 摄像头探测 → 查询 CameraManager 获取可用摄像头
-4. 自适应配置 → 根据车型配置分配摄像头：
-   - 银河E5: 4摄像头，固定ID映射
-   - 银河L6/L7: 4摄像头，使用Codec模式
-   - 手机: 2摄像头（前后）
-   - 自定义: 用户配置的摄像头
-5. 顺序打开 → 遵循系统限制顺序打开摄像头
-6. 预览启动 → 建立 CaptureSession 开始预览
-```
-
-### 录制流程
-
-```
-用户点击"开始录制"
-    ↓
-MultiCameraManager 为每个选中的摄像头创建 VideoRecorder/CodecVideoRecorder
-    ↓
-VideoRecorder.prepare() 配置录制器并返回 Surface
-    ↓
-SingleCamera 将录制 Surface 添加到 CaptureSession
-    ↓
-所有录制器同步启动 → 定时分段 → 自动创建新分段
-    ↓
-用户点击"停止录制"
-    ↓
-所有录制器停止 → 清除 Surface → 重建预览 Session
-```
-
-### 线程模型
-
-- **主线程**: UI 更新、按钮响应、TextureView 回调
-- **Camera HandlerThread**: 每个 SingleCamera 独立的后台线程处理 Camera2 API 调用
-- **Codec 编码线程**: CodecVideoRecorder 的独立编码线程
-- **Logcat 读取线程**: 独立线程读取系统日志
-- **钉钉 Stream 线程**: WebSocket 连接和消息处理
-- **WorkManager 后台任务**: 定时保活任务
-- **存储清理线程**: 定时检查并清理超限文件
-
----
-
-## 🔍 开发调试
-
-### 查看日志
+### Install via ADB
 
 ```bash
-# 查看摄像头相关日志（详细）
-adb logcat -v time -s CameraService:V Camera3-Device:V Camera3-Stream:V Camera3-Output:V camera3:V MainActivity:D MultiCameraManager:D SingleCamera:D VideoRecorder:D
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
 
-# 查看应用日志
+---
+
+## 📖 User Guide
+
+### 1. First-Time Launch & Permissions
+1. **Model Selection**: On first launch, select your vehicle preset (e.g., Galaxy E5, Galaxy L6/L7, Smartphone, or Custom).
+2. **Grant Permissions**: Navigate to **Menu → Permission Settings** and grant Camera, Storage, Microphone, and Floating Window permissions. An **ADB One-Click Permission Tool** is included for root or PC-based granting.
+3. **Camera Preview**: Once granted, live camera feeds will initialize and display on the main dashboard.
+
+### 2. Video Recording & Snapshots
+- Tap **Start Recording** (or tap the floating widget) to start recording across all active camera streams.
+- Tap **Photo** to capture instant full-resolution photos from all active cameras.
+- Tap **Stop Recording** to finish and flush video segments to disk.
+- **Video Storage Path**: `/sdcard/DCIM/EVCam_Video/` (or external USB: `EVCam_Video/`)
+- **Photo Storage Path**: `/sdcard/DCIM/EVCam_Photo/` (or external USB: `EVCam_Photo/`)
+
+### 3. File Browser & QR Transfer
+- Open **Menu → Video Playback** or **Photo Playback** to preview, play, or delete media.
+- Tap **Share / QR Transfer** to launch the built-in HTTP server. Scan the on-screen QR code with your phone (connected via hotspot or the same Wi-Fi) to view and download recordings directly in your mobile browser.
+
+### 4. Remote Bots Setup (Telegram, Feishu, DingTalk)
+- **Telegram**: Go to **Menu → Telegram Settings**, paste your Bot Token and Chat ID whitelist, and toggle enabled. Send `/help` or `/record` to your bot.
+- **Feishu / DingTalk**: Enter your App Credentials to interactively control the dashcam from anywhere.
+
+---
+
+## 🔍 Debugging & Logs
+
+```bash
+# Filter all EVDashcam logs
 adb logcat -v time | findstr "com.kooo.evcam"
 
-# 清空日志缓冲区
+# Inspect Camera2 service events
+adb logcat -v time -s CameraService:V Camera3-Device:V MainActivity:D MultiCameraManager:D SingleCamera:D
+
+# Clear log buffer
 adb logcat -c
 ```
 
-### 设备管理
+---
 
-```bash
-# 列出连接的设备
-adb devices
+## ⚠️ Safety Disclaimer
 
-# 卸载应用
-adb uninstall com.kooo.evcam
-
-# 手动授予权限
-adb shell pm grant com.kooo.evcam android.permission.CAMERA
-adb shell pm grant com.kooo.evcam android.permission.RECORD_AUDIO
-adb shell pm grant com.kooo.evcam android.permission.WRITE_EXTERNAL_STORAGE
-```
-
-### 查看录制文件
-
-```bash
-# 查看视频列表
-adb shell ls -la /sdcard/DCIM/EVCam_Video/
-
-# 拉取视频到本地
-adb pull /sdcard/DCIM/EVCam_Video/ ./recordings/
-
-# 查看照片列表
-adb shell ls -la /sdcard/DCIM/EVCam_Photo/
-
-# 拉取照片到本地
-adb pull /sdcard/DCIM/EVCam_Photo/ ./photos/
-```
-
-### 运行测试
-
-```bash
-# 单元测试
-gradlew.bat test
-
-# 设备测试（需要连接设备）
-gradlew.bat connectedAndroidTest
-```
+Please see [DISCLAIMER.md](DISCLAIMER.md) for critical safety information regarding blind spot monitoring and automotive usage. This software is an experimental open-source project and is not intended for primary vehicle control or critical safety decisions.
 
 ---
 
-## ❓ 常见问题
+## 📄 License
 
-### 1. 摄像头无法打开
-
-**可能原因**:
-- TextureView 未就绪就尝试打开摄像头
-- 权限未授予（检查 logcat 中的 "Missing permission" 错误）
-- 设备无可用摄像头
-- 超出系统同时打开摄像头数量限制
-- 摄像头ID配置错误（自定义车型）
-
-**解决方案**:
-- 确保 TextureView 已触发 `onSurfaceTextureAvailable` 回调
-- 在设置中手动授予权限，或重新安装应用
-- 使用 `adb shell dumpsys media.camera` 查看设备摄像头信息
-- 降低 `maxOpenCameras` 配置（默认为4）
-- 检查自定义车型的摄像头ID设置
-
-### 2. 录制失败
-
-**可能原因**:
-- DCIM/EVCam_Video 目录不可写
-- 摄像头未打开或预览未启动
-- MediaRecorder/MediaCodec 配置与摄像头能力不匹配
-- 存储空间不足
-- U盘写入速度过慢
-
-**解决方案**:
-- 检查存储权限是否授予
-- 确保摄像头预览正常后再开始录制
-- 查看 logcat 中的 MediaRecorder/MediaCodec 错误信息
-- 清理设备存储空间或调整存储限制
-- 对于L6/L7车型，尝试切换录制模式
-
-### 3. 预览画面不显示
-
-**可能原因**:
-- TextureView 尺寸为零
-- SurfaceTexture 不可用
-- 摄像头预览分辨率不支持
-- Camera2 API 报错
-
-**解决方案**:
-- 检查布局文件中 TextureView 的宽高设置
-- 确认 `onSurfaceTextureAvailable` 回调已触发
-- 查看日志中的分辨率协商过程
-- 使用 `adb logcat -s CameraService:V` 查看底层错误
-
-### 4. 应用被系统杀掉
-
-**解决方案**:
-- 启用前台服务（应用会显示通知）
-- 在系统设置中关闭电池优化
-- 允许应用自启动
-- 启用无障碍服务（设置 → 无障碍 → EVCam保活服务）
-- 启用"防止休眠"选项
-
-### 5. 钉钉机器人无响应
-
-**可能原因**:
-- Client ID/Client Secret 配置错误
-- 网络连接问题
-- Stream 连接未建立
-
-**解决方案**:
-- 检查 `DingTalkConfig.java` 配置
-- 确保设备联网
-- 查看日志中的 WebSocket 连接状态
-- 重启应用重新建立连接
-
-### 6. U盘存储问题
-
-**可能原因**:
-- U盘未正确插入或未被识别
-- U盘文件系统不支持
-- U盘写入速度过慢导致录制卡顿
-
-**解决方案**:
-- 检查U盘是否正确插入
-- 使用 FAT32 或 exFAT 格式的U盘
-- 应用会自动使用中转写入机制缓解慢速U盘问题
-- 如U盘不可用，应用会自动回退到内部存储
-
----
-
-## 📋 待办事项
-
-- [x] ~~添加视频清晰度选择（高清/标清/流畅）~~ ✅ 已实现码率选择
-- [x] ~~实现时间戳水印功能~~ ✅ 已实现
-- [ ] 车外扬声器喊话功能
-- [ ] 更多远程车控功能（空调、车窗、车门等）
-- [ ] 根据指定车辆状态自动启动录制
-- [ ] 手动上传功能（选择性上传录制内容）
-- [x] ~~更多个性化设置项（录制时长、存储路径等）~~ ✅ 已实现
-
----
-
-## 🤝 贡献指南
-
-欢迎贡献代码、报告问题或提出新功能建议！
-
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 提交 Pull Request
-
----
-
-## 📄 许可证
-
-本项目采用 **GPL-3.0** 开源协议。
-
-你可以自由地使用、修改和分发本项目，但需要遵守 GPL-3.0 的条款。
-
-### 必须遵守
-- 保留版权与许可声明，随分发提供 GPL-3.0 文本（LICENSE）。
-- 任何修改或衍生作品在对外分发时，必须以 GPL-3.0 许可发布并提供对应源代码。
-- 不得添加额外限制或技术手段，阻止他人行使 GPL 权利。
-
-### 商业用途
-GPL-3.0 **允许** 商业目的使用与分发/销售，但只要对外分发，就需要遵守上面的开源义务（提供源代码、保留声明、同许可等）。
-
-详细条款请参阅 [LICENSE](LICENSE) 文件。
-
----
-
-## 💖 支持作者
-
-本项目100% Vibe Coding，已耗费数百元AI Agent订阅成本。如果这个项目对你有帮助，欢迎打赏支持！
-
-<div align="center">
-  <img src="assets/donate.jpg" alt="赞赏码" width="300"/>
-  <p><em>扫码请作者喝杯咖啡 ☕</em></p>
-</div>
-
----
-
-## 📧 联系方式
-
-
-- **wechat**: greenteacher46 (请备注来意)
-
----
-
-
+This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**. See the [LICENSE](LICENSE) file for complete details.

@@ -33,7 +33,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="副屏补盲悬浮窗位置"
+            android:text="Secondary Screen Blind-Spot Window Position"
             android:textColor="@color/text_primary"
             android:textSize="22sp"
             android:textStyle="bold" />
@@ -78,7 +78,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="显示屏幕 (Display ID)"
+                        android:text="Display Screen (Display ID)"
                         android:textColor="@color/text_primary"
                         android:textSize="18sp"
                         android:textStyle="bold" />
@@ -95,7 +95,7 @@
                     android:id="@+id/tv_display_info"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="当前屏幕分辨率: 未知"
+                    android:text="Current Display Resolution: Unknown"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:layout_marginTop="8dp" />
@@ -112,7 +112,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="位置与大小"
+                    android:text="Position &amp; Size"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -128,7 +128,7 @@
                     <TextView
                         android:layout_width="72dp"
                         android:layout_height="wrap_content"
-                        android:text="X 坐标"
+                        android:text="X Coordinate"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -162,7 +162,7 @@
                     <TextView
                         android:layout_width="72dp"
                         android:layout_height="wrap_content"
-                        android:text="Y 坐标"
+                        android:text="Y Coordinate"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -196,7 +196,7 @@
                     <TextView
                         android:layout_width="72dp"
                         android:layout_height="wrap_content"
-                        android:text="宽度"
+                        android:text="Width"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -230,7 +230,7 @@
                     <TextView
                         android:layout_width="72dp"
                         android:layout_height="wrap_content"
-                        android:text="高度"
+                        android:text="Height"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -266,7 +266,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="高级设置"
+                    android:text="Advanced Settings"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -283,7 +283,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="悬浮窗旋转"
+                        android:text="Floating Window Rotation"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -306,7 +306,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="屏幕方向适配"
+                        android:text="Screen Orientation Adaptation"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -329,7 +329,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="显示识别边框 (白色)"
+                        android:text="Show Recognition Border (White)"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -349,7 +349,7 @@
                     <TextView
                         android:layout_width="72dp"
                         android:layout_height="wrap_content"
-                        android:text="透明度"
+                        android:text="Opacity"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -375,7 +375,7 @@
                 android:id="@+id/btn_save_apply"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="保存配置并应用"
+                android:text="Save &amp; Apply Config"
                 android:textSize="20sp"
                 android:minHeight="56dp"
                 android:backgroundTint="@color/button_background"

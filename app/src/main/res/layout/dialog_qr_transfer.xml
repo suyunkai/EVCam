@@ -9,7 +9,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="扫码互传"
+        android:text="QR Code File Transfer"
         android:textSize="20sp"
         android:textStyle="bold"
         android:textColor="@color/text_primary"
@@ -18,7 +18,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="使用手机扫描二维码，即可下载视频文件"
+        android:text="Scan QR code with your phone to download video files"
         android:textSize="14sp"
         android:textColor="@color/text_secondary"
         android:layout_marginBottom="16dp" />
@@ -35,7 +35,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="fitCenter"
-            android:contentDescription="二维码" />
+            android:contentDescription="QR Code" />
 
         <ProgressBar
             android:id="@+id/qr_loading"
@@ -49,7 +49,7 @@
         android:id="@+id/server_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="正在启动服务器..."
+        android:text="Starting server..."
         android:textSize="12sp"
         android:textColor="@color/text_secondary"
         android:layout_marginBottom="8dp" />
@@ -58,7 +58,7 @@
         android:id="@+id/transfer_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="等待连接..."
+        android:text="Waiting for connection..."
         android:textSize="14sp"
         android:textColor="@color/button_accent"
         android:visibility="gone"
@@ -76,7 +76,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="待传输文件"
+            android:text="Pending Files"
             android:textSize="12sp"
             android:textStyle="bold"
             android:textColor="@color/text_secondary"
@@ -86,7 +86,7 @@
             android:id="@+id/file_count"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="0 个文件"
+            android:text="0 Files"
             android:textSize="14sp"
             android:textColor="@color/text_primary" />
     </LinearLayout>
@@ -95,7 +95,7 @@
         android:id="@+id/btn_stop_server"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="停止传输"
+        android:text="Stop Transfer"
         android:backgroundTint="@color/button_accent"
         android:textColor="@android:color/white" />
 

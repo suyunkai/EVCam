@@ -48,8 +48,8 @@ public class TransparentBootActivity extends Activity {
         // 【重要】远程服务（钉钉/Telegram）现在在 CameraForegroundService.onCreate() 中启动
         // 不再需要 MainActivity 来启动远程服务
         CameraForegroundService.start(this, 
-            "开机自启动", 
-            "应用已在后台运行");
+            "Boot Autostart", 
+            "App is running in background");
         AppLog.d(TAG, "前台服务已启动（远程服务将在其中启动）");
         
         // 2. 启动 WorkManager 保活任务（车机必需，始终开启）
@@ -58,7 +58,7 @@ public class TransparentBootActivity extends Activity {
         
         // 3. 检查是否需要启动 MainActivity
         // 【优化后】只有以下情况需要启动 MainActivity：
-        // - 用户启用了"启动自动录制"功能（需要摄像头，必须启动 Activity）
+        // - 用户启用了"Auto-Record on Startup"功能（需要摄像头，必须启动 Activity）
         // 【不再需要启动 MainActivity】：
         // - 远程服务（钉钉/Telegram）已在 CameraForegroundService 中启动
         // - 悬浮窗已在 CameraForegroundService 中启动

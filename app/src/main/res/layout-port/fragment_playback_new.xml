@@ -37,7 +37,7 @@
             android:id="@+id/toolbar_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="视频回看"
+            android:text="Video Playback"
             android:textColor="@color/text_primary"
             android:textSize="24sp"
             android:textStyle="bold" />
@@ -57,7 +57,7 @@
             android:id="@+id/btn_refresh"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="刷新"
+            android:text="Refresh"
             android:textSize="20sp"
             android:minHeight="48dp"
             android:backgroundTint="@color/button_background"
@@ -67,7 +67,7 @@
             android:id="@+id/btn_multi_select"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="多选"
+            android:text="Multi-Select"
             android:textSize="20sp"
             android:minHeight="48dp"
             android:layout_marginStart="4dp"
@@ -105,7 +105,7 @@
             android:id="@+id/btn_select_all"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="全选"
+            android:text="Select All"
             android:textSize="20sp"
             android:minHeight="48dp"
             android:backgroundTint="@color/button_background"
@@ -116,7 +116,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="已选择 0 项"
+            android:text="0 Items Selected"
             android:textColor="@color/text_primary"
             android:textSize="20sp"
             android:gravity="center" />
@@ -125,7 +125,7 @@
             android:id="@+id/btn_share_selected"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="分享"
+            android:text="Share"
             android:textSize="20sp"
             android:minHeight="48dp"
             android:layout_marginEnd="4dp"
@@ -136,7 +136,7 @@
             android:id="@+id/btn_delete_selected"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="删除"
+            android:text="Delete"
             android:textSize="20sp"
             android:minHeight="48dp"
             android:backgroundTint="@android:color/holo_red_dark"
@@ -146,7 +146,7 @@
             android:id="@+id/btn_cancel_select"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="取消"
+            android:text="Cancel"
             android:textSize="20sp"
             android:minHeight="48dp"
             android:layout_marginStart="4dp"
@@ -219,7 +219,7 @@
                                 android:background="#80000000"
                                 android:paddingHorizontal="6dp"
                                 android:paddingVertical="3dp"
-                                android:text="前"
+                                android:text="Front"
                                 android:textColor="#FFFFFF"
                                 android:textSize="12sp" />
 
@@ -228,7 +228,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"
                                 android:gravity="center"
-                                android:text="无视频"
+                                android:text="No Videos"
                                 android:textColor="@color/preview_placeholder_text"
                                 android:textSize="12sp"
                                 android:visibility="gone" />
@@ -260,7 +260,7 @@
                                 android:background="#80000000"
                                 android:paddingHorizontal="6dp"
                                 android:paddingVertical="3dp"
-                                android:text="后"
+                                android:text="Rear"
                                 android:textColor="#FFFFFF"
                                 android:textSize="12sp" />
 
@@ -269,7 +269,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"
                                 android:gravity="center"
-                                android:text="无视频"
+                                android:text="No Videos"
                                 android:textColor="@color/preview_placeholder_text"
                                 android:textSize="12sp"
                                 android:visibility="gone" />
@@ -310,7 +310,7 @@
                                 android:background="#80000000"
                                 android:paddingHorizontal="6dp"
                                 android:paddingVertical="3dp"
-                                android:text="左"
+                                android:text="Left"
                                 android:textColor="#FFFFFF"
                                 android:textSize="12sp" />
 
@@ -319,7 +319,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"
                                 android:gravity="center"
-                                android:text="无视频"
+                                android:text="No Videos"
                                 android:textColor="@color/preview_placeholder_text"
                                 android:textSize="12sp"
                                 android:visibility="gone" />
@@ -351,7 +351,7 @@
                                 android:background="#80000000"
                                 android:paddingHorizontal="6dp"
                                 android:paddingVertical="3dp"
-                                android:text="右"
+                                android:text="Right"
                                 android:textColor="#FFFFFF"
                                 android:textSize="12sp" />
 
@@ -360,7 +360,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"
                                 android:gravity="center"
-                                android:text="无视频"
+                                android:text="No Videos"
                                 android:textColor="@color/preview_placeholder_text"
                                 android:textSize="12sp"
                                 android:visibility="gone" />
@@ -391,7 +391,7 @@
                         android:background="#80000000"
                         android:paddingHorizontal="10dp"
                         android:paddingVertical="5dp"
-                        android:text="前"
+                        android:text="Front"
                         android:textColor="#FFFFFF"
                         android:textSize="14sp" />
                 </FrameLayout>
@@ -407,7 +407,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="请从下方列表选择视频"
+                        android:text="Please select a video from the list below"
                         android:textColor="@color/text_secondary"
                         android:textSize="20sp" />
 
@@ -415,7 +415,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="双击画面可放大切换"
+                        android:text="Double-tap video to zoom / switch"
                         android:textColor="@color/text_hint"
                         android:textSize="16sp" />
                 </LinearLayout>
@@ -436,7 +436,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="44dp"
                     android:minWidth="72dp"
-                    android:text="暂停"
+                    android:text="Pause"
                     android:textSize="14sp"
                     android:backgroundTint="@color/button_background"
                     android:textColor="@color/button_text" />
@@ -477,7 +477,7 @@
                     android:layout_height="44dp"
                     android:minWidth="60dp"
                     android:layout_marginStart="8dp"
-                    android:text="多路"
+                    android:text="Multi-Channel"
                     android:textSize="14sp"
                     android:backgroundTint="@color/button_background"
                     android:textColor="@color/button_text" />
@@ -515,7 +515,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
-                android:text="暂无录制文件"
+                android:text="No Recorded Videos"
                 android:textColor="@color/text_secondary"
                 android:textSize="16sp"
                 android:visibility="gone" />

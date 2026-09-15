@@ -40,11 +40,11 @@ public class FeishuVideoUploadService {
         new Thread(() -> {
             try {
                 if (videoFiles == null || videoFiles.isEmpty()) {
-                    callback.onError("没有视频文件可上传");
+                    callback.onError("No video files to upload");
                     return;
                 }
 
-                callback.onProgress("开始上传 " + videoFiles.size() + " 个视频文件...");
+                callback.onProgress("Starting upload: " + videoFiles.size() + " video files...");
 
                 List<String> uploadedFiles = new ArrayList<>();
                 List<String> failedFiles = new ArrayList<>();
@@ -54,16 +54,16 @@ public class FeishuVideoUploadService {
 
                     if (!videoFile.exists()) {
                         AppLog.w(TAG, "视频文件不存在: " + videoFile.getPath());
-                        failedFiles.add(videoFile.getName() + " (文件不存在)");
+                        failedFiles.add(videoFile.getName() + " (File does not exist)");
                         continue;
                     }
 
-                    callback.onProgress("正在处理 (" + (i + 1) + "/" + videoFiles.size() + "): " + videoFile.getName());
+                    callback.onProgress("Processing (" + (i + 1) + "/" + videoFiles.size() + "): " + videoFile.getName());
 
                     File thumbnailFile = null;
                     try {
                         // 1. 提取视频封面缩略图和获取时长
-                        callback.onProgress("正在提取视频信息 (" + (i + 1) + "/" + videoFiles.size() + ")...");
+                        callback.onProgress("Extracting video info (" + (i + 1) + "/" + videoFiles.size() + ")...");
                         thumbnailFile = new File(videoFile.getParent(),
                                 videoFile.getName().replace(".mp4", "_thumb.jpg"));
                         boolean thumbnailExtracted = VideoThumbnailExtractor.extractThumbnail(videoFile, thumbnailFile);
@@ -78,13 +78,13 @@ public class FeishuVideoUploadService {
                         AppLog.d(TAG, "视频时长: " + durationSec + " 秒 (" + durationMs + " 毫秒)");
 
                         // 2. 上传视频文件获取 file_key（带时长参数）
-                        callback.onProgress("正在上传视频 (" + (i + 1) + "/" + videoFiles.size() + ")...");
+                        callback.onProgress("Uploading video (" + (i + 1) + "/" + videoFiles.size() + ")...");
                         String fileKey = apiClient.uploadFile(videoFile, "mp4", durationMs);
 
                         // 3. 上传封面图片获取 image_key（如果有）
                         String imageKey = null;
                         if (thumbnailFile != null && thumbnailFile.exists()) {
-                            callback.onProgress("正在上传视频封面...");
+                            callback.onProgress("Uploading video thumbnail...");
                             try {
                                 imageKey = apiClient.uploadImage(thumbnailFile);
                                 AppLog.d(TAG, "封面上传成功: " + imageKey);
@@ -101,7 +101,7 @@ public class FeishuVideoUploadService {
 
                         // 5. 延迟2秒后再上传下一个视频
                         if (i < videoFiles.size() - 1) {
-                            callback.onProgress("等待2秒后上传下一个视频...");
+                            callback.onProgress("Waiting 2 seconds before uploading next video...");
                             Thread.sleep(2000);
                         }
 
@@ -118,19 +118,19 @@ public class FeishuVideoUploadService {
 
                 // 统一处理上传结果
                 if (uploadedFiles.isEmpty()) {
-                    String errorMsg = "❌ 所有视频上传失败\n失败列表:\n" + String.join("\n", failedFiles);
+                    String errorMsg = "❌ All videos failed to upload\nFailure list:\n" + String.join("\n", failedFiles);
                     callback.onError(errorMsg);
                     apiClient.sendTextMessage("chat_id", chatId, errorMsg);
                 } else if (failedFiles.isEmpty()) {
-                    String successMessage = "✅ 视频上传完成！共上传 " + uploadedFiles.size() + " 个文件";
+                    String successMessage = "✅ Video upload complete! Total uploaded: " + uploadedFiles.size() + " files";
                     callback.onSuccess(successMessage);
                     Thread.sleep(3000);
                     apiClient.sendTextMessage("chat_id", chatId, successMessage);
                 } else {
-                    String mixedMessage = "⚠️ 上传完成（部分失败）\n" +
-                            "成功: " + uploadedFiles.size() + " 个\n" +
-                            "失败: " + failedFiles.size() + " 个\n\n" +
-                            "失败列表:\n" + String.join("\n", failedFiles);
+                    String mixedMessage = "⚠️ Upload finished (partial failure)\n" +
+                            "Success: " + uploadedFiles.size() + " videos\n" +
+                            "Failed: " + failedFiles.size() + " videos\n\n" +
+                            "Failure list:\n" + String.join("\n", failedFiles);
                     callback.onSuccess(mixedMessage);
                     Thread.sleep(3000);
                     apiClient.sendTextMessage("chat_id", chatId, mixedMessage);

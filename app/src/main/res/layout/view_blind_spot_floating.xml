@@ -27,7 +27,7 @@
             android:id="@+id/btn_rotate_blind_spot"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="旋转"
+            android:text="Rotation"
             android:backgroundTint="@color/button_accent"
             android:textColor="@color/white"
             android:layout_marginEnd="8dp" />
@@ -36,7 +36,7 @@
             android:id="@+id/btn_save_blind_spot_config"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="保存并关闭"
+            android:text="Save &amp; Close"
             android:backgroundTint="@color/button_accent"
             android:textColor="@color/white" />
     </LinearLayout>

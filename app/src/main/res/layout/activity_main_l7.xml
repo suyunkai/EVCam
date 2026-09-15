@@ -131,7 +131,7 @@
                         android:layout_marginTop="8dp"
                         android:background="@drawable/camera_label_background"
                         android:gravity="center"
-                        android:text="前"
+                        android:text="Front"
                         android:textColor="#FFFFFF"
                         android:textSize="16sp" />
                 </FrameLayout>
@@ -164,7 +164,7 @@
                         android:layout_marginTop="8dp"
                         android:background="@drawable/camera_label_background"
                         android:gravity="center"
-                        android:text="后"
+                        android:text="Rear"
                         android:textColor="#FFFFFF"
                         android:textSize="16sp" />
                 </FrameLayout>
@@ -199,7 +199,7 @@
                         android:layout_marginTop="8dp"
                         android:background="@drawable/camera_label_background"
                         android:gravity="center"
-                        android:text="左"
+                        android:text="Left"
                         android:textColor="#FFFFFF"
                         android:textSize="16sp" />
                 </FrameLayout>
@@ -232,7 +232,7 @@
                         android:layout_marginTop="8dp"
                         android:background="@drawable/camera_label_background"
                         android:gravity="center"
-                        android:text="右"
+                        android:text="Right"
                         android:textColor="#FFFFFF"
                         android:textSize="16sp" />
                 </FrameLayout>

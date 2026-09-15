@@ -60,7 +60,7 @@
                         android:layout_marginTop="8dp"
                         android:background="@drawable/camera_label_background"
                         android:gravity="center"
-                        android:text="前"
+                        android:text="Front"
                         android:textColor="#FFFFFF"
                         android:textSize="16sp" />
                 </FrameLayout>
@@ -93,7 +93,7 @@
                         android:layout_marginTop="8dp"
                         android:background="@drawable/camera_label_background"
                         android:gravity="center"
-                        android:text="后"
+                        android:text="Rear"
                         android:textColor="#FFFFFF"
                         android:textSize="16sp" />
                 </FrameLayout>
@@ -128,7 +128,7 @@
                         android:layout_marginTop="8dp"
                         android:background="@drawable/camera_label_background"
                         android:gravity="center"
-                        android:text="左"
+                        android:text="Left"
                         android:textColor="#FFFFFF"
                         android:textSize="16sp" />
                 </FrameLayout>
@@ -161,7 +161,7 @@
                         android:layout_marginTop="8dp"
                         android:background="@drawable/camera_label_background"
                         android:gravity="center"
-                        android:text="右"
+                        android:text="Right"
                         android:textColor="#FFFFFF"
                         android:textSize="16sp" />
                 </FrameLayout>
@@ -182,7 +182,7 @@
                 android:paddingEnd="12dp"
                 android:paddingTop="8dp"
                 android:paddingBottom="8dp"
-                android:text="正在录制 00:00 / 1"
+                android:text="Recording 00:00 / 1"
                 android:textColor="#FF0000"
                 android:textSize="20sp"
                 android:textStyle="bold"
@@ -206,7 +206,7 @@
                     android:layout_weight="1"
                     android:layout_marginStart="5dp"
                     android:layout_marginEnd="5dp"
-                    android:text="录像"
+                    android:text="Record Video"
                     android:textSize="26sp"
                     android:textStyle="bold"
                     android:textColor="#FF0000"
@@ -224,7 +224,7 @@
                     android:layout_weight="1"
                     android:layout_marginStart="5dp"
                     android:layout_marginEnd="5dp"
-                    android:text="拍照"
+                    android:text="Take Photo"
                     android:textSize="26sp"
                     android:textStyle="bold"
                     android:textColor="@color/button_text"
@@ -242,7 +242,7 @@
                     android:layout_weight="1"
                     android:layout_marginStart="5dp"
                     android:layout_marginEnd="5dp"
-                    android:text="回放"
+                    android:text="Playback"
                     android:textSize="26sp"
                     android:textStyle="bold"
                     android:textColor="@color/button_text"
@@ -260,7 +260,7 @@
                     android:layout_weight="1"
                     android:layout_marginStart="5dp"
                     android:layout_marginEnd="5dp"
-                    android:text="图片"
+                    android:text="Photos"
                     android:textSize="26sp"
                     android:textStyle="bold"
                     android:textColor="@color/button_text"
@@ -278,7 +278,7 @@
                     android:layout_weight="1"
                     android:layout_marginStart="5dp"
                     android:layout_marginEnd="5dp"
-                    android:text="设置"
+                    android:text="Settings"
                     android:textSize="26sp"
                     android:textStyle="bold"
                     android:textColor="@color/button_text"
@@ -296,7 +296,7 @@
                     android:layout_weight="1"
                     android:layout_marginStart="5dp"
                     android:layout_marginEnd="5dp"
-                    android:text="关闭"
+                    android:text="Close"
                     android:textSize="26sp"
                     android:textStyle="bold"
                     android:textColor="@color/button_text"

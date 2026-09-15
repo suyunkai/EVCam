@@ -32,7 +32,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="MJPEG 视频流"
+            android:text="MJPEG Video Stream"
             android:textColor="@color/text_primary"
             android:textSize="22sp"
             android:textStyle="bold" />
@@ -78,7 +78,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="启用 MJPEG 流"
+                        android:text="Enable MJPEG Stream"
                         android:textColor="@color/text_primary"
                         android:textSize="18sp"
                         android:textStyle="bold" />
@@ -93,7 +93,7 @@
                     android:id="@+id/tv_access_url"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="未启动"
+                    android:text="Not Started"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:layout_marginTop="8dp"
@@ -103,7 +103,7 @@
                     android:id="@+id/tv_client_count"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="客户端: 0"
+                    android:text="Clients: 0"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:layout_marginTop="4dp" />
@@ -134,7 +134,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="联动补盲模式"
+                            android:text="Linkage Blind-Spot Mode"
                             android:textColor="@color/text_primary"
                             android:textSize="18sp"
                             android:textStyle="bold" />
@@ -142,7 +142,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="跟随转向灯/车门信号自动切换摄像头"
+                            android:text="Automatically switch camera following turn signal / door signal"
                             android:textColor="@color/text_secondary"
                             android:textSize="13sp"
                             android:layout_marginTop="2dp" />
@@ -163,7 +163,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="默认/空闲摄像头"
+                        android:text="Default / Idle Camera"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:layout_marginBottom="8dp" />
@@ -189,7 +189,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="输出分辨率（横屏，可改）"
+                    android:text="Output Resolution (Landscape)"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -236,7 +236,7 @@
                         android:id="@+id/btn_apply_resolution"
                         android:layout_width="wrap_content"
                         android:layout_height="48dp"
-                        android:text="应用"
+                        android:text="Apply"
                         android:layout_marginStart="8dp"
                         android:backgroundTint="@color/button_background"
                         android:textColor="@color/button_text" />
@@ -245,7 +245,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="帧率固定 30fps（取决于相机预览帧率）"
+                    android:text="Frame rate fixed at 30fps (depends on camera preview FPS)"
                     android:textColor="@color/text_secondary"
                     android:textSize="13sp"
                     android:layout_marginTop="8dp" />
@@ -263,7 +263,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="连接与编码"
+                    android:text="Connection &amp; Encoding"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -280,7 +280,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="工作模式"
+                        android:text="Operating Mode"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -304,7 +304,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="服务端口"
+                        android:text="Server Port"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -331,7 +331,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="传输协议"
+                        android:text="Transport Protocol"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -361,7 +361,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="自动发现 ESP32"
+                            android:text="Auto-Discover ESP32"
                             android:textColor="@color/text_primary"
                             android:textSize="16sp" />
 
@@ -381,7 +381,7 @@
                         <TextView
                             android:layout_width="72dp"
                             android:layout_height="wrap_content"
-                            android:text="目标地址"
+                            android:text="Target Address"
                             android:textColor="@color/text_primary"
                             android:textSize="16sp" />
 
@@ -390,7 +390,7 @@
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="48dp"
-                            android:hint="自动发现或手动输入 IP/域名"
+                            android:hint="Auto-discovered or manual IP/Domain"
                             android:inputType="textUri"
                             android:singleLine="true"
                             android:background="@drawable/spinner_background"
@@ -408,7 +408,7 @@
                         <TextView
                             android:layout_width="72dp"
                             android:layout_height="wrap_content"
-                            android:text="目标端口"
+                            android:text="Target Port"
                             android:textColor="@color/text_primary"
                             android:textSize="16sp" />
 
@@ -434,7 +434,7 @@
                     <TextView
                         android:layout_width="72dp"
                         android:layout_height="wrap_content"
-                        android:text="JPEG 质量"
+                        android:text="JPEG Quality"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -468,7 +468,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="画面位置与缩放（打满 + 等比）"
+                    android:text="Position &amp; Scale (Cover + Proportional)"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -477,7 +477,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="打满=cover（不留黑边，溢出裁切）；等比保持宽高比；pan 调整裁剪窗位置。"
+                    android:text="Cover fills frame without black bars (crops overflow); pan adjusts crop window."
                     android:textColor="@color/text_secondary"
                     android:textSize="13sp"
                     android:layout_marginBottom="12dp" />
@@ -492,7 +492,7 @@
                     <TextView
                         android:layout_width="72dp"
                         android:layout_height="wrap_content"
-                        android:text="水平 Pan"
+                        android:text="Horizontal Pan"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -523,7 +523,7 @@
                     <TextView
                         android:layout_width="72dp"
                         android:layout_height="wrap_content"
-                        android:text="垂直 Pan"
+                        android:text="Vertical Pan"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -553,7 +553,7 @@
                     <TextView
                         android:layout_width="72dp"
                         android:layout_height="wrap_content"
-                        android:text="缩放"
+                        android:text="Zoom / Scale"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -587,7 +587,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="鱼眼矫正（复用副屏参数，按摄像头位置）"
+                    android:text="Fisheye Correction (Reuses Secondary Screen Params)"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -596,7 +596,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="此处修改会同步写入副屏鱼眼参数，反之亦然。"
+                    android:text="Modifications here sync with secondary screen fisheye params."
                     android:textColor="@color/text_secondary"
                     android:textSize="13sp"
                     android:layout_marginBottom="12dp" />
@@ -706,7 +706,7 @@
                     <TextView
                         android:layout_width="72dp"
                         android:layout_height="wrap_content"
-                        android:text="旋转"
+                        android:text="Rotation"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -723,7 +723,7 @@
                 android:id="@+id/btn_save_apply"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="保存并应用"
+                android:text="Save &amp; Apply"
                 android:textSize="20sp"
                 android:minHeight="56dp"
                 android:backgroundTint="@color/button_background"

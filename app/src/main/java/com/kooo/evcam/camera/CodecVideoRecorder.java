@@ -893,10 +893,10 @@ public class CodecVideoRecorder {
         bufferInfo = new MediaCodec.BufferInfo();
 
         AppLog.d(TAG, "Camera " + cameraId + " Encoder created: " + width + "x" + height +
-                " @ " + effectiveFrameRate + "fps" + (blindSpotOptimizeMode ? "(补盲优化)" : "") +
+                " @ " + effectiveFrameRate + "fps" + (blindSpotOptimizeMode ? " (Blindspot Optimized)" : "") +
                 ", " + (effectiveBitrate / 1000) + " Kbps, " +
                 (mimeType.equals(MIME_TYPE_HEVC) ? "HEVC" : "H.264") +
-                (forceH264 ? " [兼容模式]" : ""));
+                (forceH264 ? " [Compatibility Mode]" : ""));
     }
 
     /**

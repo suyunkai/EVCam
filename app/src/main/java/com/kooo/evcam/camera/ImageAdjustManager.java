@@ -333,36 +333,36 @@ public class ImageAdjustManager {
         StringBuilder sb = new StringBuilder();
         
         if (exposureCompensation != 0) {
-            sb.append("曝光: ").append(exposureCompensation > 0 ? "+" : "").append(exposureCompensation);
+            sb.append("Exposure: ").append(exposureCompensation > 0 ? "+" : "").append(exposureCompensation);
         }
         
         if (awbMode != AppConfig.AWB_MODE_DEFAULT) {
             if (sb.length() > 0) sb.append(" | ");
-            sb.append("白平衡: ").append(AppConfig.getAwbModeDisplayName(awbMode));
+            sb.append("WB: ").append(AppConfig.getAwbModeDisplayName(awbMode));
         }
         
         if (tonemapMode != AppConfig.TONEMAP_MODE_DEFAULT) {
             if (sb.length() > 0) sb.append(" | ");
-            sb.append("色调: ").append(AppConfig.getTonemapModeDisplayName(tonemapMode));
+            sb.append("Tone: ").append(AppConfig.getTonemapModeDisplayName(tonemapMode));
         }
         
         if (edgeMode != AppConfig.EDGE_MODE_DEFAULT) {
             if (sb.length() > 0) sb.append(" | ");
-            sb.append("锐化: ").append(AppConfig.getEdgeModeDisplayName(edgeMode));
+            sb.append("Sharpness: ").append(AppConfig.getEdgeModeDisplayName(edgeMode));
         }
         
         if (noiseReductionMode != AppConfig.NOISE_REDUCTION_DEFAULT) {
             if (sb.length() > 0) sb.append(" | ");
-            sb.append("降噪: ").append(AppConfig.getNoiseReductionModeDisplayName(noiseReductionMode));
+            sb.append("NR: ").append(AppConfig.getNoiseReductionModeDisplayName(noiseReductionMode));
         }
         
         if (effectMode != AppConfig.EFFECT_MODE_DEFAULT && effectMode != AppConfig.EFFECT_MODE_OFF) {
             if (sb.length() > 0) sb.append(" | ");
-            sb.append("特效: ").append(AppConfig.getEffectModeDisplayName(effectMode));
+            sb.append("Effect: ").append(AppConfig.getEffectModeDisplayName(effectMode));
         }
         
         if (sb.length() == 0) {
-            return "默认参数";
+            return "Default Parameters";
         }
         
         return sb.toString();

@@ -57,14 +57,14 @@ public class DingTalkCommandReceiver implements DingTalkStreamClient.MessageCall
             AppLog.d(TAG, "收到录制指令，时长: " + durationSeconds + " 秒");
 
             // 发送确认消息，传递 conversationType 和 senderUserId
-            String confirmMsg = String.format("收到录制指令，开始录制 %d 秒视频...", durationSeconds);
+            String confirmMsg = String.format("Received record command, recording %d second video...", durationSeconds);
             sendResponse(conversationId, conversationType, senderUserId, confirmMsg);
 
             // 通知监听器执行录制，传递 conversationType、senderUserId 和时长
             mainHandler.post(() -> listener.onRecordCommand(conversationId, conversationType, senderUserId, durationSeconds));
         } else {
             AppLog.d(TAG, "未识别的指令: " + command);
-            sendResponse(conversationId, conversationType, senderUserId, "未识别的指令。请发送「录制」或「录制+数字」开始录制视频（如：录制30 表示录制30秒，默认60秒）。");
+            sendResponse(conversationId, conversationType, senderUserId, "Unrecognized command. Send 'record' or 'record <sec>' to record video (e.g. 'record 30' records 30s, default 60s).");
         }
     }
 

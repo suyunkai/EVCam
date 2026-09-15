@@ -49,6 +49,9 @@ public class KeepAliveReceiver extends BroadcastReceiver {
     
     // 自定义广播 Action，用于手动触发保活检查
     public static final String ACTION_KEEP_ALIVE = "com.kooo.evcam.ACTION_KEEP_ALIVE";
+    // USB 存储状态变更广播
+    public static final String ACTION_USB_MOUNTED = "com.kooo.evcam.ACTION_USB_MOUNTED";
+    public static final String ACTION_USB_UNMOUNTED = "com.kooo.evcam.ACTION_USB_UNMOUNTED";
     
     private static KeepAliveReceiver timeTickReceiver;
     private static boolean isTimeTickRegistered = false;
@@ -71,28 +74,28 @@ public class KeepAliveReceiver extends BroadcastReceiver {
             // ========== 屏幕相关（车机点火必亮屏，最稳触发） ==========
             case Intent.ACTION_SCREEN_ON:
                 AppLog.d(TAG, "【屏幕】屏幕亮起（点火信号）");
-                ensureServicesRunning(context, "屏幕亮起");
+                ensureServicesRunning(context, "Screen On");
                 break;
                 
             case Intent.ACTION_SCREEN_OFF:
                 AppLog.d(TAG, "【屏幕】屏幕关闭（熄火/息屏）");
-                ensureServicesRunning(context, "屏幕关闭");
+                ensureServicesRunning(context, "Screen Off");
                 break;
                 
             case Intent.ACTION_USER_PRESENT:
                 AppLog.d(TAG, "【屏幕】用户解锁屏幕");
-                ensureServicesRunning(context, "用户解锁");
+                ensureServicesRunning(context, "User Unlock");
                 break;
                 
             // ========== 电源相关（车机点火必通电） ==========
             case Intent.ACTION_POWER_CONNECTED:
                 AppLog.d(TAG, "【电源】电源接通（点火信号）");
-                ensureServicesRunning(context, "电源接通");
+                ensureServicesRunning(context, "Power Connected");
                 break;
                 
             case Intent.ACTION_POWER_DISCONNECTED:
                 AppLog.d(TAG, "【电源】电源断开（熄火信号）");
-                ensureServicesRunning(context, "电源断开");
+                ensureServicesRunning(context, "Power Disconnected");
                 break;
                 
             case Intent.ACTION_BATTERY_CHANGED:
@@ -102,75 +105,63 @@ public class KeepAliveReceiver extends BroadcastReceiver {
                 
             case Intent.ACTION_BATTERY_LOW:
                 AppLog.d(TAG, "【电源】电量低");
-                ensureServicesRunning(context, "电量低");
+                ensureServicesRunning(context, "Battery Low");
                 break;
                 
             case Intent.ACTION_BATTERY_OKAY:
                 AppLog.d(TAG, "【电源】电量恢复正常");
-                ensureServicesRunning(context, "电量正常");
+                ensureServicesRunning(context, "Battery Normal");
                 break;
                 
             // ========== 蓝牙相关（车机启动会自动连蓝牙） ==========
             case "android.bluetooth.adapter.action.STATE_CHANGED":
                 AppLog.d(TAG, "【蓝牙】蓝牙状态改变");
-                ensureServicesRunning(context, "蓝牙状态变化");
+                ensureServicesRunning(context, "Bluetooth State Changed");
                 break;
                 
             case "android.bluetooth.adapter.action.CONNECTION_STATE_CHANGED":
                 AppLog.d(TAG, "【蓝牙】蓝牙连接状态改变");
-                ensureServicesRunning(context, "蓝牙连接变化");
+                ensureServicesRunning(context, "Bluetooth Connection Changed");
                 break;
                 
             case "android.bluetooth.device.action.ACL_CONNECTED":
                 AppLog.d(TAG, "【蓝牙】蓝牙设备已连接");
-                ensureServicesRunning(context, "蓝牙设备连接");
+                ensureServicesRunning(context, "Bluetooth Connected");
                 break;
                 
             case "android.bluetooth.device.action.ACL_DISCONNECTED":
                 AppLog.d(TAG, "【蓝牙】蓝牙设备已断开");
-                ensureServicesRunning(context, "蓝牙设备断开");
+                ensureServicesRunning(context, "Bluetooth Disconnected");
                 break;
                 
             // ========== USB/存储相关（插U盘触发） ==========
             case Intent.ACTION_MEDIA_MOUNTED:
-                AppLog.d(TAG, "【存储】存储已挂载（U盘/SD卡插入）");
-                ensureServicesRunning(context, "存储挂载");
+            case "android.hardware.usb.action.USB_DEVICE_ATTACHED":
+                AppLog.d(TAG, "【存储】存储已挂载/USB设备已连接");
+                StorageHelper.clearCache();
+                ensureServicesRunning(context, "Storage Mounted");
+                handleUsbAttached(context);
                 break;
                 
             case Intent.ACTION_MEDIA_UNMOUNTED:
-                AppLog.d(TAG, "【存储】存储已卸载");
-                ensureServicesRunning(context, "存储卸载");
-                break;
-                
             case Intent.ACTION_MEDIA_REMOVED:
-                AppLog.d(TAG, "【存储】存储已移除");
-                ensureServicesRunning(context, "存储移除");
-                break;
-                
             case Intent.ACTION_MEDIA_EJECT:
-                AppLog.d(TAG, "【存储】存储弹出请求");
-                ensureServicesRunning(context, "存储弹出");
-                break;
-                
-            case "android.hardware.usb.action.USB_DEVICE_ATTACHED":
-                AppLog.d(TAG, "【USB】USB设备已连接");
-                ensureServicesRunning(context, "USB连接");
-                break;
-                
             case "android.hardware.usb.action.USB_DEVICE_DETACHED":
-                AppLog.d(TAG, "【USB】USB设备已断开");
-                ensureServicesRunning(context, "USB断开");
+                AppLog.d(TAG, "【存储】存储已卸载/USB设备已断开");
+                StorageHelper.clearCache();
+                ensureServicesRunning(context, "Storage Unmounted");
+                handleUsbDetached(context);
                 break;
                 
             // ========== 网络相关 ==========
             case "android.net.conn.CONNECTIVITY_CHANGE":
                 AppLog.d(TAG, "【网络】网络状态变化");
-                ensureServicesRunning(context, "网络变化");
+                ensureServicesRunning(context, "Network Changed");
                 break;
                 
             case "android.net.wifi.STATE_CHANGE":
                 AppLog.d(TAG, "【网络】WiFi状态变化");
-                ensureServicesRunning(context, "WiFi变化");
+                ensureServicesRunning(context, "WiFi Changed");
                 break;
                 
             case "android.net.wifi.SCAN_RESULTS":
@@ -181,45 +172,45 @@ public class KeepAliveReceiver extends BroadcastReceiver {
             // ========== 音频相关 ==========
             case Intent.ACTION_HEADSET_PLUG:
                 AppLog.d(TAG, "【音频】耳机插拔");
-                ensureServicesRunning(context, "耳机插拔");
+                ensureServicesRunning(context, "Headset Plugged/Unplugged");
                 break;
                 
             case "android.media.AUDIO_BECOMING_NOISY":
                 AppLog.d(TAG, "【音频】音频输出设备变化");
-                ensureServicesRunning(context, "音频设备变化");
+                ensureServicesRunning(context, "Audio Device Changed");
                 break;
                 
             // ========== 时间/时区相关 ==========
             case Intent.ACTION_TIMEZONE_CHANGED:
                 AppLog.d(TAG, "【时间】时区变化");
-                ensureServicesRunning(context, "时区变化");
+                ensureServicesRunning(context, "Timezone Changed");
                 break;
                 
             case Intent.ACTION_TIME_CHANGED:
                 AppLog.d(TAG, "【时间】时间设置变化");
-                ensureServicesRunning(context, "时间变化");
+                ensureServicesRunning(context, "Time Changed");
                 break;
                 
             case Intent.ACTION_DATE_CHANGED:
                 AppLog.d(TAG, "【时间】日期变化（跨天）");
-                ensureServicesRunning(context, "日期变化");
+                ensureServicesRunning(context, "Date Changed");
                 break;
                 
             // ========== 系统配置相关 ==========
             case Intent.ACTION_LOCALE_CHANGED:
                 AppLog.d(TAG, "【系统】语言/区域变化");
-                ensureServicesRunning(context, "语言变化");
+                ensureServicesRunning(context, "Locale Changed");
                 break;
                 
             case Intent.ACTION_AIRPLANE_MODE_CHANGED:
                 AppLog.d(TAG, "【系统】飞行模式切换");
-                ensureServicesRunning(context, "飞行模式");
+                ensureServicesRunning(context, "Airplane Mode");
                 break;
                 
             // ========== 应用相关 ==========
             case Intent.ACTION_MY_PACKAGE_REPLACED:
                 AppLog.d(TAG, "【应用】应用已更新，重新激活服务");
-                ensureServicesRunning(context, "应用更新");
+                ensureServicesRunning(context, "App Updated");
                 // 应用更新后重新注册 TIME_TICK
                 registerTimeTick(context);
                 break;
@@ -238,7 +229,7 @@ public class KeepAliveReceiver extends BroadcastReceiver {
             // ========== 自定义保活广播 ==========
             case ACTION_KEEP_ALIVE:
                 AppLog.d(TAG, "【保活】收到手动保活检查请求");
-                ensureServicesRunning(context, "手动保活");
+                ensureServicesRunning(context, "Manual Keep-Alive");
                 break;
                 
             default:
@@ -266,7 +257,7 @@ public class KeepAliveReceiver extends BroadcastReceiver {
         } else {
             // 无障碍服务未运行，尝试拉起前台服务
             AppLog.d(TAG, "【定时】无障碍服务未运行，尝试拉起前台服务");
-            ensureServicesRunning(context, "定时检查");
+            ensureServicesRunning(context, "Periodic Check");
         }
     }
     
@@ -285,7 +276,7 @@ public class KeepAliveReceiver extends BroadcastReceiver {
         
         try {
             // 启动前台服务
-            CameraForegroundService.start(context, "EVCam 后台运行中", "触发: " + reason);
+            CameraForegroundService.start(context, "EVDashcam running in background", "Trigger: " + reason);
             AppLog.d(TAG, "已请求启动前台服务 (触发: " + reason + ")");
         } catch (Exception e) {
             AppLog.e(TAG, "启动服务失败: " + e.getMessage(), e);
@@ -306,7 +297,7 @@ public class KeepAliveReceiver extends BroadcastReceiver {
         
         try {
             // 启动前台服务
-            CameraForegroundService.start(context, "EVCam 后台运行中", "点击返回应用");
+            CameraForegroundService.start(context, "EVDashcam running in background", "Tap to return to app");
         } catch (Exception e) {
             // 静默失败，不输出日志
         }
@@ -383,6 +374,31 @@ public class KeepAliveReceiver extends BroadcastReceiver {
             context.sendBroadcast(intent);
         } catch (Exception e) {
             AppLog.e(TAG, "发送保活检查广播失败: " + e.getMessage(), e);
+        }
+    }
+
+    private void handleUsbAttached(Context context) {
+        try {
+            AppConfig config = new AppConfig(context);
+            if (config.isAutoMoveLocalToUsbEnabled() && StorageHelper.hasExternalSdCard(context)) {
+                AppLog.d(TAG, "USB attached: triggering auto-migration of local footage to USB");
+                UsbFootageMigrator.migrateLocalFootageToUsb(context, null);
+            }
+            Intent usbIntent = new Intent(ACTION_USB_MOUNTED);
+            usbIntent.setPackage(context.getPackageName());
+            context.sendBroadcast(usbIntent);
+        } catch (Exception e) {
+            AppLog.e(TAG, "Error handling USB attached: " + e.getMessage(), e);
+        }
+    }
+
+    private void handleUsbDetached(Context context) {
+        try {
+            Intent usbIntent = new Intent(ACTION_USB_UNMOUNTED);
+            usbIntent.setPackage(context.getPackageName());
+            context.sendBroadcast(usbIntent);
+        } catch (Exception e) {
+            AppLog.e(TAG, "Error handling USB detached: " + e.getMessage(), e);
         }
     }
 }

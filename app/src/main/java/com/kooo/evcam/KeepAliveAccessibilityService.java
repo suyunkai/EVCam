@@ -99,10 +99,10 @@ public class KeepAliveAccessibilityService extends AccessibilityService {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 NotificationChannel channel = new NotificationChannel(
                         CHANNEL_ID,
-                        "保活服务",
+                        "Keep-Alive Service",
                         NotificationManager.IMPORTANCE_LOW  // 低重要性，不打扰用户
                 );
-                channel.setDescription("维持应用后台运行");
+                channel.setDescription("Maintains background operation");
                 channel.enableLights(false);
                 channel.enableVibration(false);
                 channel.setSound(null, null);
@@ -126,7 +126,7 @@ public class KeepAliveAccessibilityService extends AccessibilityService {
             Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                     .setSmallIcon(android.R.drawable.ic_menu_camera)
                     .setContentTitle("EVCam")
-                    .setContentText("保活服务运行中")
+                    .setContentText("Keep-alive service active")
                     .setPriority(NotificationCompat.PRIORITY_LOW)
                     .setOngoing(true)
                     .setShowWhen(false)
@@ -193,7 +193,7 @@ public class KeepAliveAccessibilityService extends AccessibilityService {
     private void ensureForegroundServiceRunning() {
         try {
             // 启动摄像头前台服务
-            CameraForegroundService.start(this, "EVCam 后台运行中", "点击返回应用");
+            CameraForegroundService.start(this, "EVDashcam running in background", "Tap to return to app");
         } catch (Exception e) {
             AppLog.e(TAG, "拉起前台服务失败: " + e.getMessage(), e);
         }

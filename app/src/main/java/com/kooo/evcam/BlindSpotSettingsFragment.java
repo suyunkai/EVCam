@@ -138,7 +138,7 @@ public class BlindSpotSettingsFragment extends Fragment {
         if (longViewAdjustButton != null) {
             longViewAdjustButton.setOnClickListener(v -> {
                 if (!WakeUpHelper.hasOverlayPermission(requireContext())) {
-                    Toast.makeText(requireContext(), "请先授予悬浮窗权限", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(requireContext(), "Please grant Floating Window permission first", Toast.LENGTH_SHORT).show();
                     WakeUpHelper.requestOverlayPermission(requireContext());
                     return;
                 }
@@ -229,13 +229,13 @@ public class BlindSpotSettingsFragment extends Fragment {
             }
             customKeywordsLayout.setVisibility(View.GONE);
             carApiStatusText.setVisibility(View.VISIBLE);
-            carApiStatusText.setText("CarSignalManager 服务状态: 检测中...");
+            carApiStatusText.setText("CarSignalManager status: Detecting...");
             checkCarSignalManagerConnection();
         } else if (appConfig.isVhalGrpcTriggerMode()) {
             turnSignalPresetGroup.check(R.id.rb_preset_car_api);
             customKeywordsLayout.setVisibility(View.GONE);
             carApiStatusText.setVisibility(View.VISIBLE);
-            carApiStatusText.setText("车辆API 服务状态: 检测中...");
+            carApiStatusText.setText("Vehicle API status: Detecting...");
             checkVhalGrpcConnection();
         } else {
             int matchedPreset = findMatchingPreset(currentLeft, currentRight);
@@ -340,7 +340,7 @@ public class BlindSpotSettingsFragment extends Fragment {
         turnSignalLinkageSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked && !WakeUpHelper.hasOverlayPermission(requireContext())) {
                 turnSignalLinkageSwitch.setChecked(false);
-                Toast.makeText(requireContext(), "请先授予悬浮窗权限", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Please grant Floating Window permission first", Toast.LENGTH_SHORT).show();
                 WakeUpHelper.requestOverlayPermission(requireContext());
                 return;
             }
@@ -352,7 +352,7 @@ public class BlindSpotSettingsFragment extends Fragment {
         longViewModeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked && !WakeUpHelper.hasOverlayPermission(requireContext())) {
                 longViewModeSwitch.setChecked(false);
-                Toast.makeText(requireContext(), "请先授予悬浮窗权限", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Please grant Floating Window permission first", Toast.LENGTH_SHORT).show();
                 WakeUpHelper.requestOverlayPermission(requireContext());
                 return;
             }
@@ -363,7 +363,7 @@ public class BlindSpotSettingsFragment extends Fragment {
             }
             // 长视模式启用时，显示提示
             if (isChecked) {
-                Toast.makeText(requireContext(), "长视模式已启用：打转向灯将显示双画面", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Dual-view mode enabled: Turn signals display dual camera views", Toast.LENGTH_SHORT).show();
             }
             BlindSpotService.update(requireContext());
         });
@@ -390,7 +390,7 @@ public class BlindSpotSettingsFragment extends Fragment {
                 // CarSignalManager API 模式
                 customKeywordsLayout.setVisibility(View.GONE);
                 carApiStatusText.setVisibility(View.VISIBLE);
-                carApiStatusText.setText("CarSignalManager 服务状态: 检测中...");
+                carApiStatusText.setText("CarSignalManager status: Detecting...");
                 appConfig.setTurnSignalTriggerMode(AppConfig.TRIGGER_MODE_CAR_SIGNAL_MANAGER);
                 
                 // 保存具体选择的预设（博越L 或 L6/L7）
@@ -409,7 +409,7 @@ public class BlindSpotSettingsFragment extends Fragment {
                 // 车辆API 模式
                 customKeywordsLayout.setVisibility(View.GONE);
                 carApiStatusText.setVisibility(View.VISIBLE);
-                carApiStatusText.setText("车辆API 服务状态: 检测中...");
+                carApiStatusText.setText("Vehicle API status: Detecting...");
                 appConfig.setTurnSignalTriggerMode(AppConfig.TRIGGER_MODE_VHAL_GRPC);
                 appConfig.setTurnSignalPresetSelection("car_api");
                 
@@ -470,7 +470,7 @@ public class BlindSpotSettingsFragment extends Fragment {
         secondaryBlindSpotSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked && !WakeUpHelper.hasOverlayPermission(requireContext())) {
                 secondaryBlindSpotSwitch.setChecked(false);
-                Toast.makeText(requireContext(), "请先授予悬浮窗权限", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Please grant Floating Window permission first", Toast.LENGTH_SHORT).show();
                 WakeUpHelper.requestOverlayPermission(requireContext());
                 return;
             }
@@ -513,7 +513,7 @@ public class BlindSpotSettingsFragment extends Fragment {
         mockFloatingSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked && !WakeUpHelper.hasOverlayPermission(requireContext())) {
                 mockFloatingSwitch.setChecked(false);
-                Toast.makeText(requireContext(), "请先授予悬浮窗权限", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Please grant Floating Window permission first", Toast.LENGTH_SHORT).show();
                 WakeUpHelper.requestOverlayPermission(requireContext());
                 return;
             }
@@ -526,7 +526,7 @@ public class BlindSpotSettingsFragment extends Fragment {
         doorLinkageSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked && !WakeUpHelper.hasOverlayPermission(requireContext())) {
                 doorLinkageSwitch.setChecked(false);
-                Toast.makeText(requireContext(), "请先授予悬浮窗权限", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Please grant Floating Window permission first", Toast.LENGTH_SHORT).show();
                 WakeUpHelper.requestOverlayPermission(requireContext());
                 return;
             }
@@ -550,12 +550,12 @@ public class BlindSpotSettingsFragment extends Fragment {
         resetMainFloatingButton.setOnClickListener(v -> {
             appConfig.resetMainFloatingBounds();
             BlindSpotService.update(requireContext());
-            Toast.makeText(requireContext(), "主屏悬浮窗已重置", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Main floating window reset", Toast.LENGTH_SHORT).show();
         });
 
         adjustBlindSpotCorrectionButton.setOnClickListener(v -> {
             if (!WakeUpHelper.hasOverlayPermission(requireContext())) {
-                Toast.makeText(requireContext(), "请先授予悬浮窗权限", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Please grant Floating Window permission first", Toast.LENGTH_SHORT).show();
                 WakeUpHelper.requestOverlayPermission(requireContext());
                 return;
             }
@@ -568,7 +568,7 @@ public class BlindSpotSettingsFragment extends Fragment {
 
         adjustSecondaryBlindSpotWindowButton.setOnClickListener(v -> {
             if (!WakeUpHelper.hasOverlayPermission(requireContext())) {
-                Toast.makeText(requireContext(), "请先授予悬浮窗权限", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Please grant Floating Window permission first", Toast.LENGTH_SHORT).show();
                 WakeUpHelper.requestOverlayPermission(requireContext());
                 return;
             }
@@ -593,14 +593,14 @@ public class BlindSpotSettingsFragment extends Fragment {
             if (keyword.isEmpty()) {
                 // 没有输入关键词时弹窗提示
                 new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext(), R.style.Theme_Cam_MaterialAlertDialog)
-                    .setTitle("提示")
-                    .setMessage("未输入过滤关键字，日志量可能很大，可能导致界面卡顿。\n\n建议输入关键字进行过滤，是否继续？")
-                    .setPositiveButton("继续打开", (dialog, which) -> {
+                    .setTitle("Notice")
+                    .setMessage("No filter keyword entered. Large log volume may cause UI lag.\n\nContinue anyway?")
+                    .setPositiveButton("Continue", (dialog, which) -> {
                         android.content.Intent intent = new android.content.Intent(requireContext(), LogcatViewerActivity.class);
                         intent.putExtra("filter_keyword", "");
                         startActivity(intent);
                     })
-                    .setNegativeButton("返回输入", null)
+                    .setNegativeButton("Go Back", null)
                     .show();
             } else {
                 android.content.Intent intent = new android.content.Intent(requireContext(), LogcatViewerActivity.class);
@@ -691,7 +691,7 @@ public class BlindSpotSettingsFragment extends Fragment {
      */
     private void checkVhalGrpcConnection() {
         if (carApiStatusText == null) return;
-        carApiStatusText.setText("车辆API 服务状态: 检测中...");
+        carApiStatusText.setText("Vehicle API status: Detecting...");
         carApiStatusText.setTextColor(getResources().getColor(R.color.text_secondary, null));
 
         new Thread(() -> {
@@ -700,10 +700,10 @@ public class BlindSpotSettingsFragment extends Fragment {
                 getActivity().runOnUiThread(() -> {
                     if (carApiStatusText == null) return;
                     if (reachable) {
-                        carApiStatusText.setText("车辆API 服务状态: ✓ 已连接");
+                        carApiStatusText.setText("Vehicle API status: ✓ Connected");
                         carApiStatusText.setTextColor(0xFF4CAF50); // green
                     } else {
-                        carApiStatusText.setText("车辆API 服务状态: ✗ 服务不可达");
+                        carApiStatusText.setText("Vehicle API status: ✗ Service unreachable");
                         carApiStatusText.setTextColor(0xFFF44336); // red
                     }
                 });
@@ -716,7 +716,7 @@ public class BlindSpotSettingsFragment extends Fragment {
      */
     private void checkCarSignalManagerConnection() {
         if (carApiStatusText == null) return;
-        carApiStatusText.setText("CarSignalManager 服务状态: 检测中...");
+        carApiStatusText.setText("CarSignalManager status: Detecting...");
         carApiStatusText.setTextColor(getResources().getColor(R.color.text_secondary, null));
 
         new Thread(() -> {
@@ -725,10 +725,10 @@ public class BlindSpotSettingsFragment extends Fragment {
                 getActivity().runOnUiThread(() -> {
                     if (carApiStatusText == null) return;
                     if (reachable) {
-                        carApiStatusText.setText("CarSignalManager 服务状态: ✓ 已连接");
+                        carApiStatusText.setText("CarSignalManager status: ✓ Connected");
                         carApiStatusText.setTextColor(0xFF4CAF50); // green
                     } else {
-                        carApiStatusText.setText("CarSignalManager 服务状态: ✗ 服务不可达");
+                        carApiStatusText.setText("CarSignalManager status: ✗ Service unreachable");
                         carApiStatusText.setTextColor(0xFFF44336); // red
                     }
                 });
@@ -756,16 +756,16 @@ public class BlindSpotSettingsFragment extends Fragment {
         picker.setColor(appConfig.getBlindSpotStatusBarColor());
 
         new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext(), R.style.Theme_Cam_MaterialAlertDialog)
-                .setTitle("选择动效颜色")
+                .setTitle("Select Animation Color")
                 .setView(picker)
-                .setPositiveButton("确定", (dialog, which) -> {
+                .setPositiveButton("OK", (dialog, which) -> {
                     int color = picker.getColor();
                     appConfig.setBlindSpotStatusBarColor(color);
                     updateColorPreview(color);
                     BlindSpotService.update(requireContext());
                 })
-                .setNegativeButton("取消", null)
-                .setNeutralButton("恢复默认", (dialog, which) -> {
+                .setNegativeButton("Cancel", null)
+                .setNeutralButton("Reset Default", (dialog, which) -> {
                     int defaultColor = 0xFFFFBF40;
                     appConfig.setBlindSpotStatusBarColor(defaultColor);
                     updateColorPreview(defaultColor);
@@ -804,11 +804,11 @@ public class BlindSpotSettingsFragment extends Fragment {
         rightWindow.setSupervisionPartner(leftWindow);
         
         // 启动前台服务（确保摄像头可用）
-        CameraForegroundService.start(context, "长视模式设置", "正在调整长视模式位置和大小");
+        CameraForegroundService.start(context, "Dual-View Mode Settings", "Adjusting dual-view mode position and size");
         
         // 确保摄像头已初始化
         com.kooo.evcam.camera.CameraManagerHolder.getInstance().getOrInit(context);
         
-        Toast.makeText(context, "拖动窗口调整位置，拖动边缘调整大小\n调整完成后点击保存按钮", Toast.LENGTH_LONG).show();
+        Toast.makeText(context, "Drag window to adjust position, drag edges to resize\nTap Save button when done", Toast.LENGTH_LONG).show();
     }
 }

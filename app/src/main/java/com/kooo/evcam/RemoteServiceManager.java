@@ -266,22 +266,22 @@ public class RemoteServiceManager {
     public String getServiceStatusDescription() {
         StringBuilder sb = new StringBuilder();
         if (isDingTalkRunning()) {
-            sb.append("钉钉远程服务运行中");
+            sb.append("DingTalk remote service running");
         }
         if (isTelegramRunning()) {
             if (sb.length() > 0) {
                 sb.append(" / ");
             }
-            sb.append("Telegram 远程服务运行中");
+            sb.append("Telegram remote service running");
         }
         if (isFeishuRunning()) {
             if (sb.length() > 0) {
                 sb.append(" / ");
             }
-            sb.append("飞书远程服务运行中");
+            sb.append("Feishu remote service running");
         }
         if (sb.length() == 0) {
-            sb.append("远程服务运行中");
+            sb.append("Remote service running");
         }
         return sb.toString();
     }
@@ -375,13 +375,13 @@ public class RemoteServiceManager {
                 @Override
                 public String onStartRecordingCommand() {
                     WakeUpHelper.launchForStartRecording(context);
-                    return "✅ 正在启动录制...";
+                    return "✅ Starting recording...";
                 }
 
                 @Override
                 public String onStopRecordingCommand() {
                     WakeUpHelper.launchForStopRecording(context);
-                    return "✅ 正在停止录制...";
+                    return "✅ Stopping recording...";
                 }
 
                 @Override
@@ -389,22 +389,22 @@ public class RemoteServiceManager {
                     if (confirmed) {
                         // 停止所有服务
                         stopAllServices();
-                        return "✅ EVCam 已退出";
+                        return "✅ EVDashcam exited";
                     }
-                    return "⚠️ 发送「确认退出」执行退出操作";
+                    return "⚠️ Send \"confirm exit\" to proceed";
                 }
 
                 @Override
                 public String onForegroundCommand() {
                     WakeUpHelper.launchForForeground(context);
-                    return "📱 应用已切换到前台";
+                    return "📱 App brought to foreground";
                 }
 
                 @Override
                 public String onBackgroundCommand() {
                     // 使用广播通知 Activity 退后台，避免启动 Activity 导致闪屏
                     WakeUpHelper.sendBackgroundBroadcast(context);
-                    return "📴 应用已切换到后台";
+                    return "📴 App sent to background";
                 }
             };
 
@@ -480,35 +480,35 @@ public class RemoteServiceManager {
                 @Override
                 public String onStartRecordingCommand() {
                     WakeUpHelper.launchForStartRecording(context);
-                    return "✅ 正在启动录制...";
+                    return "✅ Starting recording...";
                 }
 
                 @Override
                 public String onStopRecordingCommand() {
                     WakeUpHelper.launchForStopRecording(context);
-                    return "✅ 正在停止录制...";
+                    return "✅ Stopping recording...";
                 }
 
                 @Override
                 public String onExitCommand(boolean confirmed) {
                     if (confirmed) {
                         stopAllServices();
-                        return "✅ EVCam 已退出";
+                        return "✅ EVDashcam exited";
                     }
-                    return "⚠️ 发送「确认退出」执行退出操作";
+                    return "⚠️ Send \"confirm exit\" to proceed";
                 }
 
                 @Override
                 public String onForegroundCommand() {
                     WakeUpHelper.launchForForeground(context);
-                    return "📱 应用已切换到前台";
+                    return "📱 App brought to foreground";
                 }
 
                 @Override
                 public String onBackgroundCommand() {
                     // 使用广播通知 Activity 退后台，避免启动 Activity 导致闪屏
                     WakeUpHelper.sendBackgroundBroadcast(context);
-                    return "📴 应用已切换到后台";
+                    return "📴 App sent to background";
                 }
             };
 
@@ -583,35 +583,35 @@ public class RemoteServiceManager {
                 @Override
                 public String onStartRecordingCommand() {
                     WakeUpHelper.launchForStartRecording(context);
-                    return "✅ 正在启动录制...";
+                    return "✅ Starting recording...";
                 }
 
                 @Override
                 public String onStopRecordingCommand() {
                     WakeUpHelper.launchForStopRecording(context);
-                    return "✅ 正在停止录制...";
+                    return "✅ Stopping recording...";
                 }
 
                 @Override
                 public String onExitCommand(boolean confirmed) {
                     if (confirmed) {
                         stopAllServices();
-                        return "✅ EVCam 已退出";
+                        return "✅ EVDashcam exited";
                     }
-                    return "⚠️ 发送「确认退出」执行退出操作";
+                    return "⚠️ Send \"confirm exit\" to proceed";
                 }
 
                 @Override
                 public String onForegroundCommand() {
                     WakeUpHelper.launchForForeground(context);
-                    return "📱 应用已切换到前台";
+                    return "📱 App brought to foreground";
                 }
 
                 @Override
                 public String onBackgroundCommand() {
                     // 使用广播通知 Activity 退后台，避免启动 Activity 导致闪屏
                     WakeUpHelper.sendBackgroundBroadcast(context);
-                    return "📴 应用已切换到后台";
+                    return "📴 App sent to background";
                 }
             };
 
@@ -636,17 +636,17 @@ public class RemoteServiceManager {
      */
     private String buildBasicStatusInfo(Context context) {
         StringBuilder sb = new StringBuilder();
-        sb.append("📊 EVCam 状态\n");
+        sb.append("📊 EVDashcam Status\n");
         sb.append("━━━━━━━━━━━━━━\n");
 
         try {
             AppConfig appConfig = new AppConfig(context);
 
             // 远程服务状态
-            sb.append("🌐 远程服务:\n");
-            sb.append("• 钉钉: ").append(isDingTalkRunning() ? "已连接" : "未连接").append("\n");
-            sb.append("• Telegram: ").append(isTelegramRunning() ? "已连接" : "未连接").append("\n");
-            sb.append("• 飞书: ").append(isFeishuRunning() ? "已连接" : "未连接").append("\n");
+            sb.append("🌐 Remote Services:\n");
+            sb.append("• DingTalk: ").append(isDingTalkRunning() ? "Connected" : "Disconnected").append("\n");
+            sb.append("• Telegram: ").append(isTelegramRunning() ? "Connected" : "Disconnected").append("\n");
+            sb.append("• Feishu: ").append(isFeishuRunning() ? "Connected" : "Disconnected").append("\n");
 
             // 存储信息
             try {
@@ -657,15 +657,15 @@ public class RemoteServiceManager {
                 if (storageDir != null && storageDir.exists()) {
                     long available = StorageHelper.getAvailableSpace(storageDir);
                     String availableStr = StorageHelper.formatSize(available);
-                    sb.append("💾 存储: ").append(useExternal ? "U盘" : "内部");
-                    sb.append("（剩余 ").append(availableStr).append("）\n");
+                    sb.append("💾 Storage: ").append(useExternal ? "USB Drive" : "Internal");
+                    sb.append(" (Free ").append(availableStr).append("）\n");
                 }
             } catch (Exception e) {
                 // 忽略
             }
 
             sb.append("━━━━━━━━━━━━━━\n");
-            sb.append("💡 发送指令可远程控制录制/拍照");
+            sb.append("💡 Send commands for remote control");
 
         } catch (Exception e) {
             sb.append("获取状态失败: ").append(e.getMessage());

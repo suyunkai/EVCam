@@ -96,7 +96,7 @@ public class QrTransferDialog extends Dialog {
         super(context);
         this.filesToTransfer = files;
         if (files == null || files.isEmpty()) {
-            throw new IllegalArgumentException("文件列表不能为空");
+            throw new IllegalArgumentException("File list cannot be empty");
         }
     }
 
@@ -201,7 +201,7 @@ public class QrTransferDialog extends Dialog {
                 }
             }
             
-            Toast.makeText(getContext(), "已刷新 IP 列表", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), "IP list refreshed", Toast.LENGTH_SHORT).show();
         });
 
         btnStopServer.setOnClickListener(v -> {
@@ -216,7 +216,7 @@ public class QrTransferDialog extends Dialog {
                 ClipboardManager clipboard = (ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
                 ClipData clip = ClipData.newPlainText("EVCam URL", url);
                 clipboard.setPrimaryClip(clip);
-                Toast.makeText(getContext(), "URL 已复制到剪贴板", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), "URL copied to clipboard", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -225,7 +225,7 @@ public class QrTransferDialog extends Dialog {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (position >= 0 && position < availableIps.size()) {
                     IpAddressInfo selectedIp = availableIps.get(position);
-                    AppLog.i("QrTransferDialog", "用户选择 IP: " + selectedIp.ip + " (" + selectedIp.description + ")");
+                    AppLog.i("QrTransferDialog", "User selected IP: " + selectedIp.ip + " (" + selectedIp.description + ")");
                     
                     // 更新当前 IP
                     currentIp = selectedIp.ip;
@@ -297,7 +297,7 @@ public class QrTransferDialog extends Dialog {
 
         // 如果没有找到任何 IP，添加默认地址
         if (availableIps.isEmpty()) {
-            availableIps.add(new IpAddressInfo("192.168.43.1", "热点默认", "hotspot"));
+            availableIps.add(new IpAddressInfo("192.168.43.1", "Hotspot Default", "hotspot"));
         }
 
         // 更新 Spinner
@@ -313,11 +313,11 @@ public class QrTransferDialog extends Dialog {
      * 获取接口描述
      */
     private String getInterfaceDescription(String interfaceName) {
-        if (interfaceName.startsWith("wlan")) return "WiFi热点";
-        if (interfaceName.startsWith("ap")) return "热点";
-        if (interfaceName.startsWith("p2p")) return "WiFi直连";
-        if (interfaceName.startsWith("eth")) return "以太网";
-        if (interfaceName.startsWith("usb")) return "USB网络";
+        if (interfaceName.startsWith("wlan")) return "WiFi Hotspot";
+        if (interfaceName.startsWith("ap")) return "Hotspot";
+        if (interfaceName.startsWith("p2p")) return "Wi-Fi Direct";
+        if (interfaceName.startsWith("eth")) return "Ethernet";
+        if (interfaceName.startsWith("usb")) return "USB Network";
         return interfaceName;
     }
 
@@ -342,12 +342,12 @@ public class QrTransferDialog extends Dialog {
         if (qrBitmap != null) {
             qrCodeImage.setImageBitmap(qrBitmap);
             qrLoading.setVisibility(View.GONE);
-            serverStatus.setText("服务器: " + ip + ":" + currentPort);
+            serverStatus.setText("Server: " + ip + ":" + currentPort);
         }
     }
 
     private void startServer() {
-        AppLog.i("QrTransferDialog", "开始启动文件传输服务器...");
+        AppLog.i("QrTransferDialog", "Starting file transfer server...");
         fileServer = new FileTransferServer(getContext());
         
         // 设置指定的 IP 地址（用于 QR 码生成）
@@ -362,7 +362,7 @@ public class QrTransferDialog extends Dialog {
         }
         
         if (ipForQr != null) {
-            AppLog.i("QrTransferDialog", "设置服务器使用 IP: " + ipForQr);
+            AppLog.i("QrTransferDialog", "Setting server IP: " + ipForQr);
             fileServer.setSpecifiedIpAddress(ipForQr);
         }
         
@@ -374,25 +374,25 @@ public class QrTransferDialog extends Dialog {
                         if (isDestructionStarted()) return;
                         currentPort = port;
                         transferStatus.setVisibility(View.VISIBLE);
-                        transferStatus.setText("等待连接...");
+                        transferStatus.setText("Waiting for connection...");
 
-                        AppLog.i("QrTransferDialog", "服务器已启动在端口: " + port + ", QR URL: " + qrUrl);
+                        AppLog.i("QrTransferDialog", "Server started on port: " + port + ", QR URL: " + qrUrl);
 
                         // 使用当前选中的 IP 生成二维码
                         if (ipSpinner.getSelectedItem() != null) {
                             IpAddressInfo selectedIp = (IpAddressInfo) ipSpinner.getSelectedItem();
-                            AppLog.i("QrTransferDialog", "使用选中的 IP 生成二维码: " + selectedIp.ip);
+                            AppLog.i("QrTransferDialog", "Generating QR code with selected IP: " + selectedIp.ip);
                             updateQrCode(selectedIp.ip);
                         } else if (currentIp != null) {
                             // 如果 spinner 没有选中项，使用 currentIp
-                            AppLog.i("QrTransferDialog", "使用 currentIp 生成二维码: " + currentIp);
+                            AppLog.i("QrTransferDialog", "Generating QR code with current IP: " + currentIp);
                             updateQrCode(currentIp);
                         } else if (!availableIps.isEmpty()) {
                             // 使用第一个可用的 IP
-                            AppLog.i("QrTransferDialog", "使用第一个可用 IP 生成二维码: " + availableIps.get(0).ip);
+                            AppLog.i("QrTransferDialog", "Generating QR code with first available IP: " + availableIps.get(0).ip);
                             updateQrCode(availableIps.get(0).ip);
                         } else {
-                            AppLog.e("QrTransferDialog", "没有可用的 IP 地址");
+                            AppLog.e("QrTransferDialog", "No available IP address");
                         }
                     } catch (Exception e) {
                         AppLog.e("QrTransferDialog", "onServerStarted 回调异常", e);
@@ -405,7 +405,7 @@ public class QrTransferDialog extends Dialog {
                 mainHandler.post(() -> {
                     try {
                         if (isDestructionStarted()) return;
-                        serverStatus.setText("服务器已停止");
+                        serverStatus.setText("Server stopped");
                     } catch (Exception e) {
                         AppLog.e("QrTransferDialog", "onServerStopped 回调异常", e);
                     }
@@ -417,8 +417,8 @@ public class QrTransferDialog extends Dialog {
                 mainHandler.post(() -> {
                     try {
                         if (isDestructionStarted()) return;
-                        transferStatus.setText("正在传输: " + fileName);
-                        updateFileStatus(fileName, "传输中...");
+                        transferStatus.setText("Transferring: " + fileName);
+                        updateFileStatus(fileName, "Transferring...");
                     } catch (Exception e) {
                         AppLog.e("QrTransferDialog", "onFileRequested 回调异常", e);
                     }
@@ -431,11 +431,11 @@ public class QrTransferDialog extends Dialog {
                     try {
                         if (isDestructionStarted()) return;
                         if (success) {
-                            transferStatus.setText("传输完成: " + fileName);
-                            updateFileStatus(fileName, "完成");
+                            transferStatus.setText("Transfer complete: " + fileName);
+                            updateFileStatus(fileName, "Complete");
                         } else {
-                            transferStatus.setText("传输失败: " + fileName);
-                            updateFileStatus(fileName, "失败");
+                            transferStatus.setText("Transfer failed: " + fileName);
+                            updateFileStatus(fileName, "Failed");
                         }
                     } catch (Exception e) {
                         AppLog.e("QrTransferDialog", "onFileTransferred 回调异常", e);
@@ -448,7 +448,7 @@ public class QrTransferDialog extends Dialog {
                 mainHandler.post(() -> {
                     try {
                         if (isDestructionStarted()) return;
-                        serverStatus.setText("错误: " + error);
+                        serverStatus.setText("Error: " + error);
                         qrLoading.setVisibility(View.GONE);
                         Toast.makeText(getContext(), error, Toast.LENGTH_SHORT).show();
                     } catch (Exception e) {
@@ -466,15 +466,15 @@ public class QrTransferDialog extends Dialog {
         }
 
         // 启动服务器
-        AppLog.i("QrTransferDialog", "正在启动服务器...");
+        AppLog.i("QrTransferDialog", "Starting server...");
         try {
             fileServer.start();
-            AppLog.i("QrTransferDialog", "服务器启动成功");
+            AppLog.i("QrTransferDialog", "Server started successfully");
         } catch (Exception e) {
-            AppLog.e("QrTransferDialog", "服务器启动失败", e);
-            serverStatus.setText("启动服务器失败");
+            AppLog.e("QrTransferDialog", "Failed to start server", e);
+            serverStatus.setText("Failed to start server");
             qrLoading.setVisibility(View.GONE);
-            Toast.makeText(getContext(), "无法启动文件传输服务器: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Toast.makeText(getContext(), "Cannot start file transfer server: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -504,13 +504,13 @@ public class QrTransferDialog extends Dialog {
     @Override
     public void onBackPressed() {
         new MaterialAlertDialogBuilder(getContext())
-                .setTitle("确认关闭")
-                .setMessage("关闭后将停止文件传输，是否继续？")
-                .setPositiveButton("停止传输", (dialog, which) -> {
+                .setTitle("Confirm Close")
+                .setMessage("Closing will stop file transfer. Do you want to continue?")
+                .setPositiveButton("Stop Transfer", (dialog, which) -> {
                     stopServer();
                     super.onBackPressed();
                 })
-                .setNegativeButton("继续传输", null)
+                .setNegativeButton("Continue Transfer", null)
                 .show();
     }
 
@@ -527,7 +527,7 @@ public class QrTransferDialog extends Dialog {
             this.files = files;
             this.statuses = new ArrayList<>();
             for (int i = 0; i < files.size(); i++) {
-                statuses.add("等待");
+                statuses.add("Waiting");
             }
         }
 
@@ -571,9 +571,9 @@ public class QrTransferDialog extends Dialog {
 
             // 根据状态设置颜色
             String status = statuses.get(position);
-            if ("完成".equals(status)) {
+            if ("Complete".equals(status)) {
                 fileStatus.setTextColor(0xFF4CAF50); // 绿色
-            } else if ("失败".equals(status)) {
+            } else if ("Failed".equals(status)) {
                 fileStatus.setTextColor(0xFFD32F2F); // 红色
             } else {
                 fileStatus.setTextColor(0xFF1976D2); // 蓝色

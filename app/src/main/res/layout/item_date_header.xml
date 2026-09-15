@@ -15,7 +15,7 @@
         android:layout_width="20dp"
         android:layout_height="20dp"
         android:src="@drawable/ic_expand_more"
-        android:contentDescription="展开/收起"
+        android:contentDescription="Expand / Collapse"
         app:tint="@color/text_secondary" />
 
     <!-- 日期文字 -->
@@ -28,7 +28,7 @@
         android:textColor="@color/text_primary"
         android:textSize="17sp"
         android:textStyle="bold"
-        android:text="今天 · 星期日" />
+        android:text="Today · Sunday" />
 
     <!-- 组数量标签 -->
     <TextView
@@ -37,6 +37,6 @@
         android:layout_height="wrap_content"
         android:textColor="@color/text_secondary"
         android:textSize="14sp"
-        android:text="5组" />
+        android:text="5 Groups" />
 
 </LinearLayout>

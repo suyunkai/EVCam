@@ -118,7 +118,7 @@ public class FeishuFragment extends Fragment {
         switchAutoStart.setOnCheckedChangeListener((buttonView, isChecked) -> {
             config.setAutoStart(isChecked);
             Toast.makeText(requireContext(),
-                isChecked ? "已启用自动启动" : "已禁用自动启动",
+                isChecked ? "Auto-start enabled" : "Auto-start disabled",
                 Toast.LENGTH_SHORT).show();
         });
     }
@@ -129,22 +129,22 @@ public class FeishuFragment extends Fragment {
         String allowedUserIds = etAllowedUserIds.getText().toString().trim();
 
         if (appId.isEmpty()) {
-            Toast.makeText(requireContext(), "请填写 App ID", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Please enter App ID", Toast.LENGTH_SHORT).show();
             return;
         }
 
         if (appSecret.isEmpty()) {
-            Toast.makeText(requireContext(), "请填写 App Secret", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Please enter App Secret", Toast.LENGTH_SHORT).show();
             return;
         }
 
         config.saveConfig(appId, appSecret, allowedUserIds);
-        Toast.makeText(requireContext(), "配置已保存", Toast.LENGTH_SHORT).show();
+        Toast.makeText(requireContext(), "Configuration saved", Toast.LENGTH_SHORT).show();
     }
 
     private void startService() {
         if (!config.isConfigured()) {
-            Toast.makeText(requireContext(), "请先保存配置", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Please save configuration first", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -168,12 +168,12 @@ public class FeishuFragment extends Fragment {
             boolean isRunning = activity.isFeishuServiceRunning();
 
             if (isRunning) {
-                tvConnectionStatus.setText("已连接");
+                tvConnectionStatus.setText("Connected");
                 tvConnectionStatus.setTextColor(0xFF66FF66);
                 btnStartService.setEnabled(false);
                 btnStopService.setEnabled(true);
             } else {
-                tvConnectionStatus.setText("未连接");
+                tvConnectionStatus.setText("Disconnected");
                 tvConnectionStatus.setTextColor(0xFFFF6666);
                 btnStartService.setEnabled(true);
                 btnStopService.setEnabled(false);

@@ -37,7 +37,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_gravity="center_vertical"
-            android:text="权限设置"
+            android:text="Permissions"
             android:textColor="@color/text_primary"
             android:textSize="24sp"
             android:textStyle="bold" />
@@ -58,7 +58,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="请确保以下权限已授予，以保证应用正常运行"
+                android:text="Please ensure the following permissions are granted for proper operation"
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp"
                 android:layout_marginBottom="16dp" />
@@ -75,7 +75,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="ADB 一键获取权限"
+                    android:text="Grant Permissions via ADB"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -84,7 +84,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="通过本机 ADB (localhost:5555) 自动授予所有权限"
+                    android:text="Automatically grant all permissions via local ADB (localhost:5555)"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:layout_marginBottom="12dp" />
@@ -93,7 +93,7 @@
                     android:id="@+id/btn_adb_grant_all"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="一键获取权限"
+                    android:text="Grant Permissions"
                     android:textSize="16sp"
                     android:backgroundTint="#FF4CAF50"
                     android:textColor="#FFFFFFFF" />
@@ -123,7 +123,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="基础权限"
+                android:text="Basic Permissions"
                 android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold"
@@ -148,7 +148,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="相机权限"
+                        android:text="Camera Permission"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -157,7 +157,7 @@
                         android:id="@+id/tv_camera_status"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="用于录制视频和拍照"
+                        android:text="Required to capture video and photos"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:layout_marginTop="2dp" />
@@ -167,7 +167,7 @@
                     android:id="@+id/btn_camera_permission"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="去授权"
+                    android:text="Authorize"
                     android:textSize="14sp"
                     android:minHeight="40dp"
                     android:backgroundTint="@color/button_background"
@@ -193,7 +193,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="麦克风权限"
+                        android:text="Microphone Permission"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -202,7 +202,7 @@
                         android:id="@+id/tv_microphone_status"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="用于录制视频时录音"
+                        android:text="Required to record audio during video capture"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:layout_marginTop="2dp" />
@@ -212,7 +212,7 @@
                     android:id="@+id/btn_microphone_permission"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="去授权"
+                    android:text="Authorize"
                     android:textSize="14sp"
                     android:minHeight="40dp"
                     android:backgroundTint="@color/button_background"
@@ -238,7 +238,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="存储权限"
+                        android:text="Storage Permission"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -247,7 +247,7 @@
                         android:id="@+id/tv_storage_status"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="用于保存和读取视频、照片"
+                        android:text="Required to save and read videos and photos"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:layout_marginTop="2dp" />
@@ -257,7 +257,7 @@
                     android:id="@+id/btn_storage_permission"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="去授权"
+                    android:text="Authorize"
                     android:textSize="14sp"
                     android:minHeight="40dp"
                     android:backgroundTint="@color/button_background"
@@ -285,7 +285,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="通知权限"
+                        android:text="Notification Permission"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -294,7 +294,7 @@
                         android:id="@+id/tv_notification_status"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="用于显示录制状态通知"
+                        android:text="Required to display recording status notification"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:layout_marginTop="2dp" />
@@ -304,7 +304,7 @@
                     android:id="@+id/btn_notification_permission"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="去授权"
+                    android:text="Authorize"
                     android:textSize="14sp"
                     android:minHeight="40dp"
                     android:backgroundTint="@color/button_background"
@@ -315,7 +315,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="高级权限"
+                android:text="Advanced Permissions"
                 android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold"
@@ -342,7 +342,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="所有文件访问权限"
+                        android:text="All Files Access Permission"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -351,7 +351,7 @@
                         android:id="@+id/tv_all_files_status"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="用于访问U盘公共目录"
+                        android:text="Required to access USB flash drive storage"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:layout_marginTop="2dp" />
@@ -361,7 +361,7 @@
                     android:id="@+id/btn_all_files_permission"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="去授权"
+                    android:text="Authorize"
                     android:textSize="14sp"
                     android:minHeight="40dp"
                     android:backgroundTint="@color/button_background"
@@ -387,7 +387,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="悬浮窗权限"
+                        android:text="Floating Window Permission"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -396,7 +396,7 @@
                         android:id="@+id/tv_overlay_status"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="用于悬浮窗和后台唤醒"
+                        android:text="Required for floating windows and background wake-up"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:layout_marginTop="2dp" />
@@ -406,7 +406,7 @@
                     android:id="@+id/btn_overlay_permission"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="去授权"
+                    android:text="Authorize"
                     android:textSize="14sp"
                     android:minHeight="40dp"
                     android:backgroundTint="@color/button_background"
@@ -432,7 +432,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="无障碍服务"
+                        android:text="Accessibility Service"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -441,7 +441,7 @@
                         android:id="@+id/tv_accessibility_status"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="防止应用被系统清理"
+                        android:text="Prevent app from being cleared by system"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:layout_marginTop="2dp" />
@@ -451,7 +451,7 @@
                     android:id="@+id/btn_accessibility_permission"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="去启用"
+                    android:text="Enable"
                     android:textSize="14sp"
                     android:minHeight="40dp"
                     android:backgroundTint="@color/button_background"
@@ -478,7 +478,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="使用情况访问权限"
+                        android:text="Usage Access Permission"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -487,7 +487,7 @@
                         android:id="@+id/tv_usage_stats_status"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="全景影像避让需要检测前台应用"
+                        android:text="Detects foreground app to yield display to vehicle 360 AVM"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:layout_marginTop="2dp" />
@@ -497,7 +497,7 @@
                     android:id="@+id/btn_usage_stats_permission"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="去授权"
+                    android:text="Authorize"
                     android:textSize="14sp"
                     android:minHeight="40dp"
                     android:backgroundTint="@color/button_background"
@@ -524,7 +524,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="电池优化"
+                        android:text="Battery Optimization"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -533,7 +533,7 @@
                         android:id="@+id/tv_battery_status"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="关闭可防止应用被系统休眠"
+                        android:text="Disable to prevent app from being slept by system"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:layout_marginTop="2dp" />
@@ -543,7 +543,7 @@
                     android:id="@+id/btn_battery_permission"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="去设置"
+                    android:text="Configure"
                     android:textSize="14sp"
                     android:minHeight="40dp"
                     android:backgroundTint="@color/button_background"
@@ -554,7 +554,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="系统级保活"
+                android:text="System-Level Keep-Alive"
                 android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold"
@@ -571,7 +571,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="银河E5（E245）系统白名单"
+                    android:text="Galaxy E5 (E245) System Whitelist"
                     android:textColor="@color/text_primary"
                     android:textSize="16sp"
                     android:textStyle="bold"
@@ -581,7 +581,7 @@
                     android:id="@+id/tv_whitelist_status"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="将 EVCam 添加到车机系统启动列表和后台白名单，防止深度睡眠后被杀"
+                    android:text="Add EVCam to vehicle startup list and background whitelist to prevent being killed in deep sleep"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:layout_marginBottom="12dp" />
@@ -590,7 +590,7 @@
                     android:id="@+id/btn_system_whitelist"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="一键配置"
+                    android:text="Quick Setup"
                     android:textSize="16sp"
                     android:backgroundTint="#FF2196F3"
                     android:textColor="#FFFFFFFF" />
@@ -621,7 +621,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="恢复系统白名单"
+                    android:text="Restore System Whitelist"
                     android:textSize="16sp"
                     android:backgroundTint="#FFFF9800"
                     android:textColor="#FFFFFFFF" />
