@@ -4,6 +4,7 @@ package com.kooo.evcam.camera;
 import com.kooo.evcam.AppConfig;
 import com.kooo.evcam.AppLog;
 import com.kooo.evcam.StorageHelper;
+import com.kooo.evcam.config.SplitChannelConfig;
 import android.content.Context;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
@@ -38,7 +39,10 @@ import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * 单个摄像头管理类
@@ -52,6 +56,19 @@ public class SingleCamera {
     private CameraCallback callback;
     private String cameraPosition;  // 摄像头位置（front/back/left/right）
     private int customRotation = 0;  // 自定义旋转角度（仅用于自定义车型）
+
+    // ===== 单通道分割模式（如 25 款星舰 7：4 路画面合并为一路输出） =====
+    private volatile boolean splitChannelMode = false;
+    private SplitViewRenderer splitRenderer;
+    private final Map<String, TextureView> splitPreviewViews = new LinkedHashMap<>();
+    private final Map<String, Surface> splitPreviewSurfaces = new LinkedHashMap<>();
+    private final Map<String, android.graphics.SurfaceTexture> splitPreviewTextures = new LinkedHashMap<>();
+    private final Map<String, Surface> splitRecordSurfaces = new LinkedHashMap<>();
+    private final Map<String, SplitChannelConfig.Region> splitRegions = new LinkedHashMap<>();
+    private TextureView splitEditorPreviewView;
+    private Surface splitEditorPreviewSurface;
+    private android.graphics.SurfaceTexture splitEditorPreviewTexture;
+    private boolean splitEditorTargetAdded = false;
 
     private CameraManager cameraManager;
     private CameraDevice cameraDevice;
@@ -148,8 +165,8 @@ public class SingleCamera {
     public void setCameraPosition(String position) {
         this.cameraPosition = position;
 
-        // 如果是后摄像头，应用左右镜像变换
-        if ("back".equals(position) && textureView != null) {
+        // 如果是后摄像头，应用左右镜像变换（分割模式由渲染器按区域处理）
+        if (!splitChannelMode && "back".equals(position) && textureView != null) {
             applyMirrorTransform();
         }
     }
@@ -157,12 +174,265 @@ public class SingleCamera {
     public void setTextureView(TextureView textureView) {
         this.textureView = textureView;
         clearPreviewSurface();
-        if ("back".equals(cameraPosition) && this.textureView != null) {
+        if (!splitChannelMode && "back".equals(cameraPosition) && this.textureView != null) {
             applyMirrorTransform();
         }
-        if (customRotation != 0 && this.textureView != null && this.textureView.isAvailable()) {
+        if (!splitChannelMode && customRotation != 0 && this.textureView != null && this.textureView.isAvailable()) {
             applyCustomRotation();
         }
+    }
+
+    // ==================== 单通道分割模式 ====================
+
+    public boolean isSplitChannelMode() {
+        return splitChannelMode;
+    }
+
+    /**
+     * 开启/关闭单通道分割模式。开启后摄像头只输出到 GL 中间层，
+     * 由 {@link SplitViewRenderer} 按区域渲染到各预览/编码目标。
+     */
+    public void setSplitChannelMode(boolean enabled) {
+        this.splitChannelMode = enabled;
+        AppLog.d(TAG, "Camera " + cameraId + " splitChannelMode=" + enabled);
+    }
+
+    /**
+     * 设置分割区域（按 front/back/left/right 槽位）
+     */
+    public void setSplitRegions(List<SplitChannelConfig.Region> regions) {
+        splitRegions.clear();
+        if (regions != null) {
+            for (SplitChannelConfig.Region region : regions) {
+                if (region == null || region.key == null) {
+                    continue;
+                }
+                splitRegions.put(region.key, region.copy());
+            }
+        }
+        updateSplitTargets();
+    }
+
+    /**
+     * 设置四个预览 TextureView（分割模式下每个 TextureView 显示对应区域）
+     */
+    public void setSplitPreviewViews(TextureView front, TextureView back,
+                                     TextureView left, TextureView right) {
+        splitPreviewViews.clear();
+        if (front != null) splitPreviewViews.put("front", front);
+        if (back != null) splitPreviewViews.put("back", back);
+        if (left != null) splitPreviewViews.put("left", left);
+        if (right != null) splitPreviewViews.put("right", right);
+        updateSplitTargets();
+    }
+
+    public void removeSplitPreviewTarget(String key) {
+        splitPreviewViews.remove(key);
+        splitPreviewTextures.remove(key);
+        Surface surface = splitPreviewSurfaces.remove(key);
+        releaseSurfaceQuietly(surface);
+        if (splitRenderer != null) {
+            splitRenderer.removeTarget("preview_" + key);
+        }
+    }
+
+    /**
+     * 设置分割配置编辑界面的全画面预览
+     */
+    public void setSplitEditorPreviewView(TextureView view) {
+        if (view == null) {
+            splitEditorPreviewView = null;
+            splitEditorPreviewTexture = null;
+            splitEditorTargetAdded = false;
+            splitEditorPreviewSurface = releaseSurface(splitEditorPreviewSurface);
+            if (splitRenderer != null) {
+                splitRenderer.removeTarget("editor_preview");
+            }
+            updateSplitTargets();
+            return;
+        }
+        splitEditorPreviewView = view;
+        updateSplitTargets();
+    }
+
+    /**
+     * 注册某个逻辑画面的编码输入目标（来自 CodecVideoRecorder 的 SurfaceTexture）
+     */
+    public boolean addSplitRecordTarget(String key, android.graphics.SurfaceTexture surfaceTexture,
+                                        SplitChannelConfig.Region region, int outWidth, int outHeight) {
+        if (surfaceTexture == null || region == null) {
+            return false;
+        }
+        if (!ensureSplitRenderer()) {
+            AppLog.e(TAG, "Camera " + cameraId + " split renderer not ready, cannot add record target " + key);
+            return false;
+        }
+        int width = Math.max(2, outWidth);
+        int height = Math.max(2, outHeight);
+        surfaceTexture.setDefaultBufferSize(width, height);
+        Surface surface = new Surface(surfaceTexture);
+        Surface old = splitRecordSurfaces.remove(key);
+        releaseSurfaceQuietly(old);
+        if (splitRenderer != null) {
+            splitRenderer.removeTarget("record_" + key);
+        }
+        splitRecordSurfaces.put(key, surface);
+        splitRenderer.addTarget("record_" + key, surface,
+                region.x, region.y, region.w, region.h, region.rotation, region.mirror);
+        AppLog.d(TAG, "Camera " + cameraId + " split record target added: " + key +
+                " -> " + width + "x" + height);
+        return true;
+    }
+
+    public void removeSplitRecordTarget(String key) {
+        Surface surface = splitRecordSurfaces.remove(key);
+        releaseSurfaceQuietly(surface);
+        if (splitRenderer != null) {
+            splitRenderer.removeTarget("record_" + key);
+        }
+    }
+
+    private void releaseSurfaceQuietly(Surface surface) {
+        if (surface != null) {
+            try {
+                surface.release();
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private Surface releaseSurface(Surface surface) {
+        releaseSurfaceQuietly(surface);
+        return null;
+    }
+
+    private boolean ensureSplitRenderer() {
+        if (previewSize == null) {
+            AppLog.w(TAG, "Camera " + cameraId + " previewSize not ready for split renderer");
+            return false;
+        }
+        if (splitRenderer != null && splitRenderer.isInitialized()) {
+            return true;
+        }
+        try {
+            releaseSplitRenderer();
+            splitRenderer = new SplitViewRenderer(previewSize.getWidth(), previewSize.getHeight());
+            splitRenderer.initialize();
+            AppLog.d(TAG, "Camera " + cameraId + " split renderer initialized");
+            return true;
+        } catch (Exception e) {
+            AppLog.e(TAG, "Camera " + cameraId + " failed to init split renderer", e);
+            releaseSplitRenderer();
+            return false;
+        }
+    }
+
+    /**
+     * 按当前区域配置刷新所有预览目标。
+     * 仅在 SurfaceTexture 变化时重建 EGL 输出；区域变化只更新裁剪参数，避免录制/预览中断。
+     */
+    private void updateSplitTargets() {
+        if (!splitChannelMode || !ensureSplitRenderer() || splitRenderer == null) {
+            return;
+        }
+        int frameW = previewSize.getWidth();
+        int frameH = previewSize.getHeight();
+
+        // 清理已经移除的预览目标
+        for (String key : new java.util.ArrayList<>(splitPreviewSurfaces.keySet())) {
+            if (!splitPreviewViews.containsKey(key)) {
+                splitPreviewTextures.remove(key);
+                releaseSurfaceQuietly(splitPreviewSurfaces.remove(key));
+                splitRenderer.removeTarget("preview_" + key);
+            }
+        }
+
+        // 四路区域预览
+        for (Map.Entry<String, TextureView> entry : splitPreviewViews.entrySet()) {
+            String key = entry.getKey();
+            TextureView view = entry.getValue();
+            SplitChannelConfig.Region region = splitRegions.get(key);
+            android.graphics.SurfaceTexture st = (view != null && view.isAvailable())
+                    ? view.getSurfaceTexture() : null;
+            if (st == null || region == null) {
+                splitPreviewTextures.remove(key);
+                releaseSurfaceQuietly(splitPreviewSurfaces.remove(key));
+                splitRenderer.removeTarget("preview_" + key);
+                continue;
+            }
+
+            Surface existing = splitPreviewSurfaces.get(key);
+            android.graphics.SurfaceTexture existingTexture = splitPreviewTextures.get(key);
+            if (existing == null || !existing.isValid() || existingTexture != st) {
+                // SurfaceTexture 变化：必须重建 EGL 输出
+                releaseSurfaceQuietly(splitPreviewSurfaces.remove(key));
+                splitRenderer.removeTarget("preview_" + key);
+                int[] crop = region.cropPixels(frameW, frameH);
+                st.setDefaultBufferSize(crop[2], crop[3]);
+                Surface surface = new Surface(st);
+                splitPreviewSurfaces.put(key, surface);
+                splitPreviewTextures.put(key, st);
+                splitRenderer.addTarget("preview_" + key, surface,
+                        region.x, region.y, region.w, region.h, region.rotation, region.mirror);
+            } else {
+                // 仅区域变化：直接更新裁剪，不重建 EGL 输出
+                splitRenderer.updateTarget("preview_" + key,
+                        region.x, region.y, region.w, region.h, region.rotation, region.mirror);
+            }
+        }
+
+        // 编辑界面全画面预览
+        android.graphics.SurfaceTexture editorSt = null;
+        if (splitEditorPreviewView != null && splitEditorPreviewView.isAvailable()) {
+            editorSt = splitEditorPreviewView.getSurfaceTexture();
+        }
+        if (editorSt != null) {
+            if (splitEditorPreviewSurface == null || !splitEditorPreviewSurface.isValid()
+                    || splitEditorPreviewTexture != editorSt) {
+                releaseSurfaceQuietly(splitEditorPreviewSurface);
+                splitEditorPreviewSurface = null;
+                splitEditorTargetAdded = false;
+                splitRenderer.removeTarget("editor_preview");
+                editorSt.setDefaultBufferSize(frameW, frameH);
+                splitEditorPreviewSurface = new Surface(editorSt);
+                splitEditorPreviewTexture = editorSt;
+                splitRenderer.addTarget("editor_preview", splitEditorPreviewSurface,
+                        0f, 0f, 1f, 1f, 0, false);
+                splitEditorTargetAdded = true;
+            } else if (!splitEditorTargetAdded) {
+                splitRenderer.addTarget("editor_preview", splitEditorPreviewSurface,
+                        0f, 0f, 1f, 1f, 0, false);
+                splitEditorTargetAdded = true;
+            }
+        } else {
+            splitEditorPreviewSurface = releaseSurface(splitEditorPreviewSurface);
+            splitEditorPreviewTexture = null;
+            splitEditorTargetAdded = false;
+            splitRenderer.removeTarget("editor_preview");
+        }
+    }
+
+    private void releaseSplitRenderer() {
+        if (splitRenderer != null) {
+            try {
+                splitRenderer.release();
+            } catch (Exception e) {
+                AppLog.d(TAG, "Camera " + cameraId + " ignored exception releasing split renderer: " + e.getMessage());
+            }
+            splitRenderer = null;
+        }
+        for (Surface surface : splitPreviewSurfaces.values()) {
+            releaseSurfaceQuietly(surface);
+        }
+        splitPreviewSurfaces.clear();
+        splitPreviewTextures.clear();
+        for (Surface surface : splitRecordSurfaces.values()) {
+            releaseSurfaceQuietly(surface);
+        }
+        splitRecordSurfaces.clear();
+        splitEditorPreviewSurface = releaseSurface(splitEditorPreviewSurface);
+        splitEditorPreviewTexture = null;
+        splitEditorTargetAdded = false;
     }
 
     public void clearPreviewSurface() {
@@ -222,6 +492,10 @@ public class SingleCamera {
 
         // 在主线程中执行UI操作
         textureView.post(() -> {
+            // 分割模式下画面变换由 SplitViewRenderer 控制，不能叠加镜像
+            if (splitChannelMode) {
+                return;
+            }
             android.graphics.Matrix matrix = new android.graphics.Matrix();
 
             // 获取TextureView的中心点
@@ -246,13 +520,15 @@ public class SingleCamera {
 
         // 在主线程中执行UI操作
         textureView.post(() -> {
+            if (splitChannelMode) {
+                return;
+            }
             android.graphics.Matrix matrix = new android.graphics.Matrix();
 
             // 获取TextureView的中心点
             float centerX = textureView.getWidth() / 2f;
             float centerY = textureView.getHeight() / 2f;
 
-            // 应用旋转
             matrix.setRotate(customRotation, centerX, centerY);
 
             // 如果是后摄像头，还需要应用镜像
@@ -582,6 +858,12 @@ public class SingleCamera {
     }
 
     public Surface getSurface() {
+        if (splitChannelMode) {
+            if (splitRenderer != null && splitRenderer.isInitialized()) {
+                return splitRenderer.getInputSurface();
+            }
+            return null;
+        }
         if (textureView != null && textureView.isAvailable()) {
             SurfaceTexture surfaceTexture = textureView.getSurfaceTexture();
             if (surfaceTexture != null) {
@@ -603,6 +885,32 @@ public class SingleCamera {
      * - 指定分辨率：优先精确匹配，否则最接近的
      */
     private Size chooseOptimalSize(Size[] sizes) {
+        // 单通道分割：4 个画面横向并排，目标合成分辨率 4x1280 x 800（每块约 1280x800）
+        if (splitChannelMode) {
+            final int targetW = 5120;
+            final int targetH = 800;
+            Size bestSplit = null;
+            long bestScore = Long.MAX_VALUE;
+            for (Size size : sizes) {
+                long heightPenalty = Math.abs(size.getHeight() - targetH) * 100L;
+                if (size.getHeight() > 1600) {
+                    heightPenalty += 1_000_000L;
+                } else if (size.getHeight() < 300) {
+                    heightPenalty += 100_000L;
+                }
+                long score = heightPenalty + Math.abs(size.getWidth() - targetW);
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestSplit = size;
+                }
+            }
+            if (bestSplit != null) {
+                AppLog.d(TAG, "Camera " + cameraId + " split target resolution " + targetW + "x" + targetH
+                        + " -> selected " + bestSplit.getWidth() + "x" + bestSplit.getHeight());
+                return bestSplit;
+            }
+        }
+
         // 从配置获取目标分辨率
         AppConfig appConfig = new AppConfig(context);
         String targetResolution = appConfig.getTargetResolution();
@@ -1300,6 +1608,17 @@ public class SingleCamera {
                 return;
             }
 
+            if (splitChannelMode) {
+                // 单通道分割：摄像头只输出到 GL 中间层，由 SplitViewRenderer 分发到各区域
+                releaseFisheyeCorrector();
+                if (ensureSplitRenderer()) {
+                    previewSurface = splitRenderer.getInputSurface();
+                    updateSplitTargets();
+                    AppLog.d(TAG, "Camera " + cameraId + " split mode: camera outputs to GL renderer");
+                } else {
+                    previewSurface = null;
+                }
+            } else {
             SurfaceTexture surfaceTexture = null;
             if (textureView != null && textureView.isAvailable()) {
                 surfaceTexture = textureView.getSurfaceTexture();
@@ -1379,6 +1698,7 @@ public class SingleCamera {
                     previewSurface = null;
                 }
             }
+            }
 
             Surface surface = (previewSurface != null && previewSurface.isValid()) ? previewSurface : null;
             if (surface == null) {
@@ -1443,16 +1763,17 @@ public class SingleCamera {
                 // 将所有预览性质的 Surface (主预览、主悬浮、副悬浮) 组合成一个硬件流
                 boolean fisheyeActive = (fisheyeCorrector != null && fisheyeCorrector.isInitialized());
 
-                if (fisheyeActive) {
-                    // 鱼眼矫正模式：Camera2 只输出到 FisheyeCorrector 的中间 Surface（单路）
-                    // 悬浮窗/副屏由 FisheyeCorrector GL 管线统一输出（矫正后画面）
-                    AppLog.d(TAG, "Camera " + cameraId + " FISHEYE MODE: single output to GL pipeline");
+                if (fisheyeActive || splitChannelMode) {
+                    // 鱼眼矫正 / 单通道分割：Camera2 只输出到 GL 中间 Surface（单路）
+                    // 悬浮窗/副屏/各分割区域由 GL 管线统一输出
+                    AppLog.d(TAG, "Camera " + cameraId + " GL PIPELINE MODE: single output to GL pipeline"
+                            + (splitChannelMode ? " (split)" : " (fisheye)"));
 
                     if (surface != null && surface.isValid()) {
                         OutputConfiguration previewConfig = new OutputConfiguration(surface);
                         // MJPEG 流 Surface（StreamGlEncoder 独立 GL 管线）需要直接接 Camera2 原始输出，
                         // 与 FisheyeCorrector 的 intermediate Surface 共享同一 OutputConfiguration
-                        if (streamSurface != null && streamSurface.isValid() && streamSurface != surface) {
+                        if (!splitChannelMode && streamSurface != null && streamSurface.isValid() && streamSurface != surface) {
                             previewConfig.enableSurfaceSharing();
                             previewConfig.addSurface(streamSurface);
                             surfaces.add(streamSurface);
@@ -1469,6 +1790,7 @@ public class SingleCamera {
                     // 确保已清除的 Surface 被移除（防止 EGL "already connected" 竞争）
                     // 注意：如果 mainFloatingSurface 已经是鱼眼矫正的主输出（无 TextureView 场景），
                     // 不能再作为附加输出添加，否则同一 Surface 会被 EGL 连接两次导致错误
+                    if (!splitChannelMode) {
                     if (fisheyePrimaryIsFloating) {
                         fisheyeCorrector.removeOutputSurface("mainFloating");
                     } else if (mainFloatingSurface != null && mainFloatingSurface.isValid()) {
@@ -1488,6 +1810,7 @@ public class SingleCamera {
                         AppLog.d(TAG, "Registered fullscreen preview surface to fisheye GL pipeline");
                     } else {
                         fisheyeCorrector.removeOutputSurface("fullscreenPreview");
+                    }
                     }
                 } else {
                     // 非鱼眼模式：使用 Surface Sharing
@@ -2226,6 +2549,38 @@ public class SingleCamera {
      * 将Bitmap保存为JPEG文件（使用指定的时间戳）
      */
     private void saveBitmapAsJPEG(android.graphics.Bitmap bitmap, String timestamp) {
+        String position = (cameraPosition != null) ? cameraPosition : cameraId;
+        saveBitmapAsJPEG(bitmap, timestamp, position);
+    }
+
+    /**
+     * 保存单通道分割画面的照片（指定逻辑画面槽位）
+     */
+    public void saveSplitPictureBitmap(android.graphics.Bitmap bitmap, String timestamp, String position) {
+        if (bitmap == null) {
+            return;
+        }
+        Runnable saveTask = () -> {
+            try {
+                saveBitmapAsJPEG(bitmap, timestamp, position);
+            } finally {
+                try {
+                    bitmap.recycle();
+                } catch (Exception ignored) {
+                }
+            }
+        };
+        if (backgroundHandler != null) {
+            backgroundHandler.post(saveTask);
+        } else {
+            new Thread(saveTask, "SplitPictureSave").start();
+        }
+    }
+
+    /**
+     * 将Bitmap保存为JPEG文件（使用指定的时间戳和画面位置）
+     */
+    private void saveBitmapAsJPEG(android.graphics.Bitmap bitmap, String timestamp, String position) {
         File photoDir = StorageHelper.getPhotoDir(context);
         if (!photoDir.exists()) {
             photoDir.mkdirs();
@@ -2239,7 +2594,6 @@ public class SingleCamera {
         }
 
         // 使用传入的时间戳命名：yyyyMMdd_HHmmss_摄像头位置.jpg
-        String position = (cameraPosition != null) ? cameraPosition : cameraId;
         File photoFile = new File(photoDir, timestamp + "_" + position + ".jpg");
 
         // 检查是否需要添加时间角标
@@ -2409,6 +2763,12 @@ public class SingleCamera {
 
             // 释放鱼眼矫正器
             releaseFisheyeCorrector();
+
+            // 释放单通道分割渲染器（同时释放其输入 Surface）
+            if (splitChannelMode && splitRenderer != null) {
+                releaseSplitRenderer();
+                previewSurface = null;
+            }
 
             // 释放预览 Surface
             if (previewSurface != null) {

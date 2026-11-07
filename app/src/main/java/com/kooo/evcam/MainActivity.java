@@ -35,6 +35,7 @@ import com.google.android.material.navigation.NavigationView;
 import com.kooo.evcam.camera.ImageAdjustManager;
 import com.kooo.evcam.camera.MultiCameraManager;
 import com.kooo.evcam.camera.SingleCamera;
+import com.kooo.evcam.config.SplitChannelConfig;
 import com.kooo.evcam.FileTransferManager;
 import com.kooo.evcam.StorageHelper;
 import com.kooo.evcam.dingtalk.DingTalkApiClient;
@@ -102,6 +103,8 @@ public class MainActivity extends AppCompatActivity {
 
     private Button btnStartRecord, btnExit, btnTakePhoto;
     private MultiCameraManager cameraManager;
+    private SplitViewEditorController splitViewEditorController;
+    private boolean splitEditorAutoShown = false;
 
     public MultiCameraManager getCameraManager() {
         if (cameraManager == null) {
@@ -976,6 +979,13 @@ public class MainActivity extends AppCompatActivity {
             requiredTextureCount = 4;
             AppLog.d(TAG, "使用26款星舰7配置：横屏4摄像头布局");
         }
+        // 25款星舰7：单通道分割（4路画面合并为一路，手动框选分割）
+        else if (AppConfig.CAR_MODEL_XINGJIAN_7_25.equals(carModel)) {
+            layoutId = R.layout.activity_main;
+            configuredCameraCount = 4;
+            requiredTextureCount = 4;
+            AppLog.d(TAG, "使用25款星舰7配置：单通道分割，横屏4画面布局");
+        }
         // 银河A7：横屏四摄像头布局（沿用银河E5）
         else if (AppConfig.CAR_MODEL_GALAXY_A7.equals(carModel)) {
             layoutId = R.layout.activity_main;
@@ -1226,6 +1236,111 @@ public class MainActivity extends AppCompatActivity {
             label.setText(name);
             label.setVisibility(View.VISIBLE);
         }
+    }
+
+    // ==================== 单通道分割（25款星舰7） ====================
+
+    /**
+     * 打开分割画面配置界面（设置页按钮 / 首次进入时自动弹出）
+     */
+    public void openSplitViewEditor() {
+        if (!appConfig.isSplitChannelModel()) {
+            Toast.makeText(this, "当前车型不支持单通道分割配置", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (cameraManager == null) {
+            Toast.makeText(this, "摄像头尚未就绪，请稍后再试", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!cameraManager.isSplitChannelMode()) {
+            Toast.makeText(this, "请重启应用后再配置分割画面", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (drawerLayout != null) {
+            drawerLayout.closeDrawers();
+        }
+        if (fragmentContainer != null) {
+            fragmentContainer.setVisibility(View.GONE);
+        }
+        androidx.fragment.app.Fragment fragment =
+                getSupportFragmentManager().findFragmentById(R.id.fragment_container);
+        if (fragment != null) {
+            getSupportFragmentManager().beginTransaction().remove(fragment).commitAllowingStateLoss();
+        }
+
+        if (splitViewEditorController == null) {
+            splitViewEditorController = new SplitViewEditorController(this, cameraManager, appConfig,
+                    new SplitViewEditorController.Callback() {
+                        @Override
+                        public void onSaved(boolean cameraIdChanged) {
+                            if (cameraIdChanged) {
+                                Toast.makeText(MainActivity.this,
+                                        "摄像头通道已更改，正在重新加载预览", Toast.LENGTH_SHORT).show();
+                                recreate();
+                                return;
+                            }
+                            applySplitPreviewLayout();
+                        }
+
+                        @Override
+                        public void onCancelled() {
+                            applySplitPreviewLayout();
+                        }
+                    });
+        }
+        splitViewEditorController.show();
+    }
+
+    /**
+     * 首次进入分割车型且尚未配置时，自动打开分割配置界面
+     */
+    private void maybeAutoShowSplitEditor() {
+        if (!appConfig.isSplitChannelModel() || splitEditorAutoShown) {
+            return;
+        }
+        if (appConfig.hasSplitChannelConfig()) {
+            applySplitPreviewLayout();
+            return;
+        }
+        splitEditorAutoShown = true;
+        openSplitViewEditor();
+    }
+
+    /**
+     * 按分割配置调整四个预览画面的可见性与宽高比
+     */
+    private void applySplitPreviewLayout() {
+        if (!appConfig.isSplitChannelModel()) {
+            return;
+        }
+        SplitChannelConfig config = appConfig.getSplitChannelConfig();
+        AutoFitTextureView[] views = {textureFront, textureBack, textureLeft, textureRight};
+        String[] keys = {"front", "back", "left", "right"};
+
+        android.util.Size previewSize = null;
+        SingleCamera primary = cameraManager != null ? cameraManager.getCamera("front") : null;
+        if (primary != null) {
+            previewSize = primary.getPreviewSize();
+        }
+
+        for (int i = 0; i < keys.length; i++) {
+            AutoFitTextureView view = views[i];
+            if (view == null) {
+                continue;
+            }
+            SplitChannelConfig.Region region = config != null ? config.getRegion(keys[i]) : null;
+            View parent = (View) view.getParent();
+            if (parent != null) {
+                parent.setVisibility(region != null ? View.VISIBLE : View.INVISIBLE);
+            }
+            if (region != null && previewSize != null) {
+                int[] crop = region.cropPixels(previewSize.getWidth(), previewSize.getHeight());
+                view.setAspectRatio(crop[2], crop[3]);
+                // 高度铺满：等比放大填满画面容器，超出部分居中裁切
+                view.setFillContainer(true);
+            }
+        }
+        updateCameraLabels();
     }
 
     /**
@@ -2351,6 +2466,20 @@ public class MainActivity extends AppCompatActivity {
             AppLog.d(TAG, "复用后台已初始化的摄像头管理器，绑定 TextureView");
             cameraManager = existingManager;
 
+            // 单通道分割车型：把复用的管理器切换到单通道分割模式
+            if (appConfig.isSplitChannelModel()) {
+                try {
+                    CameraManager cm = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+                    String physicalId = resolveSplitPhysicalCameraId(cm.getCameraIdList());
+                    cameraManager.configureSplitChannel(physicalId,
+                            textureFront, textureBack, textureLeft, textureRight);
+                    cameraManager.setCodecRecordingMode(true);
+                    AppLog.d(TAG, "复用管理器已切换为单通道分割模式: " + physicalId);
+                } catch (Exception e) {
+                    AppLog.e(TAG, "切换单通道分割模式失败", e);
+                }
+            }
+
             // --- 补全后台初始化时缺失的回调 ---
             // 后台（BlindSpotService）初始化的 MultiCameraManager 没有设置 MainActivity 的回调，
             // 必须在此处设置，否则左右摄像头旋转变换、录制计时等功能不正常。
@@ -2466,6 +2595,9 @@ public class MainActivity extends AppCompatActivity {
                     if (textureView != null) {
                         applyPreviewSizeTransform(cameraKey, textureView, previewSize);
                     }
+                    if (appConfig.isSplitChannelModel()) {
+                        applySplitPreviewLayout();
+                    }
                 });
             });
 
@@ -2478,6 +2610,9 @@ public class MainActivity extends AppCompatActivity {
 
             // 手动触发 previewSizeCallback（摄像头可能已在补盲阶段打开并确定了预览尺寸）
             cameraManager.firePreviewSizeCallbacks();
+
+            // 单通道分割：首次进入时弹出分割配置
+            new android.os.Handler(getMainLooper()).postDelayed(this::maybeAutoShowSplitEditor, 2000);
 
             // 初始化亮度/降噪调节管理器
             imageAdjustManager = new ImageAdjustManager(this);
@@ -2625,6 +2760,9 @@ public class MainActivity extends AppCompatActivity {
                 if (textureView != null) {
                     applyPreviewSizeTransform(cameraKey, textureView, previewSize);
                 }
+                if (appConfig.isSplitChannelModel()) {
+                    applySplitPreviewLayout();
+                }
             });
         });
 
@@ -2745,6 +2883,9 @@ public class MainActivity extends AppCompatActivity {
                 } else if (AppConfig.CAR_MODEL_XINGHAN_7.equals(carModel)) {
                     // 26款星舰7：使用固定映射（前3后2左4右1）
                     initCamerasForXinghan7(cameraIds);
+                } else if (AppConfig.CAR_MODEL_XINGJIAN_7_25.equals(carModel)) {
+                    // 25款星舰7：单通道分割
+                    initCamerasForSplitChannel(cameraIds);
                 } else if (AppConfig.CAR_MODEL_GALAXY_A7.equals(carModel)) {
                     // 银河A7：沿用银河E5固定映射
                     initCamerasForGalaxyE5(cameraIds);
@@ -2765,6 +2906,9 @@ public class MainActivity extends AppCompatActivity {
 
                 // 打开所有摄像头
                 cameraManager.openAllCameras();
+
+                // 单通道分割：首次进入时弹出分割配置
+                new android.os.Handler(getMainLooper()).postDelayed(this::maybeAutoShowSplitEditor, 2000);
                 
                 // 注册摄像头到亮度/降噪调节管理器
                 registerCamerasToImageAdjustManager();
@@ -2903,6 +3047,39 @@ public class MainActivity extends AppCompatActivity {
         } else {
             Toast.makeText(this, "没有可用的摄像头", Toast.LENGTH_SHORT).show();
         }
+    }
+    
+    /**
+     * 25款星舰7：单通道分割。
+     * 4 路画面由车机合并为一路输出，使用同一个物理摄像头，按用户框选区域分发。
+     */
+    private void initCamerasForSplitChannel(String[] cameraIds) {
+        if (cameraIds.length == 0) {
+            Toast.makeText(this, "没有可用的摄像头", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String physicalId = resolveSplitPhysicalCameraId(cameraIds);
+        AppLog.d(TAG, "单通道分割：物理摄像头=" + physicalId);
+        cameraManager.setSplitChannelMode(true);
+        cameraManager.initSplitCamera(physicalId, textureFront, textureBack, textureLeft, textureRight);
+    }
+
+    /**
+     * 解析单通道分割使用的物理摄像头 ID（配置无效时回退到第一个可用摄像头）
+     */
+    private String resolveSplitPhysicalCameraId(String[] cameraIds) {
+        String saved = appConfig.getSplitPhysicalCameraId();
+        if (cameraIds != null) {
+            for (String id : cameraIds) {
+                if (id.equals(saved)) {
+                    return saved;
+                }
+            }
+            if (cameraIds.length > 0) {
+                return cameraIds[0];
+            }
+        }
+        return saved;
     }
     
     /**
@@ -3077,6 +3254,19 @@ public class MainActivity extends AppCompatActivity {
      */
     private void applyPreviewSizeTransform(String cameraKey, AutoFitTextureView textureView, android.util.Size previewSize) {
         String carModel = appConfig.getCarModel();
+
+        // 单通道分割：每个画面显示的是整幅画面的子区域，宽高比按区域计算，不做旋转/镜像
+        if (appConfig.isSplitChannelModel()) {
+            SplitChannelConfig.Region region = appConfig.getSplitRegion(cameraKey);
+            if (region != null) {
+                int[] crop = region.cropPixels(previewSize.getWidth(), previewSize.getHeight());
+                textureView.setAspectRatio(crop[2], crop[3]);
+                // 高度铺满，超出部分裁切
+                textureView.setFillContainer(true);
+                AppLog.d(TAG, "分割画面 " + cameraKey + " 宽高比: " + crop[2] + "x" + crop[3]);
+            }
+            return;
+        }
 
         if (appConfig.needsCustomLayoutManager()) {
             textureView.setAspectRatio(previewSize.getWidth(), previewSize.getHeight());

@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#000000">
+
+    <!-- 顶部说明与通道切换 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="12dp"
+        android:background="#99000000">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="摄像头通道"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp" />
+
+        <Spinner
+            android:id="@+id/split_editor_camera_spinner"
+            android:layout_width="200dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="8dp"
+            android:background="#33FFFFFF"
+            android:popupBackground="#FF1E1E1E" />
+
+        <TextView
+            android:id="@+id/split_editor_hint"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="16dp"
+            android:text="画面高度铺满，可左右拖动查看；切换到画框模式后拖动画框"
+            android:textColor="#FFE0E0E0"
+            android:textSize="15sp" />
+    </LinearLayout>
+
+    <!-- 长画面区域：高度铺满，可横向平移 -->
+    <HorizontalScrollView
+        android:id="@+id/split_editor_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="horizontal"
+        android:background="#000000">
+
+        <FrameLayout
+            android:id="@+id/split_editor_content"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent">
+
+            <TextureView
+                android:id="@+id/split_editor_texture"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <com.kooo.evcam.SplitViewEditorView
+                android:id="@+id/split_editor_canvas"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+        </FrameLayout>
+    </HorizontalScrollView>
+
+    <!-- 底部操作栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="10dp"
+        android:background="#99000000">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_split_pan"
+                android:layout_width="0dp"
+                android:layout_height="54dp"
+                android:layout_weight="1"
+                android:text="平移画面"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/btn_split_quad"
+                android:layout_width="0dp"
+                android:layout_height="54dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="四等分"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/btn_split_add"
+                android:layout_width="0dp"
+                android:layout_height="54dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="新增区域"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/btn_split_edit"
+                android:layout_width="0dp"
+                android:layout_height="54dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="编号/备注"
+                android:textSize="15sp"
+                android:enabled="false" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_split_delete"
+                android:layout_width="0dp"
+                android:layout_height="58dp"
+                android:layout_weight="1"
+                android:text="删除"
+                android:textSize="16sp"
+                android:enabled="false" />
+
+            <Button
+                android:id="@+id/btn_split_cancel"
+                android:layout_width="0dp"
+                android:layout_height="58dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="取消"
+                android:textSize="16sp" />
+
+            <Button
+                android:id="@+id/btn_split_save"
+                android:layout_width="0dp"
+                android:layout_height="58dp"
+                android:layout_weight="2"
+                android:layout_marginStart="8dp"
+                android:text="保存分割配置"
+                android:textSize="17sp" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>
